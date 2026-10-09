@@ -1,0 +1,102 @@
+.application {
+  --page: #fff; --surface: #f7f9fc; --text: #273852; --muted: #63748e; --border: #dce4ef;
+  --accent: #235bca; --accent-fill: #2b67e8; --hover: #e9f1fe; --selection: #cdddff;
+  --code-bg: #f3f5fa; --code-text: #273852; --keyword: #8742b5; --string: #196b48;
+  --number: #a65319; --comment: #687d86; --title: #235bca; --attribute: #986200;
+  color: var(--text); background: var(--page); color-scheme: light;
+  height: 100vh; min-height: 540px; display: flex; flex-direction: column; overflow: hidden;
+}
+.application[data-theme=dark] {
+  --page: #182130; --surface: #202c3e; --text: #dce6f5; --muted: #a1b2c9; --border: #3a4a60;
+  --accent: #91b8ff; --accent-fill: #365eb1; --hover: #2c3d58; --selection: #39557b;
+  --code-bg: #111a27; --code-text: #dce6f5; --keyword: #d7a8f6; --string: #91d7a4;
+  --number: #f4bb80; --comment: #9baec2; --title: #8dbbff; --attribute: #e7d58b;
+  color-scheme: dark;
+}
+.application[data-theme=paper] {
+  --page: #faf4e8; --surface: #f1e8d8; --text: #4e4234; --muted: #7a6b58; --border: #d7c9b3;
+  --accent: #8b5224; --accent-fill: #94602f; --hover: #eee0ca; --selection: #e7d0aa;
+  --code-bg: #f0e7d7; --code-text: #4e4234; --keyword: #874a79; --string: #437340;
+  --number: #995122; --comment: #7a7060; --title: #426b8c; --attribute: #926700;
+}
+.application[data-theme=forest] {
+  --page: #eaf2e7; --surface: #dfebdb; --text: #2f4935; --muted: #5b7260; --border: #bfd0bc;
+  --accent: #2d6b46; --accent-fill: #377550; --hover: #d5e5cf; --selection: #b9d5b2;
+  --code-bg: #dce8d8; --code-text: #2f4935; --keyword: #80548b; --string: #27653a;
+  --number: #955526; --comment: #627464; --title: #286b85; --attribute: #88651c;
+}
+.document-strip { display: flex; align-items: center; gap: 12px; flex: 0 0 40px; padding: 0 0 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); user-select: none; }
+.document-strip[hidden] { display: none; }
+.titlebar-drag { width: 48px; height: 40px; flex-shrink: 0; }
+.window-controls { display: flex; align-self: stretch; flex-shrink: 0; }
+.window-controls button { width: 46px; display: grid; place-items: center; background: transparent; color: var(--text); }
+.window-controls button:hover { background: var(--hover); }
+.window-controls .window-close:hover { background: #c42b3b; color: #fff; }
+.window-controls svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.2; }
+.style-menu { position: relative; }
+.file-menu .style-menu-trigger { display: flex; align-items: center; justify-content: space-between; }
+.theme-submenu { position: absolute; left: calc(100% + 10px); top: -6px; width: 176px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); box-shadow: 0 6px 20px #10213d22; }
+.file-menu [aria-checked=true] { color: var(--accent); background: var(--hover); }
+.app-menu { position: relative; flex-shrink: 0; }
+.app-menu-trigger { width: 32px; height: 30px; font-size: 12px; letter-spacing: -.5px; }
+.file-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 9; width: 230px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); box-shadow: 0 8px 28px #10213d33; }
+.file-menu button { display: block; width: 100%; padding: 10px 12px; text-align: left; font-size: 13px; background: transparent; border-radius: 4px; }
+.file-menu button:hover:not(:disabled), .file-menu button:focus-visible { background: var(--hover); color: var(--accent); }
+.menu-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+.document-tablist { display: flex; align-items: stretch; min-width: 0; flex: 1; overflow-x: auto; }
+.document-tablist { height: 40px; overflow-y: hidden; overscroll-behavior: contain; }
+.document-tablist::-webkit-scrollbar { height: 3px; }
+.document-tablist::-webkit-scrollbar-track { background: transparent; }
+.document-tablist::-webkit-scrollbar-thumb { background: transparent; border-radius: 3px; }
+.document-strip:hover .document-tablist::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 24%, transparent); }
+@supports not selector(::-webkit-scrollbar) {
+  .document-tablist { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+  .document-strip:hover .document-tablist { scrollbar-color: color-mix(in srgb, var(--muted) 24%, transparent) transparent; }
+}
+.close-dialog { width: min(660px, 95vw); }
+.close-dialog .panel-actions { flex-wrap: wrap; }
+.close-dialog .panel-actions button { white-space: nowrap; font-size: 12px; }
+.application .panel-actions .discard-button { color: #b02b3b; }
+.application[data-theme=dark] .panel-actions .discard-button { color: #ff9ba6; }
+.document-tab { display: flex; align-items: center; flex-shrink: 0; border-bottom: 2px solid transparent; }
+.document-tab.active { background: var(--page); border-bottom-color: var(--accent); }
+.document-tab button { background: transparent; padding: 9px 12px; font-size: 12px; }
+.document-tab button[role=tab] { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-tab .tab-close { margin: 0; padding: 6px 8px; color: var(--muted); }
+.document-tab button:hover, .new-document:hover { background: var(--hover); }
+.new-document { background: transparent; padding: 6px 12px; }
+.document-panel { flex: 1; min-height: 0; overflow: hidden; }
+.document-panel[hidden] { display: none; }
+.document-panel .app-shell { height: 100%; min-height: 0; }
+.application .app-shell, .application .editor-area, .application .preview, .application .cm-editor { background: var(--page); color: var(--text); }
+.application .topbar, .application .sidebar, .application .cm-gutters { background: var(--surface); color: var(--muted); }
+.application :is(.toolbar, .topbar, .sidebar, .statusbar, .view-switcher, .codemirror-host, .preview, .cm-gutters, .outline, .sidebar-footer) { border-color: var(--border); }
+.application :is(.breadcrumb, .statusbar, .code-language, .toolbar-hint, .outline-empty, .view-tabs button, .outline-item, .sidebar-label, .file-row, .quick-row, .focus-button) { color: var(--muted); }
+.application :is(.preview h1, .preview h2, .sidebar-heading h2, .outline-empty strong, .outline-item.level-1, .toolbar button, .panel-title strong) { color: var(--text); }
+.application :is(input:not([type=checkbox]), select, .image-dialog, .close-dialog, .image-panel, .panel-actions button, .restore-button, .recovery-banner button) { background: var(--page); color: var(--text); border-color: var(--border); }
+.application :is(.close-dialog p, .field-label, .check-field, .crop-fields label, .size-fields label, .image-crop-stage p, .panel-note, .panel-title span, .zoom-row, .image-dialog .panel-actions span) { color: var(--muted); }
+.application :is(.file-actions button:hover, .pane-actions button:hover, .toolbar button:hover, .file-row:hover, .quick-row:hover, .outline-item:hover, .pane-actions button[aria-expanded=true], .file-row.active, .recovery-banner, .transform-buttons button, .ratio-picker button.selected) { background: var(--hover); color: var(--accent); }
+.application :is(.view-tabs button.selected, .panel-tabs button.selected) { color: var(--accent); border-bottom-color: var(--accent); }
+.application :is(.primary-button, .brand-mark, .panel-actions .apply-button) { background: var(--accent-fill); color: #fff; }
+.application .preview blockquote { background: var(--surface); color: var(--muted); border-left-color: var(--accent); }
+.application .preview code { background: var(--surface); }
+.application .preview pre { background: var(--code-bg); color: var(--code-text); }
+.application .preview pre code { background: transparent; }
+.application .preview table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1em 0; }
+.application .preview :is(th, td) { border: 1px solid var(--muted); padding: 8px 12px; min-width: 80px; }
+.application .preview th { background: var(--surface); font-weight: 600; }
+.application .preview tbody tr:nth-child(even) { background: var(--surface); }
+.application .cm-activeLine, .application .cm-activeLineGutter { background: var(--surface); }
+.application .cm-cursor { border-left-color: var(--text); }
+.application .cm-selectionBackground, .application .cm-editor.cm-focused .cm-selectionBackground { background: var(--selection); }
+.application ::selection { background: var(--selection); }
+.syntax-keyword, .hljs-keyword, .hljs-selector-tag, .hljs-literal { color: var(--keyword); }
+.syntax-string, .hljs-string, .hljs-regexp, .hljs-addition { color: var(--string); }
+.syntax-number, .hljs-number, .hljs-symbol, .hljs-bullet { color: var(--number); }
+.syntax-comment, .hljs-comment, .hljs-quote { color: var(--comment); font-style: italic; }
+.syntax-title, .hljs-title, .hljs-built_in, .hljs-type { color: var(--title); }
+.syntax-attribute, .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-meta { color: var(--attribute); }
+.syntax-heading, .hljs-section { color: var(--accent); font-weight: bold; }
+.hljs-emphasis { font-style: italic; }.hljs-strong { font-weight: bold; }
+.global-error { background: #fff1f2; color: #922936; padding: 8px 16px; font-size: 13px; }
+.global-error button { float: right; background: transparent; }

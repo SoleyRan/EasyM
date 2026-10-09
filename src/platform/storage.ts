@@ -9,6 +9,10 @@ export interface OpenedFile { id: string | null; name: string; bytes: Uint8Array
 export interface SavedFile { id: string | null; name: string; revision: string | null; destination: 'disk' | 'download'; warning?: string }
 export const desktop = isTauri()
 
+export async function releaseDocument(id: string | null): Promise<void> {
+  if (desktop && id) await invoke('close_document', { id })
+}
+
 export async function openDocument(): Promise<OpenedFile | null> {
   if (desktop) {
     const file = await invoke<(Omit<OpenedFile, 'bytes'> & { bytes: number[] }) | null>('open_document')
@@ -48,6 +52,7 @@ export async function saveDocument(file: { id: string | null; name: string; revi
       id: file.id, name: file.name, expectedRevision: file.revision, bytes: Array.from(bytes), saveAs,
       assets, metadata: { schemaVersion: 1, instances: resources?.instances ?? [] }, operationId,
     })
+    if (saved && file.id && saved.id !== file.id) void releaseDocument(file.id).catch(() => undefined)
     return saved ? { ...saved, destination: 'disk' } : null
   }
   const assetEntries = Object.entries(resources?.assets ?? {})

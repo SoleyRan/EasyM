@@ -28,13 +28,21 @@ fn read_text(path: &Path) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+#[tauri::command]
+pub fn close_document(state: State<'_, Storage>, id: String) -> Result<(), String> {
+    state.0.lock().map_err(|_| "io_failed")?.remove(&id);
+    Ok(())
+}
+
 pub(crate) fn open_path(storage: &Storage, path: PathBuf) -> Result<OpenedFile, String> {
+    let path = path.canonicalize().map_err(|_| "resource_missing")?;
     let bytes = read_text(&path)?;
-    let id = uuid::Uuid::new_v4().to_string();
+    let mut sessions = storage.0.lock().map_err(|_| "io_failed")?;
+    let id = sessions.iter().find(|(_, existing)| **existing == path).map(|(id, _)| id.clone()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let recovery = transaction::recover(&path);
     let (metadata, warning) = read_metadata(path.parent().ok_or("invalid_data")?);
     let result = OpenedFile { id: id.clone(), name: name(&path), revision: hash(&bytes), bytes, metadata, warning: recovery.or(warning) };
-    storage.0.lock().map_err(|_| "io_failed")?.insert(id, path);
+    sessions.insert(id, path);
     Ok(result)
 }
 
@@ -72,7 +80,9 @@ pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: 
             let path = parent.join(path.file_name().ok_or("invalid_data")?);
             if fs::symlink_metadata(&path).map(|m| m.file_type().is_symlink()).unwrap_or(false) { return Err("permission_denied".into()); }
             let expected = if path.exists() { Some(hash(&read_text(&path)?)) } else { None };
-            (uuid::Uuid::new_v4().to_string(), path, expected)
+            if sessions.iter().any(|(existing_id, existing_path)| *existing_path == path && Some(existing_id) != id.as_ref()) { return Err("document_already_open".into()); }
+            let session_id = sessions.iter().find(|(_, existing_path)| **existing_path == path).map(|(existing_id, _)| existing_id.clone()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            (session_id, path, expected)
         } else {
             let session_id = id.ok_or("invalid_data")?;
             let path = sessions.get(&session_id).ok_or("permission_denied")?.clone();
@@ -85,6 +95,24 @@ pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: 
         sessions.insert(session_id, path);
         Ok(Some(result))
     }).await.map_err(|_| "io_failed".to_string())?
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn repeated_open_reuses_document_identity() {
+        let root = std::env::temp_dir().join(format!("easym-tabs-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&root).unwrap();
+        let first_path = root.join("one.md"); let second_path = root.join("two.md");
+        fs::write(&first_path, b"one").unwrap(); fs::write(&second_path, b"two").unwrap();
+        let storage = Storage::default();
+        let first = open_path(&storage, first_path.clone()).unwrap();
+        let repeated = open_path(&storage, first_path).unwrap();
+        let second = open_path(&storage, second_path).unwrap();
+        assert_eq!(first.id, repeated.id); assert_ne!(first.id, second.id);
+        fs::remove_dir_all(root).unwrap();
+    }
 }
 
 #[tauri::command]

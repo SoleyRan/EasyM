@@ -4,7 +4,9 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } f
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
+import { HighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
+import { languages } from '@codemirror/language-data'
+import { tags } from '@lezer/highlight'
 import type { FencedBlock } from '../core/code-block'
 import type { TextPatch, Selection } from '../core/document'
 import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '../platform/workspace'
@@ -18,7 +20,20 @@ export interface EditorHandle {
   redo(): void
   composing(): boolean
   fencedCode(): FencedBlock | null
+  scrollToSource(offset: number, ratio: number): void
 }
+
+const tokenStyle = HighlightStyle.define([
+  { tag: tags.keyword, class: 'syntax-keyword' },
+  { tag: [tags.string, tags.special(tags.string)], class: 'syntax-string' },
+  { tag: [tags.number, tags.bool, tags.null], class: 'syntax-number' },
+  { tag: tags.comment, class: 'syntax-comment' },
+  { tag: [tags.function(tags.variableName), tags.typeName, tags.className], class: 'syntax-title' },
+  { tag: [tags.propertyName, tags.attributeName], class: 'syntax-attribute' },
+  { tag: tags.heading, class: 'syntax-heading' },
+  { tag: tags.strong, fontWeight: 'bold' }, { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.link, textDecoration: 'underline' },
+])
 
 export interface SourceScroll { offset: number; fraction: number; ratio: number }
 function fencedCode(editor: EditorView): FencedBlock | null {
@@ -52,11 +67,25 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
       const editor = view.current
       if (!editor) return
       const pos = Math.min(Math.max(offset, 0), editor.state.doc.length)
-      editor.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'center' }) })
+      editor.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 8 }) })
       editor.focus()
     },
     undo: () => { if (view.current && !view.current.composing) undo(view.current) },
     redo: () => { if (view.current && !view.current.composing) redo(view.current) },
+    scrollToSource: (offset, ratio) => {
+      const v = view.current
+      if (!v) return
+      v.requestMeasure({
+        read: () => {
+          const position = Math.min(v.state.doc.length, Math.max(0, Math.floor(offset)))
+          const line = v.state.doc.lineAt(position)
+          const block = v.lineBlockAt(position)
+          const range = v.scrollDOM.scrollHeight - v.scrollDOM.clientHeight
+          return ratio <= .001 ? 0 : ratio >= .999 ? range : block.top + (offset - line.from) / (line.length + 1) * block.height + v.documentTop - v.scrollDOM.getBoundingClientRect().top + v.scrollDOM.scrollTop
+        },
+        write: (top) => { v.scrollDOM.scrollTop = Math.max(0, top) },
+      })
+    },
   }), [])
 
   useEffect(() => {
@@ -66,7 +95,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
         doc: initialText,
         extensions: [
           lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
-          markdown(), syntaxHighlighting(defaultHighlightStyle),
+          markdown({ codeLanguages: languages }), syntaxHighlighting(tokenStyle),
           keymap.of([{ key: 'Mod-s', run: (v) => { if (!v.composing) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap]),
           keymap.of([['Mod-b', 'bold'], ['Mod-i', 'italic'], ['Mod-k', 'link'], ['Mod-Shift-h', 'heading'], ['Mod-Shift-u', 'bullet'], ['Mod-Shift-o', 'ordered'], ['Mod-Shift-t', 'task'], ['Mod-Shift-q', 'quote'], ['Mod-Shift-c', 'code'], ['Mod-Shift-p', 'image']].map(([key, kind]) => ({ key, run: (v: EditorView) => { if (!v.composing) callbacks.current.onCommand(kind); return true } }))),
           EditorView.domEventHandlers({
@@ -111,6 +140,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
       }),
     })
     view.current = editor
+    callbacks.current.onCodeLanguage?.(fencedCode(editor)?.language ?? null)
     return () => { editor.destroy(); view.current = null }
   }, [])
   return <div ref={host} className="codemirror-host" />

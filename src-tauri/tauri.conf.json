@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Easy Markdown",
+  "productName": "EasyM",
   "version": "0.1.0",
   "identifier": "com.easym.markdown",
   "build": {
@@ -10,16 +10,19 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{
-      "title": "Easy Markdown",
-      "width": 1440,
-      "height": 900,
-      "minWidth": 960,
-      "minHeight": 680,
-      "resizable": true,
-      "dragDropEnabled": false,
-      "fullscreen": false
-    }],
+    "windows": [
+      {
+        "title": "EasyM",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 680,
+        "resizable": true,
+        "dragDropEnabled": false,
+        "fullscreen": false,
+        "decorations": false
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost",
       "devCsp": "default-src 'self'; img-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost ws://127.0.0.1:1420"

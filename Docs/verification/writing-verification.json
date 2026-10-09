@@ -1,16 +1,170 @@
 {
-  "verifiedAt": "2026-10-09T06:43:25.616Z",
+  "verifiedAt": "2026-10-09T12:39:28.726Z",
   "browser": "154.0.4258.62",
   "checks": [
-    "code contrast",
+    "code contrast and language-specific source/preview highlighting",
     "language insertion/change/removal and undo/redo",
-    "source scroll sync at middle/top/bottom",
-    "resize and new document scroll reset",
-    "1440/960 writing area and optional outline"
+    "bidirectional scrolling at middle/top/bottom without caret movement or feedback",
+    "resize and tab scroll retention",
+    "multiple files, independent edits and undo histories, draft restart recovery",
+    "four themes through EM menu and persistent preference",
+    "1440/960 writing area and optional outline",
+    "outline jumps both panes after preview scrolling and repeated selection",
+    "both sidebar pointer resizing and width persistence",
+    "long filename ellipsis",
+    "EM file menu and wheel navigation of overflowing tabs",
+    "discard dirty tab without saving",
+    "untouched new tab closes without confirmation",
+    "3px tab scrollbar transparent until hover without layout shift",
+    "Style submenu opens only on click to the right",
+    "save header removed; hideable formatting toolbar and persistent visibility",
+    "file panel remains open on import into a new tab",
+    "visible table cell borders and column alignment in all four themes",
+    "fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention"
   ],
   "styles": {
-    "color": "rgb(228, 237, 255)",
+    "color": "rgb(39, 56, 82)",
     "background": "rgba(0, 0, 0, 0)",
-    "parentColor": "rgb(228, 237, 255)"
-  }
+    "parentColor": "rgb(39, 56, 82)"
+  },
+  "themeColors": [
+    "rgb(255, 255, 255)",
+    "rgb(24, 33, 48)",
+    "rgb(250, 244, 232)",
+    "rgb(234, 242, 231)"
+  ],
+  "tableBorders": [
+    {
+      "theme": "light",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(255, 255, 255)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(255, 255, 255)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(255, 255, 255)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(24, 33, 48)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(24, 33, 48)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(24, 33, 48)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(24, 33, 48)"
+        }
+      ]
+    },
+    {
+      "theme": "paper",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(250, 244, 232)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(250, 244, 232)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(250, 244, 232)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(250, 244, 232)"
+        }
+      ]
+    },
+    {
+      "theme": "forest",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(234, 242, 231)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(234, 242, 231)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(234, 242, 231)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(234, 242, 231)"
+        }
+      ]
+    }
+  ]
 }

@@ -4,7 +4,18 @@ import { drafts, type Draft } from './drafts'
 import { blankSnapshot } from '../core/codec'
 import { defaultRecipe } from '../core/images'
 
-beforeEach(async () => { await drafts.clear() })
+beforeEach(async () => { for (const key of await drafts.keys()) await drafts.clear(key) })
+
+it('isolates legacy and multiple document drafts when saving or clearing one', async () => {
+  const draft: Draft = { version: 1, name: 'note.md', text: 'legacy', snapshot: blankSnapshot(), updatedAt: 1 }
+  await drafts.save(draft)
+  await drafts.save({ ...draft, text: 'one' }, 'document:one')
+  await drafts.save({ ...draft, text: 'two' }, 'document:two')
+  await drafts.clear('document:one')
+  expect(await drafts.keys()).toEqual(['current', 'document:two'])
+  expect((await drafts.load())?.text).toBe('legacy')
+  expect((await drafts.load('document:two'))?.text).toBe('two')
+})
 
 it('persists unapplied image pixels, crop, rotation, alt and source selection for restart', async () => {
   const source = new Blob(['immutable source'], { type: 'image/png' })

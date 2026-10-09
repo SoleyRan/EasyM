@@ -37,11 +37,12 @@ async function access(mode: IDBTransactionMode, action: (store: IDBObjectStore) 
 }
 
 export const drafts = {
-  load: async (): Promise<Draft | undefined> => {
-    const draft = await access('readonly', (store) => store.get('current')) as Draft | undefined
+  keys: async (): Promise<string[]> => await access('readonly', (store) => store.getAllKeys()) as string[],
+  load: async (key = 'current'): Promise<Draft | undefined> => {
+    const draft = await access('readonly', (store) => store.get(key)) as Draft | undefined
     if (draft && draft.version !== 1) throw new Error('草稿格式不兼容，已保留原数据。')
     return draft
   },
-  save: (draft: Draft): Promise<unknown> => access('readwrite', (store) => store.put(draft, 'current')),
-  clear: (): Promise<unknown> => access('readwrite', (store) => store.delete('current')),
+  save: (draft: Draft, key = 'current'): Promise<unknown> => access('readwrite', (store) => store.put(draft, key)),
+  clear: (key = 'current'): Promise<unknown> => access('readwrite', (store) => store.delete(key)),
 }

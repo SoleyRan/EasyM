@@ -1,452 +1,217 @@
-import { useEffect, useRef, useState } from 'react'
-import { prefixLines, replaceSelection, wrapSelection } from './core/document'
-import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from './core/codec'
-import { parseDocument } from './core/markdown'
-import { Editor, type EditorHandle, type SourceScroll } from './editor/Editor'
-import { codeBlockCommand } from './core/code-block'
-import { desktop, openDocument, saveDocument, readImage, reloadDocument, materializeResources } from './platform/storage'
-import { drafts, type Draft } from './platform/drafts'
-import { ImagePanel } from './editor/ImagePanel'
-import { useImages } from './editor/useImages'
-import { emptyResources } from './platform/images'
-import { listenForClose, closeWindow } from './platform/window'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import DocumentEditor, { type DocumentHandle, type DocumentSummary, type FileAction } from './editor/DocumentEditor'
 import { CloseDialog } from './editor/CloseDialog'
-import { usePreview } from './editor/usePreview'
-import { WorkspaceTree } from './editor/WorkspaceTree'
-import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, type Workspace, type WorkspaceImage } from './platform/workspace'
-import type { OpenedFile } from './platform/storage'
-import { readClipboardImageFiles } from './platform/clipboard'
+import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
+import { drafts } from './platform/drafts'
+import { releaseDocument, type OpenedFile } from './platform/storage'
+import type { Workspace } from './platform/workspace'
+import { desktop } from './platform/storage'
 
-type ViewMode = 'source' | 'split'
-type Command = 'bold' | 'italic' | 'quote' | 'bullet' | 'task' | 'heading' | 'ordered' | 'code' | 'link'
-const initialText = '# 欢迎使用 EasyM\n\n本地优先的 Markdown 编辑器。\n\n## 开始写作\n\n使用顶部「打开文件」导入 Markdown，或创建新文档。使用「分屏」查看预览，点击「大纲」跳转到标题。\n\n- 使用工具栏或快捷键修改当前选区\n- 粘贴、拖入或选择 PNG/JPEG 图片\n- 双击预览图片，编辑当前图片的副本\n\n> 编辑后记得保存；再次打开时可恢复未完成的草稿。'
-
-function errorMessage(error: unknown): string {
-  const value = error instanceof Error ? error.message : String(error)
-  const labels: Record<string, string> = {
-    revision_conflict: '文件已被外部修改。请重新打开外部版本，或将本地内容另存为冲突副本。',
-    permission_denied: '没有文件访问权限，请重新选择文件。',
-    quota_exceeded: '文件超过当前资源限制，请缩小文件后重试。',
-    resource_missing: '文件或资源已被移动，请重新选择。',
-    io_failed: '写入失败，本地编辑和草稿仍保留，请重试或另存。',
-    clipboard_busy: '剪贴板正在被其他程序使用，请稍后重新粘贴。',
-    multiple_clipboard_images: '请每次复制并粘贴一张 PNG/JPEG 图片。',
-  }
-  return labels[value] ?? value
-}
+interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null }
+const first: Tab = { id: 'current', draftKey: 'current' }
+const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }
+type Theme = keyof typeof themes
 
 export default function App() {
-  const [text, setText] = useState(initialText)
-  const [view, setView] = useState<ViewMode>('source')
-  const [name, setName] = useState('未命名.md')
-  const [fileId, setFileId] = useState<string | null>(null)
-  const [revision, setRevision] = useState<string | null>(null)
-  const [snapshot, setSnapshot] = useState<FileSnapshot>(blankSnapshot)
-  const [epoch, setEpoch] = useState(0)
-  const [dirty, setDirty] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState('准备就绪')
-  const [draftStatus, setDraftStatus] = useState('')
+  const [tabs, setTabs] = useState<Tab[]>([first])
+  const [active, setActive] = useState(first.id)
+  const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
+  const handles = useRef(new Map<string, DocumentHandle>())
+  const [closing, setClosing] = useState<string | 'window' | null>(null)
+  const [closeBusy, setCloseBusy] = useState(false)
   const [error, setError] = useState('')
-  const [pendingDraft, setPendingDraft] = useState<Draft | null>(null)
-  const [draftReady, setDraftReady] = useState(false)
-  const [focus, setFocus] = useState(false)
-  const [showFiles, setShowFiles] = useState(false)
-  const [showOutline, setShowOutline] = useState(false)
-  const [codeLanguage, setCodeLanguage] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [styleMenuOpen, setStyleMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
-  const [workspacePath, setWorkspacePath] = useState<string | null>(null)
-  const [treeRevision, setTreeRevision] = useState(0)
-  const [exitRequested, setExitRequested] = useState(false)
-  const [exitBusy, setExitBusy] = useState(false)
-  const editor = useRef<EditorHandle>(null)
-  const preview = useRef<HTMLElement>(null)
-  const sourceScroll = useRef<SourceScroll>({ offset: 0, fraction: 0, ratio: 0 })
-  const scrollAnchors = useRef<{ from: number; top: number }[] | null>(null)
-  const scrollFrame = useRef<number | null>(null)
-  const applyScroll = useRef<() => void>(() => undefined)
-  const changeRevision = useRef(0)
-  const saving = useRef(false)
-  const panelApplying = useRef(false)
-  const draftQueue = useRef(Promise.resolve<unknown>(undefined))
-  const draftTimer = useRef<number | undefined>(undefined)
-  const draftGeneration = useRef(0)
-  const flushDraft = useRef<() => void>(() => undefined)
-  const { parsed, parsedText } = usePreview(text, setError)
-  const imagePicker = useRef<HTMLInputElement>(null)
-  function syncPreview(position = sourceScroll.current, remeasure = false) {
-    sourceScroll.current = position
-    if (remeasure) scrollAnchors.current = null
-    if (scrollFrame.current === null) scrollFrame.current = requestAnimationFrame(() => {
-      scrollFrame.current = null
-      applyScroll.current()
-    })
-  }
-  applyScroll.current = () => {
-    const position = sourceScroll.current
-    const pane = preview.current
-    if (!pane || view !== 'split' || parsedText.current !== text) return
-    const max = Math.max(0, pane.scrollHeight - pane.clientHeight)
-    if (position.ratio >= .999) { pane.scrollTop = max; return }
-    if (position.ratio <= .001) { pane.scrollTop = 0; return }
-    const top = pane.getBoundingClientRect().top
-    const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
-      const node = element.hasAttribute('data-source-from') ? element as HTMLElement : element.querySelector<HTMLElement>('[data-source-from]')
-      return node ? { from: Number(node.dataset.sourceFrom), top: element.getBoundingClientRect().top - top + pane.scrollTop } : null
-    }).filter((item): item is { from: number; top: number } => item !== null)
-    scrollAnchors.current = anchors
-    const lineEnd = text.indexOf('\n', position.offset)
-    const offset = position.offset + position.fraction * ((lineEnd < 0 ? text.length : lineEnd) - position.offset + 1)
-    let previous = { from: 0, top: 0 }
-    let next = { from: text.length, top: pane.scrollHeight }
-    let low = 0, high = anchors.length
-    while (low < high) {
-      const middle = (low + high) >>> 1
-      if (anchors[middle].from <= offset) low = middle + 1
-      else high = middle
-    }
-    if (low > 0) previous = anchors[low - 1]
-    if (low < anchors.length) next = anchors[low]
-    const fraction = next.from > previous.from ? (offset - previous.from) / (next.from - previous.from) : 0
-    pane.scrollTop = Math.max(0, Math.min(max, previous.top + fraction * (next.top - previous.top)))
-  }
-  useEffect(() => {
-    syncPreview(sourceScroll.current, true)
-    const resize = () => syncPreview(sourceScroll.current, true)
-    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
-    if (preview.current) observer?.observe(preview.current)
-    window.addEventListener('resize', resize)
-    return () => {
-      observer?.disconnect()
-      window.removeEventListener('resize', resize)
-      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current)
-      scrollFrame.current = null
-    }
-  }, [view, parsed.html, showFiles, showOutline, focus])
-  function openedResources(body: string, instances = images.resources.instances) {
-    const paths = new Set(parseDocument(body).images.map((item) => item.url))
-    return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
-  }
-  const images = useImages({
-    text, fileId, blocked: busy || exitRequested || !!pendingDraft || !draftReady || !!editor.current?.composing(),
-    selection: () => editor.current?.selection() ?? { anchor: text.length, head: text.length },
-    patch: (from, to, insert) => editor.current?.patch([{ from, to, insert }]) ?? false,
-    error: setError,
-    persist: async (nextText, resources, operationId) => {
-      if (!desktop || !fileId) return
-      const mixed = snapshot.lineEnding === 'mixed' && nextText !== snapshot.originalText
-      if (mixed && !window.confirm('图片应用将保存正文，并将混合换行统一为 LF。是否继续？')) throw new Error('应用已取消，原版本仍保留。')
-      const bytes = encodeFile(snapshot, nextText, mixed ? 'lf' : undefined)
-      const result = await saveDocument({ id: fileId, name, revision }, bytes, false, resources, operationId)
-      if (!result) throw new Error('保存已取消，原版本仍保留。')
-      await clearDraft().catch((err) => setError(errorMessage(err)))
-      setRevision(result.revision); setSnapshot(decodeFile(bytes)); if (result.warning) setError(errorMessage(result.warning))
-    },
-    applied: () => { setView('split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
+  const [showFiles, setShowFiles] = useState(false)
+  const [reading, setReading] = useState(false)
+  const [windowBusy, setWindowBusy] = useState(false)
+  const [maximized, setMaximized] = useState(false)
+  const readingRef = useRef(false)
+  const windowOperation = useRef(false)
+  const previousFullscreen = useRef(false)
+  const [showToolbar, setShowToolbar] = useState(() => {
+    try { return localStorage.getItem('easym-toolbar') !== 'hidden' } catch { return true }
   })
-  const requestExit = useRef<() => void>(() => undefined)
-  requestExit.current = () => {
-    if (busy || images.busy || images.applying || panelApplying.current || !draftReady || exitBusy) {
-      setError('正在处理或保存，请等待完成后再关闭窗口。'); return
-    }
-    if (dirty || images.session) setExitRequested(true)
-    else void closeWindow().catch((err) => setError(errorMessage(err)))
-  }
-
-  useEffect(() => {
-    let disposed = false
-    let stop: (() => void) | undefined
-    listenForClose(() => requestExit.current()).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten })
-      .catch((err) => setError(`无法注册关闭保护：${errorMessage(err)}`))
-    return () => { disposed = true; stop?.() }
+  const menu = useRef<HTMLDivElement>(null)
+  const tablist = useRef<HTMLDivElement>(null)
+  const [theme, setTheme] = useState<Theme>(() => {
+    try { const stored = localStorage.getItem('easym-theme'); return stored && Object.hasOwn(themes, stored) ? stored as Theme : 'light' } catch { return 'light' }
+  })
+  const report = useCallback((id: string, summary: DocumentSummary, handle: DocumentHandle) => {
+    handles.current.set(id, handle)
+    setSummaries((previous) => JSON.stringify(previous[id]) === JSON.stringify(summary) ? previous : { ...previous, [id]: summary })
   }, [])
-
-  async function clearDraft() {
-    draftGeneration.current++
-    window.clearTimeout(draftTimer.current)
-    await draftQueue.current.catch(() => undefined)
-    await drafts.clear()
-    setDraftStatus('')
-  }
-
-  function enqueueDraft(): Promise<unknown> {
-    const generation = draftGeneration.current
-    const current: Draft = { version: 1, name, text, snapshot, resources: images.resources, imageSession: images.session, fileId, baseRevision: revision, updatedAt: Date.now() }
-    const hasLocalChanges = dirty || !!images.session
-    draftQueue.current = draftQueue.current.catch(() => undefined).then(async () => {
-      if (generation !== draftGeneration.current || !hasLocalChanges) return
-      let resourceError: unknown
-      try { current.resources = await materializeResources(fileId, current.resources ?? emptyResources()) } catch (err) { resourceError = err }
-      if (generation !== draftGeneration.current) return
-      await drafts.save(current)
-      if (resourceError) throw new Error(`正文草稿已保存，但图片副本不完整：${errorMessage(resourceError)}`)
-    })
-    return draftQueue.current
-  }
-
-  flushDraft.current = () => {
-    if (!draftReady || pendingDraft || (!dirty && !images.session) || images.busy || images.applying || panelApplying.current || busy || exitBusy) return
-    window.clearTimeout(draftTimer.current)
-    const version = changeRevision.current
-    void enqueueDraft().then(() => { if (version === changeRevision.current) setDraftStatus('草稿已保存') })
-      .catch((err) => { setDraftStatus('草稿保存失败'); setError(errorMessage(err)) })
-  }
-
-  useEffect(() => {
-    const flush = () => flushDraft.current()
-    const visibility = () => { if (document.visibilityState === 'hidden') flush() }
-    window.addEventListener('blur', flush)
-    document.addEventListener('visibilitychange', visibility)
-    return () => { window.removeEventListener('blur', flush); document.removeEventListener('visibilitychange', visibility) }
-  }, [])
-
-  async function finishExit(saveFile: boolean) {
-    if (exitBusy) return
-    setExitBusy(true); setError('')
-    window.clearTimeout(draftTimer.current)
+  async function toggleReading(next: boolean) {
+    if (windowOperation.current || next === readingRef.current) return
+    windowOperation.current = true; setWindowBusy(true); setMenuOpen(false)
     try {
-      if (saveFile) { if (!await save()) return }
-      else { await enqueueDraft(); setDraftStatus('草稿已保存') }
-      await closeWindow()
-    } catch (err) { setError(`退出已取消：${errorMessage(err)}`) }
-    finally { setExitBusy(false) }
+      if (next) {
+        previousFullscreen.current = (await windowState()).fullscreen
+        await setFullscreen(true)
+      } else await setFullscreen(previousFullscreen.current)
+      readingRef.current = next; setReading(next)
+    } catch (err) { setError(`切换阅读模式失败：${String(err)}`) }
+    finally { windowOperation.current = false; setWindowBusy(false) }
   }
-
+  const exitReading = useRef(() => undefined as void)
+  exitReading.current = () => { void toggleReading(false) }
+  useEffect(() => {
+    let disposed = false; let stop: (() => void) | undefined
+    const update = () => { void windowState().then((state) => {
+      if (disposed) return
+      setMaximized(state.maximized)
+      if (readingRef.current && !state.fullscreen && !windowOperation.current) { readingRef.current = false; setReading(false) }
+    }).catch((err) => { if (!disposed) setError(String(err)) }) }
+    update()
+    listenWindowState(update).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => { if (!disposed) setError(String(err)) })
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && readingRef.current) { event.preventDefault(); exitReading.current() }
+    }
+    window.addEventListener('keydown', escape)
+    return () => { disposed = true; stop?.(); window.removeEventListener('keydown', escape) }
+  }, [])
+  useEffect(() => { try { localStorage.setItem('easym-theme', theme) } catch { /* Theme remains usable without persistence. */ } }, [theme])
+  useEffect(() => { try { localStorage.setItem('easym-toolbar', showToolbar ? 'visible' : 'hidden') } catch { /* Visibility remains usable without persistence. */ } }, [showToolbar])
+  useEffect(() => {
+    if (!menuOpen) { setStyleMenuOpen(false); return }
+    menu.current?.querySelector<HTMLButtonElement>('[role^=menuitem]:not(:disabled)')?.focus()
+    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node)) setMenuOpen(false) }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [menuOpen])
+  useEffect(() => {
+    if (styleMenuOpen) menu.current?.querySelector<HTMLButtonElement>('[role=menuitemradio][aria-checked=true]')?.focus()
+  }, [styleMenuOpen])
+  useEffect(() => {
+    document.getElementById(`tab-${active}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+  }, [active])
   useEffect(() => {
     let alive = true
-    drafts.load().then((draft) => { if (alive && draft) setPendingDraft(draft) })
-      .catch((err) => { if (alive) setError(errorMessage(err)) })
-      .finally(() => { if (alive) setDraftReady(true) })
+    drafts.keys().then((keys) => {
+      if (alive) setTabs((previous) => [...previous, ...keys.filter((key) => key.startsWith('document:') && !previous.some((tab) => tab.draftKey === key)).map((key) => ({ id: key, draftKey: key }))])
+    }).catch((err) => setError(String(err)))
     return () => { alive = false }
   }, [])
-
-  useEffect(() => {
-    if (!draftReady || pendingDraft || (!dirty && !images.session) || images.applying) return
-    setDraftStatus('草稿待保存')
-    draftTimer.current = window.setTimeout(() => {
-      const version = changeRevision.current
-      enqueueDraft().then(() => { if (version === changeRevision.current) setDraftStatus('草稿已保存') })
-        .catch((err) => { setDraftStatus('草稿保存失败'); setError(errorMessage(err)) })
-    }, 700)
-    return () => window.clearTimeout(draftTimer.current)
-  }, [text, name, snapshot, dirty, draftReady, pendingDraft, images.resources, images.session, images.applying, fileId, revision])
-
-  useEffect(() => {
-    const handler = (event: BeforeUnloadEvent) => { if (!desktop && (dirty || images.session)) event.preventDefault() }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [dirty, images.session])
-
-  useEffect(() => {
-    if (!preview.current || view !== 'split') return
-    let alive = true
-    const urls: string[] = []
-    for (const image of preview.current.querySelectorAll<HTMLImageElement>('img[data-resource]')) {
-      const resource = image.dataset.resource ?? ''
-      image.removeAttribute('src')
-      if (images.resources.assets[resource]) {
-        const url = URL.createObjectURL(images.resources.assets[resource]); urls.push(url); image.src = url; continue
-      }
-      if (!desktop || !fileId || /^([a-z][a-z\d+.-]*:|[\\/])/i.test(resource)) {
-        image.alt = `${image.alt}（图片未加载；需要已授权的本地文件）`
-        continue
-      }
-      readImage(fileId, resource).then((url) => {
-        if (!alive) { URL.revokeObjectURL(url); return }
-        urls.push(url)
-        image.src = url
-      }).catch(() => { if (alive) image.alt += '（图片缺失或访问未授权）' })
+  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null) => {
+    if (nextWorkspace) setWorkspace(nextWorkspace)
+    if (file?.id) {
+      const existing = tabs.find((tab) => handles.current.get(tab.id)?.summary.fileId === file.id)
+      if (existing) { setActive(existing.id); return }
     }
-    return () => { alive = false; urls.forEach(URL.revokeObjectURL) }
-  }, [parsed.html, fileId, view, images.resources])
-
-  function changed(next: string) {
-    changeRevision.current++
-    setText(next)
-    setDirty(true)
-    setStatus('正文未保存')
+    const id = crypto.randomUUID()
+    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, path }])
+    setActive(id)
   }
-
-  function load(nextText: string, nextName: string, nextSnapshot: FileSnapshot, id: string | null, baseRevision: string | null, modified = false) {
-    sourceScroll.current = { offset: 0, fraction: 0, ratio: 0 }
-    scrollAnchors.current = null
-    draftGeneration.current++
-    changeRevision.current++
-    setText(nextText); setName(nextName); setSnapshot(nextSnapshot); setFileId(id); setRevision(baseRevision)
-    setEpoch((value) => value + 1); setDirty(modified); setError(''); setDraftStatus('')
-    setWorkspacePath(null)
-    setStatus(modified ? '恢复到草稿，请另存以保留原文件' : '文件已打开')
-    images.setResources(emptyResources()); images.setSession(null); parsedText.current = ''
+  const targetHandles = () => closing === 'window' ? tabs.map((tab) => handles.current.get(tab.id)).filter((handle): handle is DocumentHandle => !!handle) : closing ? [handles.current.get(closing)].filter((handle): handle is DocumentHandle => !!handle) : []
+  const remove = async (id: string, keepDraft: boolean) => {
+    const tab = tabs.find((tab) => tab.id === id)
+    if (!keepDraft && tab) await drafts.clear(tab.draftKey)
+    await releaseDocument(handles.current.get(id)?.summary.fileId ?? null)
+    handles.current.delete(id)
+    const remaining = tabs.filter((tab) => tab.id !== id)
+    if (remaining.length) { setTabs(remaining); if (active === id) setActive(remaining.at(-1)!.id) }
+    else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
-
-  function mayReplace(): boolean {
-    if (pendingDraft || !draftReady) return false
-    return !dirty || window.confirm('当前正文未写入文件。继续将替换当前编辑内容；请先保存或下载副本。')
+  const requestClose = (id: string | 'window') => {
+    const targets = id === 'window' ? [...handles.current.values()] : [handles.current.get(id)].filter((h): h is DocumentHandle => !!h)
+    if (closeBusy || targets.length !== (id === 'window' ? tabs.length : 1) || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
+    setError('')
+    if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id); return }
+    if (id === 'window') void closeWindow().catch((err) => setError(String(err)))
+    else void remove(id, false).catch((err) => setError(String(err)))
   }
-
-  async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null) {
-    if (busy || !mayReplace()) return
-    setBusy(true)
+  const closeRequest = useRef(() => undefined as void); closeRequest.current = () => requestClose('window')
+  useEffect(() => {
+    let disposed = false; let stop: (() => void) | undefined
+    listenForClose(() => closeRequest.current()).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => setError(String(err)))
+    return () => { disposed = true; stop?.() }
+  }, [])
+  async function finish(action: 'save' | 'retain' | 'discard') {
+    if (!closing || closeBusy) return
+    setCloseBusy(true); setError('')
     try {
-      const file = await read()
-      if (!file) return
-      const decoded = decodeFile(file.bytes)
-      await clearDraft()
-      load(decoded.text, file.name, decoded, file.id, file.revision)
-      setWorkspacePath(path)
-      images.setResources(openedResources(decoded.text, file.metadata?.instances ?? [])); if (file.warning && parseDocument(decoded.text).images.length) setError(errorMessage(file.warning))
-    } catch (err) { setError(errorMessage(err)) }
-    finally { setBusy(false) }
-  }
-
-  async function chooseWorkspace(refresh = false) {
-    if (disabled) return
-    setBusy(true)
-    try {
-      const next = refresh && workspace ? { ...workspace, entries: await listWorkspace(workspace.id) } : await openWorkspace()
-      if (next) { setWorkspace(next); setShowFiles(true); setWorkspacePath(null); setTreeRevision((value) => value + 1) }
-    } catch (err) { setError(errorMessage(err)) }
-    finally { setBusy(false) }
-  }
-
-  async function importWorkspaceImage(image: WorkspaceImage) {
-    if (disabled) return
-    await images.importFiles(async () => [await readWorkspaceImage(image)])
-  }
-
-  async function importClipboardImages() {
-    if (disabled) return
-    await images.importFiles(async () => {
-      try { return await readClipboardImageFiles() }
-      catch (err) { throw new Error(errorMessage(err)) }
-    })
-  }
-
-  async function reloadExternal() {
-    if (!desktop || !fileId || busy || !mayReplace()) return
-    setBusy(true); setError(''); setStatus('正在重新加载外部版本…')
-    try {
-      const file = await reloadDocument(fileId)
-      const decoded = decodeFile(file.bytes)
-      await clearDraft()
-      load(decoded.text, file.name, decoded, file.id, file.revision)
-      images.setResources(openedResources(decoded.text, file.metadata?.instances ?? []))
-      if (file.warning && parseDocument(decoded.text).images.length) setError(errorMessage(file.warning))
-    } catch (err) { setError(errorMessage(err)); setStatus('重新加载失败') }
-    finally { setBusy(false) }
-  }
-
-  async function save(saveAs = false): Promise<boolean> {
-    if (saving.current || pendingDraft || !draftReady || images.busy || images.session) return false
-    saving.current = true; setBusy(true); setError(''); setStatus('正在保存…')
-    const savingRevision = changeRevision.current
-    const savingText = text
-    try {
-      const mixed = snapshot.lineEnding === 'mixed' && text !== snapshot.originalText
-      if (mixed && !window.confirm('该文件混合使用 LF/CRLF。修改后需统一为 LF；是否继续保存？')) { setStatus('保存已取消'); return false }
-      const bytes = encodeFile(snapshot, savingText, mixed ? 'lf' : undefined)
-      const result = await saveDocument({ id: fileId, name, revision }, bytes, saveAs, images.resources)
-      if (!result) { setStatus('保存已取消'); return false }
-      setFileId(result.id); setName(result.name); setRevision(result.revision); setSnapshot(decodeFile(bytes))
-      if (result.warning) setError(errorMessage(result.warning))
-      if (savingRevision === changeRevision.current) {
-        if (result.destination === 'disk') {
-          setDirty(false)
-          await clearDraft()
-        }
-        setStatus(result.destination === 'disk' ? '文件已保存' : '已生成下载副本；确认下载完成后保留它')
-      } else setStatus('已保存上一版本，当前编辑尚未保存')
-      return result.destination === 'disk' && savingRevision === changeRevision.current
-    } catch (err) { setStatus('保存失败'); setError(errorMessage(err)); return false }
-    finally { saving.current = false; setBusy(false) }
-  }
-
-  function command(kind: Command) {
-    if (disabled || editor.current?.composing()) return
-    const selection = editor.current?.selection() ?? { anchor: 0, head: 0 }
-    const current = changeRevision.current
-    const result = kind === 'bold' || kind === 'italic' ? wrapSelection(current, text, selection, kind === 'bold' ? '**' : '*')
-      : kind === 'code' ? codeBlockCommand(current, text, selection, codeLanguage, editor.current?.fencedCode() ?? null)
-      : kind === 'link' ? replaceSelection(current, selection, `[${text.slice(Math.min(selection.anchor, selection.head), Math.max(selection.anchor, selection.head)) || '链接文字'}](https://example.com)`)
-      : prefixLines(current, text, selection, { heading: '## ', quote: '> ', bullet: '- ', task: '- [ ] ', ordered: '1. ' }[kind])
-    if (result.baseTextRevision === changeRevision.current) editor.current?.patch(result.patches, result.selection)
-  }
-
-  function chooseCodeLanguage(language: string) {
-    setCodeLanguage(language)
-    if (disabled || editor.current?.composing()) return
-    const block = editor.current?.fencedCode()
-    if (!block) return
-    const selection = editor.current!.selection()
-    const result = codeBlockCommand(changeRevision.current, text, selection, language, block)
-    editor.current?.patch(result.patches, result.selection)
-  }
-
-  async function recover(keep: boolean) {
-    const draft = pendingDraft
-    if (!draft) return
-    try {
-      if (keep) {
-        load(draft.text, draft.name, draft.snapshot, null, null, true); images.setResources(draft.resources ?? emptyResources())
-        if (draft.imageSession && draft.imageSession.baseText === draft.text) images.setSession(draft.imageSession)
+      for (const handle of targetHandles()) {
+        if (action === 'save' && handle.summary.dirty) { if (!await handle.save()) { setError(`${handle.summary.name} 保存未完成。返回编辑后查看该标签的提示；恢复中的草稿需先恢复再保存。`); return } }
+        else if (action === 'retain') await handle.retain()
+        else if (action === 'discard') await handle.discard()
       }
-      else await clearDraft()
-      setPendingDraft(null)
-    } catch (err) { setError(errorMessage(err)) }
+      if (closing === 'window') await closeWindow()
+      else await remove(closing, action !== 'save')
+      setClosing(null)
+    } catch (err) { if (action === 'discard') targetHandles().forEach((handle) => handle.resume()); setError(String(err)) }
+    finally { setCloseBusy(false) }
   }
-
-  const disabled = busy || exitRequested || !!pendingDraft || !draftReady || images.busy || !!images.session
-  const shortcuts = navigator.platform.includes('Mac') ? '⌘S' : 'Ctrl+S'
-  const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
-  const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
-
-  return <div className={`app-shell ${focus ? 'focus-mode' : ''}`}>
-    <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => { void images.importFiles(Array.from(event.target.files ?? [])); event.target.value = '' }} />
-    {images.session && <ImagePanel key={images.session.instance.instanceId} image={images.session} onBusy={(value) => { panelApplying.current = value }} onCancel={() => { images.cancel(); if (!dirty) void clearDraft().catch((err) => setError(errorMessage(err))) }} onChange={images.update} onApply={images.apply} />}
-    {exitRequested && <CloseDialog error={error} busy={exitBusy} pendingImage={!!images.session} onSave={() => void finishExit(true)} onRetain={() => void finishExit(false)} onCancel={() => setExitRequested(false)} />}
-    <header className="topbar">
-      <div className="brand"><span className="brand-mark">M</span><strong>Easy Markdown</strong></div>
-      <div className="file-actions" aria-label="文件操作">
-        <button disabled={disabled} onClick={() => { if (mayReplace()) load('', '未命名.md', blankSnapshot(), null, null, true) }}>新建文档</button>
-        <button disabled={disabled} onClick={() => void open()}>打开文件</button>
-        {desktop && <button disabled={disabled} onClick={() => void chooseWorkspace()}>打开工作区</button>}
-        <button disabled={disabled} onClick={() => void save(true)}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
-        {desktop && fileId && <button disabled={disabled} onClick={() => void reloadExternal()}>重新加载外部版本</button>}
+  const blocked = closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  const fileAction = (action: FileAction) => {
+    setMenuOpen(false)
+    handles.current.get(active)?.run(action)
+  }
+  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme}>
+    <div className="document-strip" hidden={reading}>
+      <div className="app-menu" ref={menu} onKeyDown={(event) => {
+        const inStyleMenu = !!(event.target as HTMLElement).closest('#style-menu')
+        if ((inStyleMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && styleMenuOpen)) {
+          event.preventDefault(); event.stopPropagation(); setStyleMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.style-menu-trigger')?.focus(); return
+        }
+        if (event.key === 'ArrowRight' && (event.target as HTMLElement).closest('.style-menu-trigger')) { event.preventDefault(); setStyleMenuOpen(true); return }
+        if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
+        if (menuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+          event.preventDefault()
+          const currentMenu = (event.target as HTMLElement).closest('[role=menu]')
+          const items = Array.from(currentMenu?.querySelectorAll<HTMLButtonElement>('[role^=menuitem]:not(:disabled)') ?? []).filter((item) => item.closest('[role=menu]') === currentMenu)
+          const index = items.indexOf(document.activeElement as HTMLButtonElement)
+          items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
+        }
+        if (event.key === 'Tab') setMenuOpen(false)
+      }}>
+        <button className="app-menu-trigger brand-mark" aria-label="EM 菜单" title="EasyM · 文件菜单" aria-haspopup="menu" aria-expanded={menuOpen} aria-controls="file-menu" disabled={closeBusy || !!closing} onClick={() => setMenuOpen(!menuOpen)}>EM</button>
+        {menuOpen && <div className="file-menu" id="file-menu" role="menu" aria-label="文件菜单">
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('new')}>新建文档</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('open')}>打开文件</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('workspace')}>打开工作区</button>
+          <div className="menu-divider" role="separator" />
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
+          <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
+          <div className="menu-divider" role="separator" />
+          <div className="style-menu">
+            <button className="style-menu-trigger" role="menuitem" aria-label="Style · 配色主题" aria-haspopup="menu" aria-expanded={styleMenuOpen} aria-controls="style-menu" onClick={() => setStyleMenuOpen(!styleMenuOpen)}>Style · 配色主题 <span aria-hidden="true">›</span></button>
+            {styleMenuOpen && <div className="theme-submenu" id="style-menu" role="menu" aria-label="配色主题">
+              {Object.entries(themes).map(([value, label]) => <button role="menuitemradio" aria-checked={theme === value} key={value} onClick={() => { setTheme(value as Theme); setMenuOpen(false); setStyleMenuOpen(false) }}><span aria-hidden="true">{theme === value ? '✓' : '　'}</span> {label}</button>)}
+            </div>}
+          </div>
+        </div>}
       </div>
-      <div className="breadcrumb" title={workspacePath ?? name}>{desktop ? workspacePath ? workspace?.name : '本地文档' : '开发预览'} <span>/</span> {workspacePath ?? name}{dirty && <span aria-label="未保存"> *</span>}</div>
-      <div className="top-actions"><span className="workspace-badge">v0.1 开发版</span><button disabled={disabled} className="primary-button" onClick={() => void save()}>{desktop ? '保存' : '下载 Markdown'} <span>{shortcuts}</span></button></div>
-    </header>
-    <div className="workspace">
-      {showFiles && <aside className="sidebar left-sidebar">
-        <div className="sidebar-heading"><h2>文档</h2><button className="icon-button" aria-label="收起文件栏" onClick={() => setShowFiles(false)}>‹</button></div>
-        {workspace && <button className="quick-row" disabled={disabled} onClick={() => void chooseWorkspace(true)}>⟳ <span>刷新文件树</span></button>}
-        <div className="sidebar-label">当前文件</div><div className="file-row active">□ {name}{dirty ? ' ·' : ''}</div>
-        {workspace && <WorkspaceTree key={treeRevision} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
-        {!workspace && <div className="outline-empty"><p>从顶部打开工作区，浏览 Markdown 和图片文件。</p></div>}
-        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.1.0-dev</span></div>
-      </aside>}
-      <main className="editor-area">
-        <div className="view-switcher"><div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => setView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => setView('split')}>分屏</button><button disabled title="尚未通过中文输入与光标验证">即时渲染 · 待验证</button></div><div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => setShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button><button className="focus-button" onClick={() => setFocus(!focus)}>{focus ? '退出专注' : '专注模式'}</button></div></div>
-        <div className="toolbar">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码滚动同步预览</span>}</div>
-        {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
-        {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
-        {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
-        <div className={`content-grid view-${view}`} inert={disabled}>
-          <Editor key={epoch} ref={editor} initialText={text} onChange={changed} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} />
-          {view === 'split' && <article ref={preview} className="preview" aria-label="Markdown 预览" onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
-            const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
-            const reference = parsed.images.find((item) => item.from === Number(node?.dataset.sourceFrom))
-            if (reference && parsedText.current === text) void images.edit(reference)
-          }} onClick={(event) => {
-            const target = event.target as HTMLElement
-            if (target.closest('a')) event.preventDefault()
-            const node = target.closest<HTMLElement>('[data-source-from]')
-            if (parsedText.current === text && node?.dataset.sourceFrom) editor.current?.jump(Number(node.dataset.sourceFrom))
-          }} dangerouslySetInnerHTML={{ __html: parsed.html }} />}
-        </div>
-        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {text.split('\n').length} 行<span className="status-spacer" />{draftStatus}</div>
-      </main>
-      {showOutline && <aside className="sidebar right-sidebar"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline">{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} onClick={() => editor.current?.jump(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</aside>}
+      <div ref={tablist} className="document-tablist" role="tablist" aria-label="打开的文档" onMouseDown={(event) => {
+        if (desktop && event.button === 0 && event.target === event.currentTarget) void dragWindow().catch((err) => setError(String(err)))
+      }} onDoubleClick={(event) => { if (event.target === event.currentTarget) void toggleMaximizeWindow().catch((err) => setError(String(err))) }} onWheel={(event) => {
+        const list = event.currentTarget
+        if (list.scrollWidth <= list.clientWidth || event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
+        list.scrollLeft += event.deltaY * (event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? list.clientWidth : 1)
+      }}>
+        {tabs.map((tab) => <div className={`document-tab ${tab.id === active ? 'active' : ''}`} key={tab.id}>
+          <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={blocked} onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canLeave()) return
+            event.preventDefault()
+            const index = tabs.findIndex((item) => item.id === tab.id)
+            const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
+            setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus()
+          }} onClick={() => { if (handles.current.get(active)?.canLeave()) setActive(tab.id) }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
+          <button className="tab-close" aria-label={`关闭 ${summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}`} disabled={blocked} onClick={() => requestClose(tab.id)}>×</button>
+        </div>)}
+        <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { if (handles.current.get(active)?.canLeave()) add() }}>＋</button>
+      </div>
+      <div className="titlebar-drag" aria-hidden="true" onMouseDown={(event) => { if (event.button === 0) void dragWindow().catch((err) => setError(String(err))) }} onDoubleClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))} />
+      {desktop && <div className="window-controls" aria-label="窗口控制">
+        <button aria-label="最小化窗口" title="最小化" onClick={() => void minimizeWindow().catch((err) => setError(String(err)))}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg></button>
+        <button aria-label={maximized ? '还原窗口' : '最大化窗口'} title={maximized ? '还原' : '最大化'} onClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))}><svg viewBox="0 0 16 16" aria-hidden="true">{maximized ? <path d="M5 5V3h8v8h-2M3 5h8v8H3Z" /> : <path d="M3 3h10v10H3Z" />}</svg></button>
+        <button className="window-close" aria-label="关闭窗口" title="关闭" disabled={closeBusy || !!closing} onClick={() => requestClose('window')}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13" /></svg></button>
+      </div>}
     </div>
+    {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing}>
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} path={tab.path} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
+    </section>)}
+    {closing && <CloseDialog scope={closing === 'window' ? 'window' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
   </div>
 }

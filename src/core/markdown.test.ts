@@ -1,6 +1,20 @@
 import { expect, it } from 'vitest'
 import { parseDocument } from './markdown'
 
+it('uses the chosen language grammar and safely preserves code text', () => {
+  const code = 'const x = 1; // comment'
+  const js = parseDocument('```javascript\n' + code + '\n```').html
+  const py = parseDocument('```python\n' + code + '\n```').html
+  expect(js).toContain('class="hljs-keyword">const')
+  expect(py).not.toContain('class="hljs-keyword">const')
+  expect(js).toContain('hljs-comment')
+  expect(parseDocument('```\n' + code + '\n```').html).not.toContain('hljs-')
+  expect(parseDocument('```unknown\n' + code + '\n```').html).not.toContain('hljs-')
+  const unsafe = parseDocument('```html\n<script>alert(1)</script><img src=x onerror=alert(1)>\n```').html
+  expect(unsafe).not.toContain('<script>'); expect(unsafe).not.toContain('<img ')
+  expect(unsafe).toContain('&#x3C;')
+})
+
 it('retains source ranges for two separate instances of the same image', () => {
   const parsed = parseDocument('![one](assets/a.png)\n\n![two](assets/a.png)')
   expect(parsed.images).toHaveLength(2)

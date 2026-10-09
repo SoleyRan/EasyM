@@ -7,21 +7,28 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
 
 - 源码与分屏视图，即时渲染保留待验证入口；
-- 顶部文件操作、按需展开文件树/大纲，分屏源码滚动同步预览；
-- 代码块语言选择、语言修改撤销/重做和清晰的代码块配色；
-- Markdown 源范围补丁、工具栏命令、标题大纲；
-- 本地草稿自动保存、未应用图片操作恢复和显式保存状态；
+- EM 图标文件菜单、右侧多文档标签与滚轮浏览，按需展开并拖拽调整文件树/大纲宽度；
+- 分屏源码与预览双向滚动同步，点击大纲标题同步定位两侧；
+- 代码块语言选择及源码/预览语法高亮、语言修改撤销/重做；
+- 多文档标签，各自保留正文、撤销记录、滚动位置和草稿；
+- 四种 Style 配色（浅色、深色、暖纸、护眼绿），点击 EM 菜单中的 Style，在右侧子菜单选择并自动记住；
+- 随主题变化的顶栏窗口控制、拖动与双击最大化；底部行数与字数；
+- 全屏阅读模式：仅显示预览，支持文件树/大纲、按钮或 Esc 退出，保留正文和撤销记录；
+- Markdown 源范围补丁、可隐藏且记住偏好的格式工具栏、标题大纲与带边框表格；
+- 已命名本地文档停止输入 1.2 秒后自动保存，草稿与未应用图片操作恢复；
 - PNG/JPEG 导入、后台处理、裁剪/旋转/翻转/尺寸/Alt、取消和应用；
 - 图片源副本、显示副本、实例隔离和浏览器工作区 ZIP 下载；
 - IndexedDB 草稿恢复、UTF-8/BOM/LF/CRLF 保留、外部版本重新加载入口；
 - 文档核心、图片契约和 ZIP 路径安全单元测试；
 - Tauri 2 原生文件保存、冲突检查、图片资源事务和 `.easym/images.json` 实现；
-- 窗口关闭保护：返回编辑、保留草稿并退出、保存并退出；
+- 标签/窗口关闭保护：返回编辑、不保存关闭/退出、保留草稿、保存后关闭；
 - 保存操作日志与中断恢复、后台 Markdown 解析 Worker。
 - 桌面工作区目录选择、延迟加载文件树和树内图片拖入；
 - Windows 复制图片文件后粘贴的原生兼容路径，以及失焦时刷新草稿。
 
-浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP。2026-10-09 已通过 TypeScript 检查、49 项前端测试、15 项 Windows Rust 测试、生产 Worker 检查和 Edge 生产包回归（真实像素/EXIF、图片实例隔离、IndexedDB 草稿恢复、代码语言和分屏滚动），并生成 Windows Release 可执行文件。Windows 原生交互与 macOS/Linux 关键路径仍待验收，当前尚未达到 v0.1 发布门槛。即时渲染视图保持禁用，源码和分屏是当前稳定路径。设计冻结见 [Docs/Easy-Markdown-v0.1-设计冻结.md](Docs/Easy-Markdown-v0.1-设计冻结.md)，实现与验收状态见 [Docs/Easy-Markdown-v0.1-实现说明.md](Docs/Easy-Markdown-v0.1-实现说明.md)。
+浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP。2026-10-09 已通过 TypeScript 检查、77 项前端测试、16 项 Windows Rust 测试、生产 Worker 检查和 Edge 生产包回归（真实像素/EXIF、图片实例隔离、IndexedDB 草稿恢复、语言高亮、双向滚动、多文档、主题、EM 菜单、侧栏拖拽和大纲定位），并生成 Windows Release 可执行文件。Windows 原生交互与 macOS/Linux 关键路径仍待验收，当前尚未达到 v0.1 发布门槛。即时渲染视图保持禁用，源码和分屏是当前稳定路径。设计冻结见 [Docs/Easy-Markdown-v0.1-设计冻结.md](Docs/Easy-Markdown-v0.1-设计冻结.md)，实现与验收状态见 [Docs/Easy-Markdown-v0.1-实现说明.md](Docs/Easy-Markdown-v0.1-实现说明.md)。
+
+本地文件在停止输入 1.2 秒后自动写回；新建或恢复文档先自动保留草稿，首次从 EM 菜单另存为。外部冲突、写入失败或混合换行转换会暂停自动写回并提示，Ctrl/Cmd+S 可手动保存。文件树展开后打开文档仍保持显示，“格式工具栏”按钮可隐藏/显示格式按钮并记住选择；预览表格在四种主题下均有边框。
 
 ## 开发
 
@@ -53,7 +60,7 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。附带项目与第三方许可的便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip`，解压后运行 `easym.exe`；系统需要已安装 WebView2 Runtime。它是未签名的开发候选包，运行验收状态见 [验收记录](Docs/Easy-Markdown-v0.1-验收记录.md)，构建校验值见 [windows-build.json](Docs/verification/windows-build.json)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/Easy Markdown_0.1.0_x64-setup.exe`（未签名开发候选，尚未验证安装/卸载）。首次打包需要从 GitHub 下载 WiX/NSIS；2026-10-09 重试下载成功并通过官方哈希校验，使用项目内工具缓存完成 NSIS 打包。只需生成可执行文件时可运行 `pnpm.cmd tauri build --no-bundle`。
+Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe`（未签名开发候选，尚未验证安装/卸载）。应用名称为 EasyM，应用及平台图标统一使用 EM。首次打包需要从 GitHub 下载 WiX/NSIS；2026-10-09 重试下载成功并通过官方哈希校验，使用项目内工具缓存完成 NSIS 打包。只需生成可执行文件时可运行 `pnpm.cmd tauri build --no-bundle`。
 
 ## 许可
 

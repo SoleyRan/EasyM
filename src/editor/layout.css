@@ -18,18 +18,31 @@
 .toolbar-hint { font-size: 11px; padding: 0 6px; }
 .content-grid { padding: 10px 12px 12px; overflow: hidden; }
 .content-grid.view-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; padding: 10px 12px 12px; }
+.source-pane { height: 100%; min-height: 0; min-width: 0; }
+.source-pane[hidden] { display: none; }
 .codemirror-host { min-height: 0; }
 .view-split .preview { min-height: 0; padding: 20px 26px; overscroll-behavior: contain; }
 .cm-scroller { overscroll-behavior: contain; }
-.left-sidebar { width: 220px; flex: 0 0 220px; padding: 16px 12px; }
-.right-sidebar { width: 220px; flex: 0 0 220px; padding: 16px; }
+.left-sidebar, .right-sidebar { width: 220px; flex: 0 0 220px; padding: 0; min-width: 0; overflow: visible; }
+.sidebar-content { display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: auto; padding: 16px 12px; }
+.sidebar-resizer { position: absolute; top: 0; bottom: 0; width: 8px; z-index: 4; cursor: col-resize; touch-action: none; user-select: none; }
+.left-sidebar .sidebar-resizer { right: -4px; }
+.right-sidebar .sidebar-resizer { left: -4px; }
+.sidebar-resizer::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; }
+.sidebar-resizer:hover::after, .sidebar-resizer.dragging::after, .sidebar-resizer:focus-visible::after { background: var(--accent, #235bca); }
+.file-row { min-width: 0; flex-shrink: 0; }
+.current-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row > span:not(.current-file-name):not(.tree-name) { flex-shrink: 0; }
+.outline { flex-shrink: 0; min-width: 0; }
+.outline-item { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-heading h2 { font-size: 14px; }
 .statusbar { height: 28px; flex: 0 0 28px; padding: 0 16px; }
 .error-banner, .recovery-banner { margin: 8px 12px 0; }
 .preview pre { background: #1e293b; color: #e4edff; line-height: 1.65; }
 .preview pre code { display: block; background: transparent; color: inherit; padding: 0; border-radius: 0; font-family: 'SFMono-Regular', Consolas, monospace; }
-.focus-mode .editor-area { max-width: none; margin: 0; }
-.focus-mode .content-grid { padding: 10px 12px 12px; }
+.reading-document .view-switcher { justify-content: flex-end; }
+.content-grid.view-reading { display: flex; padding: 0; }
+.view-reading .preview { max-width: none; height: 100%; min-height: 0; overflow: auto; padding: 32px max(28px, calc((100% - 860px) / 2)); overscroll-behavior: contain; }
 @media (max-width: 1150px) {
   .brand strong { display: none; }
   .topbar { gap: 8px; }

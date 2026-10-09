@@ -21,20 +21,21 @@ try {
     const page = await context.newPage()
     page.setDefaultTimeout(30000)
     await page.goto(server.url)
+    await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
     const [picker] = await Promise.all([
       page.waitForEvent('filechooser'),
-      page.getByRole('button', { name: /打开文件/ }).click(),
+      page.getByRole('menuitem', { name: '打开文件', exact: true }).click(),
     ])
     const start = Date.now()
     await picker.setFiles({ name: 'benchmark.md', mimeType: 'text/markdown', buffer: Buffer.from(body) })
     const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
-    await page.waitForFunction(() => !document.querySelector('.content-grid')?.inert && document.querySelector('.statusbar')?.textContent.includes('文件已打开'))
+    await page.waitForFunction(() => !document.querySelector('.document-panel:not([hidden]) .content-grid')?.inert && document.querySelector('.document-panel:not([hidden]) .statusbar')?.textContent.includes('文件已打开'))
     const openMs = Date.now() - start
     await editor.click()
     await page.keyboard.press('Control+Home')
     await page.evaluate(() => {
       window.__latencies = []
-      const editor = document.querySelector('.cm-content')
+      const editor = document.querySelector('.document-panel:not([hidden]) .cm-content')
       editor.addEventListener('keydown', (event) => {
         if (event.key !== 'a') return
         const start = performance.now()
@@ -55,7 +56,7 @@ try {
   const page = await context.newPage()
   page.setDefaultTimeout(60000)
   await page.goto(server.url)
-  await page.waitForFunction(() => !document.querySelector('.content-grid')?.inert)
+  await page.waitForFunction(() => !document.querySelector('.document-panel:not([hidden]) .content-grid')?.inert)
   await page.evaluate(async () => {
     const canvas = new OffscreenCanvas(800, 600)
     const ctx = canvas.getContext('2d'); ctx.fillStyle = '#2476a7'; ctx.fillRect(0, 0, 800, 600)

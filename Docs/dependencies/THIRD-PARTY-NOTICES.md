@@ -264,21 +264,51 @@ License texts copied from installed package sources are linked below. Declared l
 | cargo | zune-jpeg | 0.5.15 | MIT OR Apache-2.0 OR Zlib | [LICENSE-APACHE](licenses/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4-LICENSE-APACHE.txt), [LICENSE-MIT](licenses/d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745-LICENSE-MIT.txt), [LICENSE-ZLIB](licenses/d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c-LICENSE-ZLIB.txt) |
 | npm | @codemirror/autocomplete | 6.20.3 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/commands | 6.11.1 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-angular | 0.1.4 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-cpp | 6.0.3 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/lang-css | 6.3.1 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-go | 6.0.1 | MIT | [LICENSE](licenses/8ac9cfc9c82c397298c2139028d2474d8e0470f2092a97edddccf353bc5d4d36-LICENSE.txt) |
 | npm | @codemirror/lang-html | 6.4.12 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-java | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/lang-javascript | 6.2.5 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-jinja | 6.0.1 | MIT | [LICENSE](licenses/b4e0493aa23478551cb0107827041574f9eb2eba010c72b28c158260e99e011b-LICENSE.txt) |
+| npm | @codemirror/lang-json | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-less | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-liquid | 6.3.3 | MIT | [LICENSE](licenses/eef03b313cffb45dc43cc7f0c99dcb3b3f48dc39b4ea659c4a13fdcefbab7213-LICENSE.txt) |
 | npm | @codemirror/lang-markdown | 6.5.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-php | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-python | 6.2.1 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-rust | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-sass | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-sql | 6.10.0 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-vue | 0.1.3 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-wast | 6.0.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-xml | 6.1.0 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/lang-yaml | 6.1.3 | MIT | [LICENSE](licenses/8ac9cfc9c82c397298c2139028d2474d8e0470f2092a97edddccf353bc5d4d36-LICENSE.txt) |
+| npm | @codemirror/language-data | 6.5.2 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/language | 6.12.4 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/legacy-modes | 6.5.5 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/lint | 6.9.7 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/state | 6.7.6 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/streamparser | 6.0.0 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/view | 6.43.13 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @lezer/common | 1.5.3 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/cpp | 1.1.6 | MIT | [LICENSE](licenses/54bd812a6d334e0c438b78a43cea74b67e882739fd3450115ddc7c52be5706c1-LICENSE.txt) |
 | npm | @lezer/css | 1.3.8 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/go | 1.0.1 | MIT | [LICENSE](licenses/54bd812a6d334e0c438b78a43cea74b67e882739fd3450115ddc7c52be5706c1-LICENSE.txt) |
 | npm | @lezer/highlight | 1.2.5 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
 | npm | @lezer/html | 1.3.13 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/java | 1.1.5 | MIT | [LICENSE](licenses/54bd812a6d334e0c438b78a43cea74b67e882739fd3450115ddc7c52be5706c1-LICENSE.txt) |
 | npm | @lezer/javascript | 1.5.6 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/json | 1.0.3 | MIT | [LICENSE](licenses/7e744ae18ef84389d576469a5781172b0d50b7981111109f6da7cbc6b4188288-LICENSE.txt) |
 | npm | @lezer/lr | 1.4.10 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
 | npm | @lezer/markdown | 1.7.2 | MIT | [LICENSE](licenses/54bd812a6d334e0c438b78a43cea74b67e882739fd3450115ddc7c52be5706c1-LICENSE.txt) |
+| npm | @lezer/php | 1.0.6 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/python | 1.1.19 | MIT | [LICENSE](licenses/54bd812a6d334e0c438b78a43cea74b67e882739fd3450115ddc7c52be5706c1-LICENSE.txt) |
+| npm | @lezer/rust | 1.0.3 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/sass | 1.1.0 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/xml | 1.0.6 | MIT | [LICENSE](licenses/568902fb66eaf1f11750e966b33fd7b5d7c618e65af09f35ef843635bcf5f1ba-LICENSE.txt) |
+| npm | @lezer/yaml | 1.0.4 | MIT | [LICENSE](licenses/8cb910abd2a5463466b7c31958b39d6787ebf9e9f299598266b814bc90dd076b-LICENSE.txt) |
 | npm | @marijn/find-cluster-break | 1.0.4 | MIT | [LICENSE](licenses/9360b00fdd091f05c783b568bdd46c679c41b72415599252de98949462ea1acb-LICENSE.txt) |
 | npm | @tauri-apps/api | 2.12.1 | Apache-2.0 OR MIT | [LICENSE-APACHE-2.0](licenses/0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594-LICENSE-APACHE-2.0.txt), [LICENSE-MIT](licenses/9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d-LICENSE-MIT.txt), [LICENSE.spdx](licenses/5e834fe9788c524210deda859c46a550ffa5aa0cba9ea0572f0d81120e97c008-LICENSE.spdx.txt) |
 | npm | @types/debug | 4.1.13 | MIT | [LICENSE](licenses/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383-LICENSE.txt) |
@@ -305,9 +335,12 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | hast-util-sanitize | 5.0.2 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | hast-util-to-html | 9.0.5 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | hast-util-whitespace | 3.0.0 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
+| npm | highlight.js | 11.11.2 | BSD-3-Clause | [LICENSE](licenses/6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490-LICENSE.txt) |
+| npm | highlight.js | 11.12.0 | BSD-3-Clause | [LICENSE](licenses/6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490-LICENSE.txt) |
 | npm | html-void-elements | 3.0.0 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 | npm | is-plain-obj | 4.1.0 | MIT | [license](licenses/5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3-license.txt) |
 | npm | longest-streak | 3.1.0 | MIT | [license](licenses/9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10-license.txt) |
+| npm | lowlight | 3.3.0 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | markdown-table | 3.0.4 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | mdast-util-find-and-replace | 3.0.3 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | mdast-util-from-markdown | 2.1.0 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
@@ -380,7 +413,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | w3c-keyname | 2.2.8 | MIT | [LICENSE](licenses/869c30f368eb08735e779027b9f4bc9fea2f39624351856aebe42741f0bc0884-LICENSE.txt) |
 | npm | zwitch | 2.0.4 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 
-Inventory: 373 dependency versions.
+Inventory: 406 dependency versions.
 
 ## Missing license texts
 

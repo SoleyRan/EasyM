@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 
 // Run after build and verification. No absolute machine paths are emitted.
 const output = resolve('Docs/verification')
+const config = JSON.parse(await readFile('src-tauri/tauri.conf.json', 'utf8'))
 await mkdir(output, { recursive: true })
 const paths = ['src-tauri/target/release/easym.exe', 'pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json']
 try {
@@ -15,7 +16,7 @@ try {
 for (const name of await readdir('dist/assets')) paths.push(`dist/assets/${name}`)
 try {
   for (const name of await readdir('src-tauri/target/release/bundle/nsis')) {
-    if (name.endsWith('.exe')) paths.push(`src-tauri/target/release/bundle/nsis/${name}`)
+    if (name === `${config.productName}_${config.version}_x64-setup.exe`) paths.push(`src-tauri/target/release/bundle/nsis/${name}`)
   }
 } catch { /* Installer may be unavailable; executable evidence is still useful. */ }
 const artifacts = []
