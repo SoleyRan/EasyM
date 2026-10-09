@@ -1,0 +1,57 @@
+{
+  "recordedAt": "2026-10-09T05:40:23.688Z",
+  "version": "0.1.0",
+  "target": "x86_64-pc-windows-msvc",
+  "sourceTree": {
+    "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
+    "files": 86,
+    "sha256": "81649320219c03ffb717a52431b10e8f15aea816118315d3cbbe4563f58afa75"
+  },
+  "toolchain": {
+    "node": "v24.19.0",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)"
+  },
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/easym.exe",
+      "bytes": 9837056,
+      "sha256": "079d1b8204cf57ac5affb7ebe58e555c4684a7c09c0547e4c5aaf6e2198b7c03"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 89403,
+      "sha256": "62b29d16a1b75ffe2f1b5b6d16f5bae6e93ab89a7ef0cb38374f3da6cec0f32a"
+    },
+    {
+      "path": "src-tauri/Cargo.lock",
+      "bytes": 124006,
+      "sha256": "e1f848c3365f2699a62a028246e5c76229422c05e92a639df1873221aaf24891"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "bytes": 1315,
+      "sha256": "704838134ebfd0ca7d27d4667addd4a0fa7c0a326825e671b3f91e0075c5d710"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip",
+      "bytes": 3726664,
+      "sha256": "08182007132ba683313f6dbdb7f38953c036c4832820f48cd7c2a0debda651fd"
+    },
+    {
+      "path": "dist/assets/index-CNZFJixO.css",
+      "bytes": 13466,
+      "sha256": "2911005e76a4dd11e9fb9f28dd527a1c2c90875b26b48edf4bde8e4f936e0d4e"
+    },
+    {
+      "path": "dist/assets/index-DwlULyar.js",
+      "bytes": 1205050,
+      "sha256": "fbfc3f6d27d757749dc175faacd6d4e84d815f64826576512e64704831b6a4a4"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/Easy Markdown_0.1.0_x64-setup.exe",
+      "bytes": 2532683,
+      "sha256": "9cdce78b74ed55d6fc51e1b80dcd00877d22cf31c222021a89427f8a1ae95040"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+# Easy Markdown v0.1 实现说明
+
+## 当前交付
+
+v0.1 已建立可运行的编辑闭环，并补充 Windows 桌面可靠性实现；当前是开发候选构建，仍需按文末验收清单完成真实平台回归：
+
+- React + TypeScript + Vite + Tauri 2 工程骨架；
+- CodeMirror 6 Markdown 源码编辑，源码/分屏视图、工具栏命令、撤销/重做和标题大纲；
+- CommonMark + GFM + Front Matter 解析，危险 HTML 和危险 URL 清理；
+- UTF-8、UTF-8 BOM、LF、CRLF 和混合换行识别与保存策略；
+- IndexedDB 草稿自动保存、恢复和放弃，包含尚未应用的图片操作；
+- PNG/JPEG 文件选择、粘贴和拖入，后台 Worker 图片处理；
+- 裁剪、自由比例/1:1/4:3/16:9、尺寸、锁定比例、旋转、翻转、Alt、格式选择、倍率预览；
+- 源图片副本、显示副本、实例身份和资源路径约束；
+- 浏览器模式下载 Markdown，含图片时下载完整工作区 ZIP；
+- Tauri 原子文本保存、版本/哈希冲突检查、图片解码限制、资源写入和 `.easym/images.json`；
+- 原生关闭请求拦截，以及返回编辑、保留草稿并退出、保存并退出；
+- `.easym/operations/` 保存日志与正文提交后的图片元数据恢复；
+- Markdown 解析 Worker，过期解析结果不会用于图片定位和正文补丁。
+- 工作区目录选择、受授权 ID 保护的延迟文件树，以及树内图片拖入；
+- Windows 显式粘贴动作的 CF_HDROP 图片文件回退（不轮询、不写入系统剪贴板），并在窗口失焦/隐藏时刷新草稿。
+
+## 本轮可靠性实现
+
+### 关闭保护
+
+`src/platform/window.ts` 拦截 Tauri 原生关闭事件。正文有未保存修改或图片面板有待应用操作时，由 `CloseDialog` 提供三个动作：
+
+- 返回编辑：保留当前文本和图片面板；
+- 保留草稿并退出：等待 IndexedDB 写入完成后关闭；尚未到自动保存防抖时间的修改也会保存；
+- 保存并退出：文件确实写入磁盘且仍是当前文本版本才关闭；保存对话框取消或写入失败时保留窗口。
+
+图片尚未应用时禁用“保存并退出”，可返回应用图片，或保留图片草稿退出。文件保存、图片生成/应用期间拒绝关闭并提示等待。草稿写入失败同样取消退出。已有未处理的恢复草稿不会因未修改文档直接退出而被清除。
+
+### 图片草稿
+
+`Draft.imageSession` 保存源 Blob、原始尺寸、recipe、Alt、源选区、目标引用、正文基线、实例、operationId 和显示副本标识。恢复时只有正文基线匹配才恢复面板；恢复文档作为应用副本另存，避免覆盖旧文件。图片面板操作更新后参与草稿防抖保存；草稿同时尝试补齐已托管图片资源，资源不完整时保留正文草稿并明确报错。
+
+### 保存事务与恢复
+
+`src-tauri/src/transaction.rs` 将保存分成图片资源、准备日志、正文、元数据阶段。每次操作使用 UUID，在 `.easym/operations/op-<operationId>.json` 中记录文档、旧/新正文哈希、待提交元数据和完成状态。
+
+正文替换前再次核对磁盘哈希；资源写入期间出现外部修改也会拒绝覆盖。正文提交前失败保留旧正文，已生成的不可变资源可以保留供重试。正文提交后元数据失败返回警告，不把已保存正文误报为回滚；再次打开只在当前正文哈希匹配日志时补交元数据。相同 operationId 的相同内容可重试，复用 ID 提交不同内容会被拒绝。
+
+源副本不可变，损坏图片不会留下可见资源；Windows 嵌套相对路径兼容反斜杠。损坏或较高版本元数据不会被静默覆盖；正文仍可读取。日志和历史资源尚未提供自动清理功能。
+
+### 后台预览
+
+`src/editor/usePreview.ts` 通过独立 Markdown Worker 解析正文，120 ms 合并输入并使用递增修订号丢弃过期结果。图片编辑和预览定位还会核对解析所用正文；解析失败时提示错误并保留源码编辑。像素处理继续使用独立图片 Worker。
+
+## 已验证证据
+
+在当前 Windows 开发环境中：
+
+- `pnpm typecheck` 通过；
+- `pnpm.cmd test` 通过，12 个测试文件、45 项测试；
+- `pnpm build` 通过；
+- 2026-10-09：`cargo test --manifest-path src-tauri/Cargo.toml --locked --offline` 通过，15 项 Rust 单元测试成功；
+- 2026-10-09：Windows Release 重新构建成功，生成 `src-tauri/target/release/easym.exe`（9,837,056 bytes，SHA-256 `079D1B8204CF57AC5AFFB7EBE58E555C4684A7C09C0547E4C5AAF6E2198B7C03`）；最终校验信息见 `Docs/verification/windows-build.json`。安装包步骤需要首次下载 WiX/NSIS 工具。
+- 最终前端构建主包约 1,205.05 kB（gzip 约 401.15 kB），仍超过默认 500 kB 提示阈值；性能脚本已覆盖 5 MiB 文本、100 KiB 单行、100 张图片和 20 MiB 图片边界，结果保存于 `test-results/performance-verification.json`，不能代替固定基准机和真实桌面 WebView 的 p95 验收。
+- 浏览器回归确认工具栏、图片面板、取消、应用、撤销、重做、文档开头插图换行、分屏预览、真实 PNG 像素/裁剪/旋转/翻转/缩放、JPEG EXIF 方向 1–8、透明 PNG、JPEG 白底和 IndexedDB 正文/资源/未应用 recipe 恢复；
+- ZIP 路径穿越、绝对路径、设备路径、重复条目和图片资源缺失有自动化测试；
+- 图片应用写入失败、正文版本过期有故障测试；编辑时发现源副本哈希变化会拒绝应用并保留原引用；
+- React 集成测试覆盖未修改文档退出、返回编辑、保存失败、保存取消、保存成功、立即保留草稿退出，以及未应用图片恢复后退出；原生窗口适配器由 mock 验证，不能代替真实 WebView 回归；
+- Rust 故障注入覆盖正文提交前失败重试、正文提交后恢复、真实图片元数据提交失败恢复、幂等操作、外部冲突和损坏元数据保护；
+- Windows 原生交互回归仍未完成：独立 Release 测试实例使用隔离的 WebView2 数据目录，启动成功，但 Computer Use 应用访问审批超时，未能读取窗口或继续操作；未触碰原用户窗口/草稿。剪贴板文件粘贴路径已有 Rust/适配器测试，尚缺真实 WebView2 手工确认。
+
+## 冻结后实现补充记录（2026-10-09）
+
+本轮保持 Markdown 唯一正文来源、schemaVersion=1 和 ImageRecipe v1，记录以下平台/实现决策：
+
+- Worker 使用内联 Blob，由 CSP `worker-src 'self' blob:` 授权执行。依赖解析优先选用 Worker 条件，避免字符实体解码库在生产 Worker 中访问 `document`。`verify:workers` 检查真实产物无 DOM 初始化，`verify:browser` 在真实浏览器中验证解码和完整闭环；不扩大正文 HTML 的执行权限。
+- 目录访问先由系统选择器授予工作区 ID；后续命令只接收 ID 和相对路径。树按目录展开加载，跳过隐藏目录、node_modules、target、符号链接与越界条目；不向前端开放任意绝对路径读取。
+- Tauri 的 `dragDropEnabled` 设为 false，交由 CodeMirror 的 HTML5 拖放处理，以保留树内图片载荷和落点选区。该平台行为仍需要三平台真实 WebView 验收。
+- Windows CF_HDROP 读取只由显式粘贴触发。读取文件列表后先释放剪贴板，再按 PNG/JPEG 格式、20 MiB 字节和像素限制读取/解码；多张图片给出提示。系统截图优先使用 DOM 图片数据，普通文本粘贴保留原行为。
+- 浏览器文件选择器在选择/取消期间保持连接到 DOM，结束后移除，以兼容真实浏览器和自动化文件选择。
+- 普通窗口失焦/隐藏时再次尝试保存草稿；忙碌的图片/保存操作期间不把不完整操作写为完成状态。
+
+### 依赖交付
+
+`Docs/dependencies/THIRD-PARTY-NOTICES.md` 与 `sbom.cdx.json` 记录 373 个依赖版本（pnpm 生产依赖、Windows 过滤后的 Cargo 构建与运行依赖）。当前清单的完整许可文本缺项为 0；7 个未附带许可文件的包补充了上游许可，commit/来源和 SHA-256 位于 `license-sources.json`，提取说明见 `scripts/external-licenses/README.md`。这不是完整的三平台发行许可结论：MPL 来源代码可用性、其他平台依赖和最终分发附带文本仍在发布验收中。
+
+Windows 便携开发包 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip` 已包含程序、项目 LICENSE 和上述第三方文件；解压后运行，要求系统已有 WebView2 Runtime。压缩包路径与内嵌程序哈希核对通过，具体校验值见 `Docs/verification/windows-build.json`。NSIS 首次工具下载曾超时，重试下载并通过官方哈希校验后，已利用项目内缓存生成 `src-tauri/target/release/bundle/nsis/Easy Markdown_0.1.0_x64-setup.exe`（2,532,683 bytes）；安装包同样附带 LICENSE 与 `third-party/` 资源，未签名、安装/卸载仍待验证，详情见验收记录。
+
+## 当前边界
+
+- Windows MSVC Rust 编译和单元测试已经通过；原生文件对话框、窗口退出和桌面安装包运行仍待验证；
+- `.github/workflows/ci.yml` 已配置 Ubuntu 前端生产浏览器检查，以及 Windows、macOS、Linux 三平台 Rust 单测和 `pnpm tauri build --no-bundle`；当前未在远程 CI 实际执行，Linux 构建依赖已列出；
+- 即时渲染视图保持禁用，源码和分屏是 v0.1 稳定路径；
+- 浏览器模式不会覆盖原文件，而是下载 Markdown 或工作区 ZIP；
+- 图片元数据损坏、缺失或高版本 schema 会保留正文可读性并提示恢复受限。
+
+本阶段仍是开发切片，没有达到冻结文档的发布完成判定。还需完成：
+
+- 原生文件对话框、退出时保存/保留草稿/返回编辑、重启恢复和保存失败时保持窗口的真实回归；
+- 在真实进程重启中验证图片 recipe 草稿与操作日志恢复；
+- Windows WebView2 原生剪贴板文件兼容性的手工回归，以及 macOS/Linux DOM 文件剪贴板关键路径；
+- 三平台实机回归、安装包签名/安装验证和固定基准机性能门槛；
+- 发布前按目标平台重新生成依赖清单；当前 Windows 过滤清单、许可证文本、外部许可来源和 CycloneDX SBOM 已在 `Docs/dependencies/`，Rust 依赖锁定在 `src-tauri/Cargo.lock`。
+
+当前“另存为”会复制已托管的图片源/显示资源。文档中未托管或缺失的本地图片会阻止另存，并提示先导入副本；这避免生成正文引用缺失图片的目标文档。外部图片保留原链接，预览默认不请求网络资源。
+
+## 下一步顺序
+
+逐项验收表、本机性能测量方法与校验报告见 [Easy-Markdown-v0.1-验收记录.md](Easy-Markdown-v0.1-验收记录.md)。
+
+1. 在 Windows Release 中恢复已有草稿，验证关闭提示与返回编辑；保留草稿退出后重启确认正文和图片操作可恢复。
+2. 验证原生打开/另存、中文组合输入、图片应用、保存冲突、保存取消和失败时不关闭窗口。
+3. 完成 Windows WebView2 与 macOS/Linux 关键路径、中文输入、原生文件对话框和剪贴板手工回归。
+4. 在固定基准机复测性能，验证安装包和签名，再按各平台依赖清单评估发布门槛。

@@ -1,0 +1,26 @@
+# Dependencies and local toolchains
+node_modules/
+.pnpm-store/
+.toolchains/
+
+# Build output (includes executables, installers and NSIS cache)
+/dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+*.tsbuildinfo
+
+# Temporary test reports, downloaded tools and browser profiles
+/test-results/
+/playwright-report/
+/coverage/
+*.log
+
+# Local environment settings; keep the example in Git
+.env
+.env.*
+!.env.example
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
