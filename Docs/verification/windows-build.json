@@ -1,11 +1,11 @@
 {
-  "recordedAt": "2026-10-09T13:09:34.630Z",
+  "recordedAt": "2026-10-09T14:34:11.305Z",
   "version": "0.1.0",
   "target": "x86_64-pc-windows-msvc",
   "sourceTree": {
     "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
-    "files": 128,
-    "sha256": "05e8e19a30345f1adc13cbcb67f184cdad0acb8f9882ce03a9d47be4717e32fc"
+    "files": 134,
+    "sha256": "431dfbb73e11feb16995eb39833795d9cc1ee71a8d1856693a62821c174fb605"
   },
   "toolchain": {
     "node": "v24.19.0",
@@ -15,8 +15,8 @@
   "artifacts": [
     {
       "path": "src-tauri/target/release/easym.exe",
-      "bytes": 10316800,
-      "sha256": "09b2e77b744616f5f59daf41b78d6e142a7bb462da17270aaf2ed70a4bcd2463"
+      "bytes": 10317312,
+      "sha256": "c9f738860c9d91f85aa7ffeedc52d08c2741792d57614278a496e5113cc82330"
     },
     {
       "path": "pnpm-lock.yaml",
@@ -34,9 +34,34 @@
       "sha256": "cbcb91f068a5a8e67114e13cfb48679dc65528d7dce4e8a11306a0bf43926634"
     },
     {
+      "path": "LICENSE",
+      "bytes": 11558,
+      "sha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6"
+    },
+    {
+      "path": "Docs/dependencies/THIRD-PARTY-NOTICES.md",
+      "bytes": 84417,
+      "sha256": "ebb1319d6ad3b21263b5af08b24e7c7ed7369b9ebd1ca2f69a10831ee3e401b2"
+    },
+    {
+      "path": "Docs/dependencies/sbom.cdx.json",
+      "bytes": 113252,
+      "sha256": "d969aca9d2e3e23fe159fcc7cdf09ebeb321d9f1692f282515ac5023d50d33ee"
+    },
+    {
+      "path": "Docs/dependencies/inventory.json",
+      "bytes": 125,
+      "sha256": "f1c717f8a95fb19336ec009325f375b3bfb339185771fb3ba7b6ce0c51807a98"
+    },
+    {
+      "path": "Docs/dependencies/license-sources.json",
+      "bytes": 2802,
+      "sha256": "6fc95526aeb870ac632af6ec32501d7979f294828eebf14f9cbf1da057f96762"
+    },
+    {
       "path": "src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip",
-      "bytes": 4186631,
-      "sha256": "cdf1139e034142d816c7a6a4b3a96ed55cd32bfdac11dfdd86b827f18083c8ec"
+      "bytes": 4187210,
+      "sha256": "450c860fc2a7e0eea14d50cc1105000f6326520b20c66d229fbf51e4a4d8aab7"
     },
     {
       "path": "dist/assets/apl-B4CMkyY2.js",
@@ -214,44 +239,54 @@
       "sha256": "24a7719ff1d38588f4889f8d0f6bca90690f58436a048ef8e3c644aabf1aaffd"
     },
     {
-      "path": "dist/assets/index-8kQzFzAp.js",
+      "path": "dist/assets/index-2fd7oDna.js",
       "bytes": 103883,
-      "sha256": "346b0ecc0554157ea04d31cbafe60ec7fa8e397e812305f135962b0b86330ab5"
+      "sha256": "283d858cc10e49b20b8ccb839b831308d533bfdc4183538c079c8ca25cfe7cca"
     },
     {
-      "path": "dist/assets/index-BCrHoBo5.js",
-      "bytes": 14637,
-      "sha256": "7854489586691625ad9d20cfb539aa0cb2e986523e27f4a5da9fa440adf77580"
+      "path": "dist/assets/index-BBltnxL4.js",
+      "bytes": 47715,
+      "sha256": "3574e1781866f43367afff74453e17acec4fb0dd978e4a249eebe9052cb61e77"
     },
     {
-      "path": "dist/assets/index-BhLdyAf3.js",
-      "bytes": 1615470,
-      "sha256": "9186a767656922e607f90fd290840195a7a7ec9987a2d87ea95f9ee4a26e8ba1"
-    },
-    {
-      "path": "dist/assets/index-BpmX2UDu.js",
-      "bytes": 2599,
-      "sha256": "0507cfaa9f59c5fc5579c248dfc23e4ca164e4216a8f2e4611a58f5faf124329"
-    },
-    {
-      "path": "dist/assets/index-Bromd5X9.js",
-      "bytes": 32263,
-      "sha256": "1d474cda7d9438efaaaa5ffd31006eaf6b3a9b9b4c5315b95f7142f2109e3121"
-    },
-    {
-      "path": "dist/assets/index-BX0pXpQK.js",
+      "path": "dist/assets/index-BFJp07DW.js",
       "bytes": 22965,
-      "sha256": "76d5cba97367cb6b618ec34c929d15bbfb851b6491cac9764ac91974f9b1eed5"
+      "sha256": "a3bcadd03016170dae07a1d096ff59adc24d014734b32b524994b95e467b50ea"
     },
     {
-      "path": "dist/assets/index-ChQOaCln.js",
+      "path": "dist/assets/index-Bw4fFoH8.js",
+      "bytes": 2599,
+      "sha256": "5db59e3fa058349732999ea162b5a86da54a0dd5598b7ef8dd1fcf9f07c7e6c9"
+    },
+    {
+      "path": "dist/assets/index-C1XaAGuS.js",
+      "bytes": 30760,
+      "sha256": "ac33200483be03f8088fa027cddff351361552f1205dfb824da8a79420d73407"
+    },
+    {
+      "path": "dist/assets/index-CnaV-WXJ.js",
+      "bytes": 98141,
+      "sha256": "40cf2ca2a19318a055b012d21017ebf94c9ecf0c3b06999adfea72a20423490f"
+    },
+    {
+      "path": "dist/assets/index-CqyxDefd.js",
       "bytes": 83667,
-      "sha256": "dad5dbb6b3486879f7fb650f6323b1d43e244126bdcb5a331e9d62b7ff266ad1"
+      "sha256": "c8d31071dcad5cd1d53f839b041548c5dd63c4e3d9d95c55b3b7e6c3af998d21"
     },
     {
-      "path": "dist/assets/index-Cmq5HLbb.js",
+      "path": "dist/assets/index-CyA3qTOB.js",
       "bytes": 21828,
-      "sha256": "16c051aaf99548fc554ef78ce0fd50bba99da53a2ae88e505eec4557e523b416"
+      "sha256": "42ae74ac1473042ac8962b5fd465b1f9ac9de3f400c17c72d65edf6d285d0358"
+    },
+    {
+      "path": "dist/assets/index-D36JZd08.js",
+      "bytes": 4920,
+      "sha256": "14b81d9bf8ad4d851f1b46a818bc230a8ef8fb64861a8d8d01e3a6a5d7f306ef"
+    },
+    {
+      "path": "dist/assets/index-D58NlADx.js",
+      "bytes": 1616473,
+      "sha256": "40d226844bf9a8577f03150aeff7f4bbb10d3a3552ec00d3b91648318072b0b8"
     },
     {
       "path": "dist/assets/index-D7m7g_dl.css",
@@ -259,54 +294,44 @@
       "sha256": "b074f425745513f95f7ef0d8ddf5ebf016093be8fb3f4bd083c1cfc6ffff764d"
     },
     {
-      "path": "dist/assets/index-Dd6VHUb7.js",
-      "bytes": 30760,
-      "sha256": "f816ea963a26a7a5eeedf9e208f6a571d71357b3dc91fa29d4a22922208c79ad"
+      "path": "dist/assets/index-D9P5a6mq.js",
+      "bytes": 14637,
+      "sha256": "d62b7d042ac198ac7a454e247e2df3fce9a25748fa4369e4a38b2beb213f686f"
     },
     {
-      "path": "dist/assets/index-DE1hbxSV.js",
-      "bytes": 47715,
-      "sha256": "41dd136b197ced03bcb6d09b34870bc1c4a18b2608696ffef0c1a18931abb7da"
-    },
-    {
-      "path": "dist/assets/index-DEmrcJ44.js",
-      "bytes": 3250,
-      "sha256": "26f6827ec199ebf0a76fc9d98715709da88cf6f55fb5ffd675e221949cf879c6"
-    },
-    {
-      "path": "dist/assets/index-DGdEXO8X.js",
-      "bytes": 2390,
-      "sha256": "f9717f22a8a5da3a28a26a00930d2e1c9b072b49d7a9a043bf49f0860d73a064"
-    },
-    {
-      "path": "dist/assets/index-DO2CPIpt.js",
-      "bytes": 16220,
-      "sha256": "869be480fb8952a208ddce0674284e90d331b887bc5ad6faff29388f1591cfb1"
-    },
-    {
-      "path": "dist/assets/index-DqIyKD6J.js",
+      "path": "dist/assets/index-DaAW4eAI.js",
       "bytes": 45068,
-      "sha256": "bf9a9a7d645fe54b8ac3f8c816be730e9049147536ca7b35786a50489b95a25a"
+      "sha256": "4ec0c10593ba38b0429899d1bc3e8a31c89b0ef338ec26688a0d9bc3a3920573"
     },
     {
-      "path": "dist/assets/index-DVVSck2n.js",
-      "bytes": 12677,
-      "sha256": "556803876551a101eb2e4527272bbf28c3c75b4a2fec804d414676c86a7d4469"
-    },
-    {
-      "path": "dist/assets/index-LBfFpksW.js",
+      "path": "dist/assets/index-DfKC-3OJ.js",
       "bytes": 20797,
-      "sha256": "6e5cb266eb88275c6287b17dc82ac32535bf7b27f5d029fff6651aa5a9070bdf"
+      "sha256": "8f615c928356355ab407547e2bc9f982679e91b456a1e03a102e7a710262a9e1"
     },
     {
-      "path": "dist/assets/index-opWojFHZ.js",
-      "bytes": 4920,
-      "sha256": "db453b488958cf16c4f3a78cf8031ef9cdba638c8504699beb7e5a971ffef398"
+      "path": "dist/assets/index-DUq8JnHn.js",
+      "bytes": 2390,
+      "sha256": "3039eab27292088fdddbe9698c87a3dd546c1e4211cda295241bf4b5e76afe5a"
     },
     {
-      "path": "dist/assets/index-XpSJap9Q.js",
-      "bytes": 98141,
-      "sha256": "15504af1e6690ef9da25403a0c2931f0773c4ecbb715ae5d2b5e6f1eb2b848ab"
+      "path": "dist/assets/index-NwiSzb6c.js",
+      "bytes": 32263,
+      "sha256": "0d1c4ff9c92bb700f14584364dc07392e812928d75333ecbc60b2cd7b29b2aa1"
+    },
+    {
+      "path": "dist/assets/index-Vldw8hYF.js",
+      "bytes": 3250,
+      "sha256": "266573a7f238b7e6bf6c22ca02a010debb5a0839e3bcafbf7163db6762209818"
+    },
+    {
+      "path": "dist/assets/index-Wu0oWKn0.js",
+      "bytes": 16220,
+      "sha256": "275df33f32abbb1bb467adab61452a644a998d4c4786b29fd759ecf966d90bd5"
+    },
+    {
+      "path": "dist/assets/index-ZcIr4oKn.js",
+      "bytes": 12677,
+      "sha256": "a808a16f3531ef0a38920ce034622a0d2d86e235e9a00f8db0113fa9166a915f"
     },
     {
       "path": "dist/assets/javascript-iXu5QeM3.js",
@@ -610,8 +635,8 @@
     },
     {
       "path": "src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe",
-      "bytes": 2989638,
-      "sha256": "4322ed845d11e07f839b8163e670a7307b4de59a4b47b0bee8a52740b6433084"
+      "bytes": 2994010,
+      "sha256": "bc7bccde9bd82edb55415765e91161c2a5b1a843b88b73a89c8c185109c545ee"
     }
   ]
 }

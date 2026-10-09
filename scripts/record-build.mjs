@@ -7,7 +7,8 @@ import { resolve } from 'node:path'
 const output = resolve('Docs/verification')
 const config = JSON.parse(await readFile('src-tauri/tauri.conf.json', 'utf8'))
 await mkdir(output, { recursive: true })
-const paths = ['src-tauri/target/release/easym.exe', 'pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json']
+const paths = ['src-tauri/target/release/easym.exe', 'pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json', 'LICENSE',
+  'Docs/dependencies/THIRD-PARTY-NOTICES.md', 'Docs/dependencies/sbom.cdx.json', 'Docs/dependencies/inventory.json', 'Docs/dependencies/license-sources.json']
 try {
   for (const name of await readdir('src-tauri/target/release/bundle/portable')) {
     if (name.endsWith('.zip')) paths.push(`src-tauri/target/release/bundle/portable/${name}`)

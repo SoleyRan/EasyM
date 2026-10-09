@@ -2,7 +2,7 @@
 
 ## 当前交付
 
-v0.1 已建立可运行的编辑闭环，并补充 Windows 桌面可靠性实现；当前是开发候选构建，仍需按文末验收清单完成真实平台回归：
+v0.1 已建立可运行的编辑闭环，Windows 原生文件保存、自动保存和正文重启恢复主路径已通过验收，三平台 CI 编译/单测通过；当前是开发候选构建，仍需按文末验收清单完成跨平台实机与发行回归：
 
 - React + TypeScript + Vite + Tauri 2 工程骨架；
 - CodeMirror 6 Markdown 源码编辑，源码/分屏视图、工具栏命令、撤销/重做和标题大纲；
@@ -63,17 +63,18 @@ v0.1 已建立可运行的编辑闭环，并补充 Windows 桌面可靠性实现
 在当前 Windows 开发环境中：
 
 - `pnpm typecheck` 通过；
-- `pnpm.cmd test` 通过，13 个测试文件、77 项测试；
+- `pnpm.cmd test` 通过，14 个测试文件、79 项测试；
 - `pnpm build` 通过；
 - 2026-10-09：`cargo test --manifest-path src-tauri/Cargo.toml --locked --offline` 通过，16 项 Rust 单元测试成功；
 - 2026-10-09：Windows Release 重新构建，生成 `src-tauri/target/release/easym.exe`；最终大小与校验信息见 `Docs/verification/windows-build.json`。安装包步骤需要首次下载 WiX/NSIS 工具。
-- 最终前端构建主包约 1,615 kB（gzip 约 526 kB），源码代码语言使用按需加载的独立 chunk；主包仍超过默认 500 kB 提示阈值。性能脚本覆盖 5 MiB 文本、100 KiB 单行、100 张图片和 20 MiB 图片边界，结果保存于 `Docs/verification/performance-verification.json`，不能代替固定基准机和真实桌面 WebView 的 p95 验收。
+- 最终前端构建主包约 1,616 kB（gzip 约 527 kB），源码代码语言使用按需加载的独立 chunk；主包仍超过默认 500 kB 提示阈值。性能脚本覆盖 5 MiB 文本、100 KiB 单行、100 张图片和 20 MiB 图片边界，本机输入 p95 分别为 17.2 ms 与 29.2 ms，均达到 50 ms 目标；不能代替固定基准机和真实桌面 WebView 的 p95 验收。
 - 浏览器回归确认工具栏、图片面板、取消、应用、撤销、重做、文档开头插图换行、分屏预览、真实 PNG 像素/裁剪/旋转/翻转/缩放、JPEG EXIF 方向 1–8、透明 PNG、JPEG 白底和 IndexedDB 正文/资源/未应用 recipe 恢复；
 - ZIP 路径穿越、绝对路径、设备路径、重复条目和图片资源缺失有自动化测试；
 - 图片应用写入失败、正文版本过期有故障测试；编辑时发现源副本哈希变化会拒绝应用并保留原引用；
 - React 集成测试覆盖未修改文档退出、返回编辑、保存失败、保存取消、保存成功、立即保留草稿退出，以及未应用图片恢复后退出；原生窗口适配器由 mock 验证，不能代替真实 WebView 回归；
 - Rust 故障注入覆盖正文提交前失败重试、正文提交后恢复、真实图片元数据提交失败恢复、幂等操作、外部冲突和损坏元数据保护；
-- Windows 原生交互回归仍未完成：独立 Release 测试实例使用隔离的 WebView2 数据目录，启动成功，但 Computer Use 应用访问审批超时，未能读取窗口或继续操作；未触碰原用户窗口/草稿。剪贴板文件粘贴路径已有 Rust/适配器测试，尚缺真实 WebView2 手工确认。
+- Windows 原生交互已完成文件主路径：隔离 WebView2 数据目录中确认 EM 菜单、空文档关闭、中文/emoji 正文、中文含空格路径另存、自动保存、阅读全屏/Esc 退出、脏文档关闭提示、保留正文草稿退出后重启恢复和另存。真实 IME、图片 recipe、剪贴板和完整关闭失败路径仍待手工确认，分项证据见 `Docs/verification/windows-native-verification.json`。
+- GitHub Actions 运行 `37935155434` 的 frontend、Windows、macOS 和 Ubuntu 全部通过，对应提交 `2b2156f`；本轮安装/卸载及许可生成新增步骤尚未远程执行，不能沿用该运行宣称新步骤通过。
 
 ## 冻结后实现补充记录（2026-10-09）
 
@@ -133,25 +134,31 @@ v0.1 已建立可运行的编辑闭环，并补充 Windows 桌面可靠性实现
 
 ### 依赖交付清单
 
-`Docs/dependencies/THIRD-PARTY-NOTICES.md` 与 `sbom.cdx.json` 记录 406 个依赖版本（pnpm 生产依赖、Windows 过滤后的 Cargo 构建与运行依赖）。当前清单的完整许可文本缺项为 0；7 个未附带许可文件的包补充了上游许可，commit/来源和 SHA-256 位于 `license-sources.json`，提取说明见 `scripts/external-licenses/README.md`。这不是完整的三平台发行许可结论：MPL 来源代码可用性、其他平台依赖和最终分发附带文本仍在发布验收中。
+`Docs/dependencies/THIRD-PARTY-NOTICES.md` 与 `sbom.cdx.json` 记录 Windows 的 406 个依赖版本（pnpm 生产依赖、目标过滤后的 Cargo resolve graph 中构建与运行依赖）。Windows 完整许可文本缺项为 0；补充上游文本的 commit/来源和 SHA-256 位于 `license-sources.json`，提取说明见 `scripts/external-licenses/README.md`。Linux 清单 502 项，补齐 dlopen2、dlopen2_derive 和 libappindicator-sys 后缺项为 0；macOS arm64 清单 401 项，12 个 objc2 家族包仍缺完整文本。分平台摘要见 `Docs/verification/dependency-inventory-*.json`。
 
-Windows 便携开发包 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip` 已包含程序、项目 LICENSE 和上述第三方文件；解压后运行，要求系统已有 WebView2 Runtime。压缩包 216 个条目，路径与内嵌程序哈希核对通过，具体校验值见 `Docs/verification/windows-build.json`。NSIS 首次工具下载曾超时，重试下载并通过官方哈希校验后，已利用项目内缓存重新生成 `src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe`；安装包同样附带 LICENSE 与 `third-party/` 资源，未签名、安装/卸载仍待验证，详情见验收记录。
+`generate-notices.mjs` 接受输出目录与目标参数，生成 notices、SBOM、来源和 inventory；默认报告缺项，`EASYM_STRICT_LICENSES=true` 时因缺项失败。CI 在桌面构建前按本机 Rust host 重新生成 `Docs/dependencies/`，确保安装器资源与当前目标一致，并上传完整目录。声明扫描不是发行法律复核，macOS objc2 的上游 LICENSE.md 只有声明和 Apple SDK 来源说明；MPL 源码可用性及 SDK 派生条款仍需复核。
+
+Windows 便携开发包 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip` 已包含程序、项目 LICENSE 和上述第三方文件；解压后运行，要求系统已有 WebView2 Runtime。`scripts/package-portable.ps1` 生成 ZIP 并验证路径、重复条目、必需文件和内嵌程序哈希，具体校验值见 `Docs/verification/windows-build.json`。NSIS 首次工具下载曾超时，重试下载并通过官方哈希校验后，已利用项目内缓存重新生成 `src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe`；安装包同样附带 LICENSE 与 `third-party/` 资源。`verify-installer.ps1` 只在没有已有安装的 disposable Windows CI runner 验证安装/启动/卸载；新增 CI 步骤尚未执行，安装包未签名。
+
+### 超长行性能降级
+
+物理行超过 20,000 字符时，CodeMirror Compartment 暂停整篇源码 Markdown 语法支持；正文、撤销、选区和后台预览完整保留，状态栏说明降级。行缩短后自动恢复语法支持。`largeLines` StateField 初次统计全部行，随后仅统计变更触及的旧/新行，避免每次输入重新扫描全文；测试覆盖连接、拆分、多处编辑和阈值。生产性能脚本另确认恢复高亮、撤销后重新降级和完整预览。
 
 ## 当前边界
 
-- Windows MSVC Rust 编译和单元测试已经通过；原生文件对话框、窗口退出和桌面安装包运行仍待验证；
-- `.github/workflows/ci.yml` 已配置 Ubuntu 前端生产浏览器检查，以及 Windows、macOS、Linux 三平台 Rust 单测和 `pnpm tauri build --no-bundle`；当前未在远程 CI 实际执行，Linux 构建依赖已列出；
+- Windows MSVC 编译、单测和原生文件主路径通过；完整图片、IME 和失败路径验收仍未完成；
+- 三平台 CI 单测/构建已通过，macOS/Linux 实机 GUI、输入法和剪贴板仍未验收；新增目标许可清单与 Windows 安装/卸载步骤待下一次 CI 运行验证；
 - 即时渲染视图保持禁用，源码和分屏是 v0.1 稳定路径；
 - 浏览器模式不会覆盖原文件，而是下载 Markdown 或工作区 ZIP；
 - 图片元数据损坏、缺失或高版本 schema 会保留正文可读性并提示恢复受限。
 
-本阶段仍是开发切片，没有达到冻结文档的发布完成判定。还需完成：
+本阶段是可用的开发候选，没有达到冻结文档的发布完成判定。还需完成：
 
-- 原生文件对话框、退出时保存/保留草稿/返回编辑、重启恢复和保存失败时保持窗口的真实回归；
+- Windows 原生打开/取消、所有关闭决策和保存失败时保持窗口的完整回归；正文保留草稿退出/重启/另存已通过；
 - 在真实进程重启中验证图片 recipe 草稿与操作日志恢复；
 - Windows WebView2 原生剪贴板文件兼容性的手工回归，以及 macOS/Linux DOM 文件剪贴板关键路径；
 - 三平台实机回归、安装包签名/安装验证和固定基准机性能门槛；
-- 发布前按目标平台重新生成依赖清单；当前 Windows 过滤清单、许可证文本、外部许可来源和 CycloneDX SBOM 已在 `Docs/dependencies/`，Rust 依赖锁定在 `src-tauri/Cargo.lock`。
+- 发布前在目标环境重新生成依赖清单并复核；补齐 macOS 12 项完整许可文本，复核 MPL 源码可用性与 Apple SDK 派生条款。Rust 依赖锁定在 `src-tauri/Cargo.lock`。
 
 当前“另存为”会复制已托管的图片源/显示资源。文档中未托管或缺失的本地图片会阻止另存，并提示先导入副本；这避免生成正文引用缺失图片的目标文档。外部图片保留原链接，预览默认不请求网络资源。
 
@@ -159,7 +166,7 @@ Windows 便携开发包 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-wi
 
 逐项验收表、本机性能测量方法与校验报告见 [Easy-Markdown-v0.1-验收记录.md](Easy-Markdown-v0.1-验收记录.md)。
 
-1. 在 Windows Release 中恢复已有草稿，验证关闭提示与返回编辑；保留草稿退出后重启确认正文和图片操作可恢复。
-2. 验证原生打开/另存、中文组合输入、图片应用、保存冲突、保存取消和失败时不关闭窗口。
-3. 完成 Windows WebView2 与 macOS/Linux 关键路径、中文输入、原生文件对话框和剪贴板手工回归。
-4. 在固定基准机复测性能，验证安装包和签名，再按各平台依赖清单评估发布门槛。
+1. 在 Windows Release 补完真实 IME、图片/剪贴板与未应用 recipe 重启恢复、保存冲突/取消/失败和全部关闭决策。
+2. 在 macOS/Linux 实机执行冻结文档的关键路径，不把 CI 编译通过作为 GUI 验收。
+3. 下一次远程 CI 验证新增的 Windows 安装/启动/卸载与平台许可资源；当前用户电脑不执行会修改系统安装项的测试。
+4. 在固定基准机复测 WebView 性能，完成签名和 macOS/MPL 许可复核，再按第 12 节判定发布。

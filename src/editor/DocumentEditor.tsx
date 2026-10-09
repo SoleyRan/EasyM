@@ -79,6 +79,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [draftUnavailable, setDraftUnavailable] = useState(false)
   const [showOutline, setShowOutline] = useState(false)
   const [codeLanguage, setCodeLanguage] = useState('')
+  const [highlightLimited, setHighlightLimited] = useState(false)
   const [workspacePath, setWorkspacePath] = useState<string | null>(path ?? null)
   const [treeRevision, setTreeRevision] = useState(0)
   const editor = useRef<EditorHandle>(null)
@@ -497,7 +498,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} onChange={changed} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
+          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} onChange={changed} onHighlightLimited={setHighlightLimited} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
             if (reading) return
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
@@ -510,7 +511,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
             if (!reading && parsedText.current === text && node?.dataset.sourceFrom) jumpTo(Number(node.dataset.sourceFrom))
           }} dangerouslySetInnerHTML={{ __html: parsed.html }} />}
         </div>
-        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span><span className="status-spacer" />{draftStatus}</div>
+        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
       </main>
       {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline">{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>

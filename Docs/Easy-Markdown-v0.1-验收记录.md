@@ -1,22 +1,22 @@
 # Easy Markdown v0.1 验收记录
 
-记录日期：2026-10-09。当前结论：开发候选构建可运行，自动化闭环通过，尚未达到冻结文档第 12 节的三平台完成判定。
+记录日期：2026-10-09。当前结论：Windows 开发候选构建的文件保存、自动保存、阅读与正文重启恢复主路径已通过原生验收；三平台 CI 编译/单测通过，本机输入性能目标通过。macOS/Linux 实机关键路径、完整 Windows 图片/输入法验收和发行许可复核仍未完成，尚未达到冻结文档第 12 节的三平台完成判定。
 
 ## 自动化证据
 
 | 项目 | 当前结果 | 证据/复现入口 |
 | --- | --- | --- |
-| TypeScript 与前端单测 | 通过，77 项 / 13 文件 | `pnpm.cmd typecheck`、`pnpm.cmd test` |
+| TypeScript 与前端单测 | 通过，79 项 / 14 文件 | `pnpm.cmd typecheck`、`pnpm.cmd test` |
 | Windows Rust 单测 | 通过，16 项 | `cargo test --manifest-path src-tauri/Cargo.toml --locked --offline` |
 | Release 构建 | Windows MSVC 成功 | `pnpm.cmd tauri build --no-bundle`；校验值见 [windows-build.json](verification/windows-build.json) |
-| Windows 便携交付 | 已生成开发候选 ZIP，含程序与许可 | `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip`；216 个条目，无重复与越界路径，内嵌 exe 哈希与独立产物一致 |
-| Windows NSIS 打包 | 成功，未签名，安装/卸载未验证 | `src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe`；校验值见 [windows-build.json](verification/windows-build.json) |
+| Windows 便携交付 | 已生成开发候选 ZIP，含程序与许可 | `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip`；无重复与越界路径，内嵌 exe 哈希与独立产物一致；校验值见构建报告 |
+| Windows NSIS 打包 | 成功，未签名；安装/卸载 CI 验证脚本已加入，尚未执行 | `src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe`；校验值见 [windows-build.json](verification/windows-build.json) |
 | 无 DOM Worker 初始化 | 通过，检查实际打包代码 | `pnpm.cmd verify:workers` |
 | 生产浏览器闭环 | 通过，使用与 Tauri 相同的 CSP | `pnpm.cmd verify:browser`；[报告](verification/browser-verification.json) |
 | 写作体验回归 | 通过，语言高亮、双向滚动、大纲两侧定位、多文档、四种主题、EM 菜单、侧栏拖拽、长名称和标签滚轮 | `pnpm.cmd verify:writing`；[报告](verification/writing-verification.json) |
-| 输入与资源性能样例 | 四组完成；5 MiB 输入目标通过，超长单行 p95 53.1 ms | `pnpm.cmd verify:performance`；[报告](verification/performance-verification.json) |
-| 依赖交付 | Windows 清单 406 个版本，许可文本完整 | [第三方清单](dependencies/THIRD-PARTY-NOTICES.md)、[SBOM](dependencies/sbom.cdx.json) |
-| 三平台 CI | 配置完成，未远程执行 | `.github/workflows/ci.yml` |
+| 输入与资源性能样例 | 四组通过；5 MiB p95 17.2 ms，超长单行 p95 29.2 ms | `pnpm.cmd verify:performance`；[报告](verification/performance-verification.json) |
+| 依赖交付 | Windows 406 / Linux 502 个版本，完整许可文本缺项为 0；macOS 401 个版本，12 项待复核 | [第三方清单](dependencies/THIRD-PARTY-NOTICES.md)、[SBOM](dependencies/sbom.cdx.json)、`verification/dependency-inventory-*.json` |
+| 三平台 CI | frontend、Windows、macOS、Ubuntu 全部成功，针对提交 `2b2156f` | [运行 37935155434](https://github.com/SoleyRan/EasyM/actions/runs/37935155434)、[报告](verification/ci-verification.json)；本轮新增安装器步骤尚未远程执行 |
 
 浏览器回归覆盖真实像素、PNG 裁剪/旋转/翻转/缩放、JPEG EXIF 八方向及二次归一化、透明与白底、无效图片拒绝、中文/emoji 正文、两张图片实例隔离、应用/取消/撤销/重做，以及 IndexedDB 正文/资源/未应用操作在页面重载后的恢复。中文文本录入不等同于中文输入法组合验证。
 
@@ -28,52 +28,54 @@ React 集成测试另外覆盖关闭单个标签保存隔离、退出时刷新�
 
 本轮追加验证：预览滚动后点击大纲，以及重复选择同一标题，源码和预览标题都进入各自视口；两侧分隔条真实 Pointer 拖拽增加宽度，页面重载后读取已保存宽度；长当前文件名省略显示且不越过侧栏；点击 EM 菜单操作文件，溢出标签支持上下滚轮左右浏览。不保存关闭只移除当前标签草稿、不调用文件保存，其他标签草稿保留；不保存退出清理所有目标草稿，关闭窗口失败后恢复自动草稿保护。EasyM 产品名与窗口标题、EM 图标已更新，并重新生成全部平台图标。
 
-自定义窗口与阅读新增验证：窗口适配器测试覆盖最小化、最大化、拖动、全屏状态查询/切换与监听释放；React 集成测试确认自定义关闭仍保护脏文档、主题菜单记忆、阅读三按钮布局、统计、退出后原视图/正文保持、全屏失败与系统退出。Edge 实际全屏下验证隐藏 EM/源码/工具栏、阅读大纲定位、按钮与 Esc 退出。原生窗口拖动、最小化/最大化/还原及 WebView2 全屏尚待手工验收。
+自定义窗口与阅读新增验证：窗口适配器测试覆盖最小化、最大化、拖动、全屏状态查询/切换与监听释放；React 集成测试确认自定义关闭仍保护脏文档、主题菜单记忆、阅读三按钮布局、统计、退出后原视图/正文保持、全屏失败与系统退出。Edge 实际全屏下验证隐藏 EM/源码/工具栏、阅读大纲定位、按钮与 Esc 退出。WebView2 原生阅读全屏与 Esc 退出已通过；原生窗口拖动、最小化/最大化/还原仍待手工验收。
 
 本轮标签/菜单回归：未编辑的新文档无修改标记、无空白草稿，关闭标签和仅含未编辑文档的窗口不弹保存提示；已有正文修改和图片关闭保护保留。Style 点击后在父菜单右侧展开，键盘进入/返回/选择和主题持久化通过。Edge 检查标签栏滚动条为 3px，默认透明、顶栏悬停显示且宽度不变，滚轮浏览仍有效。
 
 ## 本机性能基线
 
-自动保存新增集成覆盖：已授权文件闲置写回、未命名/恢复文档只保留草稿、写入中与清理草稿中的新编辑、外部冲突暂停及手动重试、关闭决策暂停与不保存退出、混合换行无自动确认弹窗、组合输入结束后保存。文件树打开文档后保持展开。Edge 实际验证保存信息行已移除、格式工具栏可切换且重载后记住偏好、正文高度增大，以及四种主题下表格边框与 GFM 对齐。原生自动保存仍需按后文真实平台路径手工验收。
+自动保存新增集成覆盖：已授权文件闲置写回、未命名/恢复文档只保留草稿、写入中与清理草稿中的新编辑、外部冲突暂停及手动重试、关闭决策暂停与不保存退出、混合换行无自动确认弹窗、组合输入结束后保存。文件树打开文档后保持展开。Edge 实际验证保存信息行已移除、格式工具栏可切换且重载后记住偏好、正文高度增大，以及四种主题下表格边框与 GFM 对齐。Windows 已命名文件自动保存已在原生 WebView2 中确认磁盘正文更新。
 
 Edge 154.0.4258.62，无头模式，1440×900；Windows 10.0.26200、Core 5 220H、16 逻辑核、31.7 GiB 内存。正文用真实文件选择器打开；输入各采集 40 次 `a` 按键，按 keydown 到下一 requestAnimationFrame 统计 p95。这是本机 UI 延迟近似值，包含 CodeMirror/React 更新，不能替代物理显示、输入法或 WebView2 的测量。
 
 | 样例 | 结果 |
 | --- | --- |
-| 5 MiB 多段 Markdown | 打开 3,169 ms；输入 p95 17 ms |
-| 100 KiB 超长单行 | 打开 192 ms；输入 p95 53.1 ms |
-| 100 张 800×600 本地 PNG | 恢复并解码 497 ms，100 张均完成 |
-| 20 MiB PNG 字节边界 | 接受（101.2 ms），多 1 字节拒绝（39.3 ms） |
+| 5 MiB 多段 Markdown | 打开 2,042 ms；输入 p95 17.2 ms |
+| 100 KiB 超长单行 | 打开 118 ms；输入 p95 29.2 ms；源码高亮降级、恢复、撤销和完整预览通过 |
+| 100 张 800×600 本地 PNG | 恢复并解码 473 ms，100 张均完成 |
+| 20 MiB PNG 字节边界 | 接受（136.2 ms），多 1 字节拒绝（29.4 ms） |
 
-20 MiB 样例为有效 800×600 PNG 加尾部填充，用于确定字节边界，不能证明高熵大图或接近 2400 万像素的内存峰值。5 MiB 多段正文满足 50 ms 目标，100 KiB 单行 p95 为 53.1 ms，仍需优化/固定基准机复测；发布前仍需固定基准机、三平台 WebView 与真实图片内存/取消压力复测。该脚本不在 CI 中断言时间，以免不同硬件制造不可靠的门槛。
+20 MiB 样例为有效 800×600 PNG 加尾部填充，用于确定字节边界，不能证明高熵大图或接近 2400 万像素的内存峰值。5 MiB 多段正文和 100 KiB 单行均满足本机 50 ms 目标；发布前仍需固定基准机、三平台 WebView 与真实图片内存/取消压力复测。该脚本不在 CI 中断言时间，以免不同硬件制造不可靠的门槛。
 
-上表沿用上一轮自定义顶栏/字数/阅读模式构建的性能测量；本轮仅修改标签栏、菜单和未编辑文档关闭行为，没有复测性能。测量在 Rust 单测编译完成后、Release 编译前执行；浏览器模式仅保留草稿，不写回文件。
+本轮针对超长行卡顿增加确定性降级：任一物理行超过 20,000 字符时暂停整篇源码 Markdown 语法支持，状态栏提示；缩短后自动恢复。文本、选区、撤销和后台预览保持完整，不截断或改写文件。状态字段只重新统计变更涉及的行，覆盖连接、拆分和同一事务多处编辑。上表来自该修复后的生产包；浏览器模式仅保留草稿，不写回文件。
 
 ## 桌面验收与待办
 
-便携包解压后运行 `easym.exe`，依赖系统 WebView2 Runtime，未签名、未安装到系统。程序、Apache-2.0 条款、第三方清单、CycloneDX SBOM 与 211 份许可文件一并交付。ZIP SHA-256：`cdf1139e034142d816c7a6a4b3a96ed55cd32bfdac11dfdd86b827f18083c8ec`。本轮重新生成便携包并验证全部 216 个条目和内嵌程序哈希。
+便携包解压后运行 `easym.exe`，依赖系统 WebView2 Runtime，未签名、未安装到系统。程序、Apache-2.0 条款、第三方清单、平台 inventory、CycloneDX SBOM 与 211 份许可文件一并交付。使用 `scripts/package-portable.ps1` 生成并验证路径、重复条目、必需文件和内嵌程序哈希；最新大小与 SHA-256 统一记录在 [windows-build.json](verification/windows-build.json)。
 
 NSIS 首次下载曾停滞/超时，2026-10-09 再次下载成功。工具 ZIP 与插件分别通过当前 Tauri CLI 2.12.1 官方源码指定的 SHA-1 校验（`EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D`、`75197FEE3C6A814FE035788D1C34EAD39349B860`）。工具缓存放在 `src-tauri/target/.tauri/NSIS`，以临时配置 `bundle.useLocalToolsDir=true` 执行 `pnpm.cmd tauri bundle --bundles nsis --no-binary-patching --config test-results/nsis-local.config.json`，复用既有 Release 程序完成打包，独立 exe 哈希不变。
 
-本轮 EasyM 安装包为 2,989,638 bytes，SHA-256 `4322ed845d11e07f839b8163e670a7307b4de59a4b47b0bee8a52740b6433084`。独立 Release 可执行文件为 10,316,800 bytes，SHA-256 `09b2e77b744616f5f59daf41b78d6e142a7bb462da17270aaf2ed70a4bcd2463`。NSIS 打包沿用项目 LICENSE、第三方清单、SBOM 和许可资源配置；未执行安装/卸载，未进行代码签名。
+本轮安装包和独立 Release 可执行文件的大小与 SHA-256 见构建报告。NSIS 打包沿用项目 LICENSE、第三方清单、SBOM 和许可资源配置，未进行代码签名。新增 `scripts/verify-installer.ps1` 只允许 Windows disposable CI runner 执行，拒绝覆盖已有安装；验证静默安装、许可资源、exe 哈希、原生窗口启动和卸载，并输出 `test-results/installer-verification.json`。这套新增步骤尚未远程执行，现有成功 CI 不包含安装/卸载证据。
 
-独立 Windows Release 测试实例曾启动；原有用户进程与草稿未触碰。Computer Use 应用访问审批超时，未能取得窗口状态，故原生交互没有记作通过。该测试实例随后清理；编译成功和浏览器通过均不能代替桌面验收。
+独立 Windows Release 使用隔离 WebView2 数据目录完成原生交互，原有用户草稿未触碰。测试程序 SHA-256 为 `0c1dfefdb0503f0a3ff799a77cb1d7bbfb066e4368a70e8e2f71e8cf4b6b825d`。确认 EM 菜单、未编辑新文档直接关闭、中文/emoji 正文、中文含空格路径另存、磁盘正文与自动保存、阅读全屏/Esc 退出、关闭脏文档保护，以及保留正文草稿退出后重启恢复并另存为 `recovered.md`。中文正文录入没有证明真实 IME 候选/组合输入，图片 recipe 的原生重启恢复仍待验收。分项证据见 [windows-native-verification.json](verification/windows-native-verification.json)。
 
 以下场景应在新建的临时工作区执行，记录平台、应用校验值、输入法和结果。每个失败项需附可复现步骤，不能以重置草稿消除故障。
 
 | 场景 | 预期结果 | Windows | macOS | Linux |
 | --- | --- | --- | --- | --- |
-| 新建/打开/另存，含中文、空格路径 | 系统选择器正常；取消保留正文 | 待验收 | 待验收 | 待验收 |
+| 新建/打开/另存，含中文、空格路径 | 系统选择器正常；取消保留正文 | 新建/另存/自动保存通过；打开/取消待验收 | 待验收 | 待验收 |
 | 自定义顶栏拖动、最小化、最大化/还原、关闭 | 跟随主题，无系统标题栏，关闭仍保护脏文档 | 待验收 | 待验收 | 待验收 |
-| 阅读模式、按钮/Esc 退出与字数 | 全屏仅预览，三按钮导航，退出保留编辑状态 | 待验收 | 待验收 | 待验收 |
+| 阅读模式、按钮/Esc 退出与字数 | 全屏仅预览，三按钮导航，退出保留编辑状态 | 全屏/Esc 通过；按钮/统计待完整验收 | 待验收 | 待验收 |
 | 未编辑 UTF-8/BOM、LF/CRLF 文件保存 | 字节不变；混合换行编辑明确询问 | 待验收 | 待验收 | 待验收 |
-| 中文组合输入与 Ctrl/Cmd 快捷键 | 不破坏组合；源码/分屏共享正文 | 待验收 | 待验收 | 待验收 |
+| 中文组合输入与 Ctrl/Cmd 快捷键 | 不破坏组合；源码/分屏共享正文 | 中文/emoji 正文通过；真实 IME/快捷键待验收 | 待验收 | 待验收 |
 | 文件树打开文档/拖图片、截图粘贴、文件粘贴 | 导入副本；普通文本粘贴正常 | 待验收 | 待验收 | 待验收 |
 | 同图插入两次，双击裁剪、取消、应用、撤销 | 原图不变；另一实例不变 | 待验收 | 待验收 | 待验收 |
-| 关闭返回编辑、保留草稿退出、保存退出、不保存退出 | 保存/草稿清理失败保留窗口；明确丢弃不写文件 | 待验收 | 待验收 | 待验收 |
+| 关闭返回编辑、保留草稿退出、保存退出、不保存退出 | 保存/草稿清理失败保留窗口；明确丢弃不写文件 | 脏文档提示/保留正文草稿退出并重启恢复通过；其余待验收 | 待验收 | 待验收 |
 | 未应用图片 recipe，退出后进程重启恢复 | 正文、源副本、Alt 与操作完整恢复 | 待验收 | 待验收 | 待验收 |
 | 外部修改、保存取消/无权限、损坏元数据 | 不覆盖任何版本；失败保留窗口 | 待验收 | 待验收 | 待验收 |
 | 中断保存后重启，随后又有外部修改 | 恢复仅补元数据，不重写外部正文 | 待验收 | 待验收 | 待验收 |
 | 高 DPI、键盘焦点、屏幕阅读器、长路径 | 中央编辑区和图片面板可使用 | 待验收 | 待验收 | 待验收 |
 
-安装包安装/卸载、代码签名、平台专用依赖清单与许可分发仍属于发行验收。当前即时渲染按冻结文档允许的降级路径保持禁用，默认源码、分屏可用；多文档标签与四种配色按用户追加要求纳入当前开发交付。历史资源/操作日志自动清理和完整富文本编辑仍未实现。
+平台依赖 inventory 已按 Windows MSVC、macOS arm64 与 Linux x64 的 Cargo resolve graph 分别生成；Windows 406、Linux 502 项完整许可文本缺项为 0，严格模式复核通过。macOS 401 项中 12 个 objc2 家族包待补完整条款（具体包名见 inventory）；上游 LICENSE.md 只有许可声明和 Apple SDK 来源说明，不能作为完整文本计数。CI 每次在目标平台重新生成并附带清单；Windows/Linux 使用严格模式，macOS 暂报告缺项，不能作为正式发布许可门槛。声明扫描和 SBOM 不等于发行法律复核，MPL 源码可用性与 Apple SDK 派生条款仍需复核。
+
+安装包安装/卸载、代码签名和许可分发复核仍属于发行验收。当前即时渲染按冻结文档允许的降级路径保持禁用，默认源码、分屏可用；多文档标签与四种配色按用户追加要求纳入当前开发交付。历史资源/操作日志自动清理和完整富文本编辑仍未实现。

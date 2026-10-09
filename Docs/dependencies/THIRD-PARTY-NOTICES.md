@@ -419,4 +419,4 @@ Inventory: 406 dependency versions.
 
 None.
 
-Some packages do not ship a license file. Supplemental upstream license texts are vendored under `scripts/external-licenses/`; source commits, canonical license URLs and the format package extraction are documented in its README and `license-sources.json`. Regenerate using `pnpm licenses list --prod --json` and `cargo metadata --locked --filter-platform x86_64-pc-windows-msvc --format-version 1`, followed by `node scripts/generate-notices.mjs <npm-output> <cargo-output>`.
+Some packages do not ship a license file. Supplemental upstream license texts are vendored under scripts/external-licenses/; source commits, canonical license URLs and the format package extraction are documented in its README and license-sources.json. Regenerate using pnpm licenses list --prod --json and cargo metadata --locked --filter-platform x86_64-pc-windows-msvc --format-version 1, followed by node scripts/generate-notices.mjs <npm-output> <cargo-output> <output-directory> x86_64-pc-windows-msvc.

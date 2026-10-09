@@ -51,11 +51,38 @@ jobs:
       - run: pnpm build
       - run: pnpm verify:workers
       - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - name: Collect platform dependency notices
+        shell: bash
+        env:
+          EASYM_STRICT_LICENSES: ${{ runner.os != 'macOS' }}
+        run: |
+          mkdir -p test-results
+          pnpm licenses list --prod --json > test-results/npm-licenses.json
+          target=$(rustc -vV | awk '/^host:/ {print $2}')
+          cargo metadata --manifest-path src-tauri/Cargo.toml --locked --filter-platform "$target" --format-version 1 > test-results/cargo-metadata.json
+          node scripts/generate-notices.mjs test-results/npm-licenses.json test-results/cargo-metadata.json Docs/dependencies "$target"
       - run: pnpm tauri build --no-bundle
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        run: pnpm tauri bundle --bundles nsis --no-binary-patching
+      - name: Verify Windows installation and removal
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/verify-installer.ps1
+      - name: Upload installer diagnostics
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer-verification
+          path: test-results/installer-verification.json
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
           name: easym-${{ runner.os }}-development
           path: |
             src-tauri/target/release/easym.exe
             src-tauri/target/release/easym
+            Docs/dependencies/
+            test-results/installer-verification.json
+            src-tauri/target/release/bundle/nsis/*-setup.exe
           if-no-files-found: error

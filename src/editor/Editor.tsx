@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
-import { EditorState } from '@codemirror/state'
+import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
@@ -11,6 +11,7 @@ import type { FencedBlock } from '../core/code-block'
 import type { TextPatch, Selection } from '../core/document'
 import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '../platform/workspace'
 import { nativeClipboardFiles, supportedImageFiles } from '../platform/clipboard'
+import { largeLines } from './large-lines'
 
 export interface EditorHandle {
   selection(): Selection
@@ -45,13 +46,13 @@ function fencedCode(editor: EditorView): FencedBlock | null {
   return { from: node.from, to: node.to, language }
 }
 
-interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void }
+interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
-  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage })
-  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage }
+  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited })
+  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited }
   useImperativeHandle(ref, () => ({
     selection: () => view.current?.state.selection.main ?? { anchor: 0, head: 0 },
     composing: () => view.current?.composing ?? false,
@@ -89,13 +90,21 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
   }), [])
 
   useEffect(() => {
+    const language = new Compartment()
+    const support = markdown({ codeLanguages: languages })
+    const limited = EditorState.create({ doc: initialText, extensions: [largeLines] }).field(largeLines) > 0
     const editor = new EditorView({
       parent: host.current!,
       state: EditorState.create({
         doc: initialText,
         extensions: [
           lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
-          markdown({ codeLanguages: languages }), syntaxHighlighting(tokenStyle),
+          largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
+          EditorState.transactionExtender.of((transaction) => {
+            const before = transaction.startState.field(largeLines) > 0
+            const after = transaction.state.field(largeLines) > 0
+            return before === after ? null : { effects: language.reconfigure(after ? [] : support) }
+          }),
           keymap.of([{ key: 'Mod-s', run: (v) => { if (!v.composing) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap]),
           keymap.of([['Mod-b', 'bold'], ['Mod-i', 'italic'], ['Mod-k', 'link'], ['Mod-Shift-h', 'heading'], ['Mod-Shift-u', 'bullet'], ['Mod-Shift-o', 'ordered'], ['Mod-Shift-t', 'task'], ['Mod-Shift-q', 'quote'], ['Mod-Shift-c', 'code'], ['Mod-Shift-p', 'image']].map(([key, kind]) => ({ key, run: (v: EditorView) => { if (!v.composing) callbacks.current.onCommand(kind); return true } }))),
           EditorView.domEventHandlers({
@@ -134,12 +143,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
           EditorView.contentAttributes.of({ 'aria-label': 'Markdown 源码编辑器', spellcheck: 'false' }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
+            if (update.docChanged) callbacks.current.onHighlightLimited?.(update.state.field(largeLines) > 0)
             if (update.selectionSet || update.docChanged) callbacks.current.onCodeLanguage?.(fencedCode(update.view)?.language ?? null)
           }),
         ],
       }),
     })
     view.current = editor
+    callbacks.current.onHighlightLimited?.(limited)
     callbacks.current.onCodeLanguage?.(fencedCode(editor)?.language ?? null)
     return () => { editor.destroy(); view.current = null }
   }, [])

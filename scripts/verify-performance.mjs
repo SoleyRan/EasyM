@@ -47,7 +47,23 @@ try {
     assert.equal(samples.length, 40)
     samples.sort((a, b) => a - b)
     const p95Ms = +samples[Math.ceil(samples.length * 0.95) - 1].toFixed(2)
-    report.cases.push({ name, bytes: Buffer.byteLength(body), openMs, inputSamples: samples.length, inputEventToNextFrameP95Ms: p95Ms, targetMs: 50, targetMet: p95Ms <= 50 })
+    const highlightLimited = await page.locator('.document-panel:not([hidden]) .statusbar').textContent().then(text => text.includes('源码高亮已暂停'))
+    assert.equal(highlightLimited, name === '100 KiB single line')
+    report.cases.push({ name, bytes: Buffer.byteLength(body), openMs, inputSamples: samples.length, inputEventToNextFrameP95Ms: p95Ms, targetMs: 50, targetMet: p95Ms <= 50, sourceHighlightLimited: highlightLimited })
+    if (highlightLimited) {
+      // Undo restores the full file; shortening it reinstates Markdown support
+      // in the same editor, and undoing the replacement reinstates the guard.
+      for (let i = 0; i < 40; i++) await page.keyboard.press('Control+z')
+      await page.keyboard.press('Control+a')
+      await page.keyboard.insertText('# Short heading')
+      await page.waitForFunction(() => !document.querySelector('.document-panel:not([hidden]) .statusbar').textContent.includes('源码高亮已暂停'))
+      await page.locator('.document-panel:not([hidden]) .syntax-heading').first().waitFor()
+      await page.keyboard.press('Control+z')
+      await page.waitForFunction(() => document.querySelector('.document-panel:not([hidden]) .statusbar').textContent.includes('源码高亮已暂停'))
+      await page.getByRole('button', { name: '分屏', exact: true }).click()
+      await page.waitForFunction(() => document.querySelector('.document-panel:not([hidden]) .preview')?.textContent === 'x'.repeat(100 * 1024))
+      report.cases.at(-1).fullPreviewAndUndoVerified = true
+    }
     console.log(`${name}: open ${openMs} ms, input p95 ${p95Ms} ms`)
     await context.close()
   }

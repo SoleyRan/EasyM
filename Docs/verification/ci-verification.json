@@ -1,0 +1,33 @@
+{
+  "jobs": [
+    {
+      "name": "desktop (macos-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/SoleyRan/EasyM/actions/runs/37935155434/job/113835243453"
+    },
+    {
+      "name": "frontend",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/SoleyRan/EasyM/actions/runs/37935155434/job/113835243905"
+    },
+    {
+      "name": "desktop (windows-latest)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/SoleyRan/EasyM/actions/runs/37935155434/job/113835243910"
+    },
+    {
+      "name": "desktop (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/SoleyRan/EasyM/actions/runs/37935155434/job/113835243995"
+    }
+  ],
+  "url": "https://github.com/SoleyRan/EasyM/actions/runs/37935155434",
+  "status": "completed",
+  "headSha": "2b2156f1cfaab828d0d9e02c7a08a3694c4467c7",
+  "checkedAt": "2026-10-09T13:39:24.2515223Z",
+  "conclusion": "success"
+}

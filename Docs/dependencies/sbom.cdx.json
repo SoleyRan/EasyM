@@ -3,6 +3,12 @@
   "specVersion": "1.5",
   "version": 1,
   "metadata": {
+    "properties": [
+      {
+        "name": "easym:target",
+        "value": "x86_64-pc-windows-msvc"
+      }
+    ],
     "component": {
       "type": "application",
       "name": "EasyM",
