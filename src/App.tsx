@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { prefixLines, replaceSelection, wrapSelection } from './core/document'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from './core/codec'
 import { parseDocument } from './core/markdown'
-import { Editor, type EditorHandle } from './editor/Editor'
+import { Editor, type EditorHandle, type SourceScroll } from './editor/Editor'
+import { codeBlockCommand } from './core/code-block'
 import { desktop, openDocument, saveDocument, readImage, reloadDocument, materializeResources } from './platform/storage'
 import { drafts, type Draft } from './platform/drafts'
 import { ImagePanel } from './editor/ImagePanel'
@@ -18,7 +19,7 @@ import { readClipboardImageFiles } from './platform/clipboard'
 
 type ViewMode = 'source' | 'split'
 type Command = 'bold' | 'italic' | 'quote' | 'bullet' | 'task' | 'heading' | 'ordered' | 'code' | 'link'
-const initialText = '# 欢迎使用 EasyM\n\n本地优先的 Markdown 编辑器。\n\n## 开始写作\n\n使用左侧「打开文件」导入 Markdown，或创建新文档。使用「分屏」查看预览，点击右侧大纲跳转到标题。\n\n- 使用工具栏或快捷键修改当前选区\n- 粘贴、拖入或选择 PNG/JPEG 图片\n- 双击预览图片，编辑当前图片的副本\n\n> 编辑后记得保存；再次打开时可恢复未完成的草稿。'
+const initialText = '# 欢迎使用 EasyM\n\n本地优先的 Markdown 编辑器。\n\n## 开始写作\n\n使用顶部「打开文件」导入 Markdown，或创建新文档。使用「分屏」查看预览，点击「大纲」跳转到标题。\n\n- 使用工具栏或快捷键修改当前选区\n- 粘贴、拖入或选择 PNG/JPEG 图片\n- 双击预览图片，编辑当前图片的副本\n\n> 编辑后记得保存；再次打开时可恢复未完成的草稿。'
 
 function errorMessage(error: unknown): string {
   const value = error instanceof Error ? error.message : String(error)
@@ -50,8 +51,9 @@ export default function App() {
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null)
   const [draftReady, setDraftReady] = useState(false)
   const [focus, setFocus] = useState(false)
-  const [showFiles, setShowFiles] = useState(true)
-  const [showOutline, setShowOutline] = useState(true)
+  const [showFiles, setShowFiles] = useState(false)
+  const [showOutline, setShowOutline] = useState(false)
+  const [codeLanguage, setCodeLanguage] = useState('')
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [workspacePath, setWorkspacePath] = useState<string | null>(null)
   const [treeRevision, setTreeRevision] = useState(0)
@@ -59,6 +61,10 @@ export default function App() {
   const [exitBusy, setExitBusy] = useState(false)
   const editor = useRef<EditorHandle>(null)
   const preview = useRef<HTMLElement>(null)
+  const sourceScroll = useRef<SourceScroll>({ offset: 0, fraction: 0, ratio: 0 })
+  const scrollAnchors = useRef<{ from: number; top: number }[] | null>(null)
+  const scrollFrame = useRef<number | null>(null)
+  const applyScroll = useRef<() => void>(() => undefined)
   const changeRevision = useRef(0)
   const saving = useRef(false)
   const panelApplying = useRef(false)
@@ -68,6 +74,55 @@ export default function App() {
   const flushDraft = useRef<() => void>(() => undefined)
   const { parsed, parsedText } = usePreview(text, setError)
   const imagePicker = useRef<HTMLInputElement>(null)
+  function syncPreview(position = sourceScroll.current, remeasure = false) {
+    sourceScroll.current = position
+    if (remeasure) scrollAnchors.current = null
+    if (scrollFrame.current === null) scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = null
+      applyScroll.current()
+    })
+  }
+  applyScroll.current = () => {
+    const position = sourceScroll.current
+    const pane = preview.current
+    if (!pane || view !== 'split' || parsedText.current !== text) return
+    const max = Math.max(0, pane.scrollHeight - pane.clientHeight)
+    if (position.ratio >= .999) { pane.scrollTop = max; return }
+    if (position.ratio <= .001) { pane.scrollTop = 0; return }
+    const top = pane.getBoundingClientRect().top
+    const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
+      const node = element.hasAttribute('data-source-from') ? element as HTMLElement : element.querySelector<HTMLElement>('[data-source-from]')
+      return node ? { from: Number(node.dataset.sourceFrom), top: element.getBoundingClientRect().top - top + pane.scrollTop } : null
+    }).filter((item): item is { from: number; top: number } => item !== null)
+    scrollAnchors.current = anchors
+    const lineEnd = text.indexOf('\n', position.offset)
+    const offset = position.offset + position.fraction * ((lineEnd < 0 ? text.length : lineEnd) - position.offset + 1)
+    let previous = { from: 0, top: 0 }
+    let next = { from: text.length, top: pane.scrollHeight }
+    let low = 0, high = anchors.length
+    while (low < high) {
+      const middle = (low + high) >>> 1
+      if (anchors[middle].from <= offset) low = middle + 1
+      else high = middle
+    }
+    if (low > 0) previous = anchors[low - 1]
+    if (low < anchors.length) next = anchors[low]
+    const fraction = next.from > previous.from ? (offset - previous.from) / (next.from - previous.from) : 0
+    pane.scrollTop = Math.max(0, Math.min(max, previous.top + fraction * (next.top - previous.top)))
+  }
+  useEffect(() => {
+    syncPreview(sourceScroll.current, true)
+    const resize = () => syncPreview(sourceScroll.current, true)
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
+    if (preview.current) observer?.observe(preview.current)
+    window.addEventListener('resize', resize)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', resize)
+      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current)
+      scrollFrame.current = null
+    }
+  }, [view, parsed.html, showFiles, showOutline, focus])
   function openedResources(body: string, instances = images.resources.instances) {
     const paths = new Set(parseDocument(body).images.map((item) => item.url))
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
@@ -213,6 +268,8 @@ export default function App() {
   }
 
   function load(nextText: string, nextName: string, nextSnapshot: FileSnapshot, id: string | null, baseRevision: string | null, modified = false) {
+    sourceScroll.current = { offset: 0, fraction: 0, ratio: 0 }
+    scrollAnchors.current = null
     draftGeneration.current++
     changeRevision.current++
     setText(nextText); setName(nextName); setSnapshot(nextSnapshot); setFileId(id); setRevision(baseRevision)
@@ -247,7 +304,7 @@ export default function App() {
     setBusy(true)
     try {
       const next = refresh && workspace ? { ...workspace, entries: await listWorkspace(workspace.id) } : await openWorkspace()
-      if (next) { setWorkspace(next); setWorkspacePath(null); setTreeRevision((value) => value + 1) }
+      if (next) { setWorkspace(next); setShowFiles(true); setWorkspacePath(null); setTreeRevision((value) => value + 1) }
     } catch (err) { setError(errorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -309,10 +366,20 @@ export default function App() {
     const selection = editor.current?.selection() ?? { anchor: 0, head: 0 }
     const current = changeRevision.current
     const result = kind === 'bold' || kind === 'italic' ? wrapSelection(current, text, selection, kind === 'bold' ? '**' : '*')
-      : kind === 'code' ? replaceSelection(current, selection, `\n\`\`\`\n${text.slice(Math.min(selection.anchor, selection.head), Math.max(selection.anchor, selection.head))}\n\`\`\`\n`)
+      : kind === 'code' ? codeBlockCommand(current, text, selection, codeLanguage, editor.current?.fencedCode() ?? null)
       : kind === 'link' ? replaceSelection(current, selection, `[${text.slice(Math.min(selection.anchor, selection.head), Math.max(selection.anchor, selection.head)) || '链接文字'}](https://example.com)`)
       : prefixLines(current, text, selection, { heading: '## ', quote: '> ', bullet: '- ', task: '- [ ] ', ordered: '1. ' }[kind])
     if (result.baseTextRevision === changeRevision.current) editor.current?.patch(result.patches, result.selection)
+  }
+
+  function chooseCodeLanguage(language: string) {
+    setCodeLanguage(language)
+    if (disabled || editor.current?.composing()) return
+    const block = editor.current?.fencedCode()
+    if (!block) return
+    const selection = editor.current!.selection()
+    const result = codeBlockCommand(changeRevision.current, text, selection, language, block)
+    editor.current?.patch(result.patches, result.selection)
   }
 
   async function recover(keep: boolean) {
@@ -331,6 +398,7 @@ export default function App() {
   const disabled = busy || exitRequested || !!pendingDraft || !draftReady || images.busy || !!images.session
   const shortcuts = navigator.platform.includes('Mac') ? '⌘S' : 'Ctrl+S'
   const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
+  const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
   return <div className={`app-shell ${focus ? 'focus-mode' : ''}`}>
     <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => { void images.importFiles(Array.from(event.target.files ?? [])); event.target.value = '' }} />
@@ -338,34 +406,34 @@ export default function App() {
     {exitRequested && <CloseDialog error={error} busy={exitBusy} pendingImage={!!images.session} onSave={() => void finishExit(true)} onRetain={() => void finishExit(false)} onCancel={() => setExitRequested(false)} />}
     <header className="topbar">
       <div className="brand"><span className="brand-mark">M</span><strong>Easy Markdown</strong></div>
-      <div className="breadcrumb">{desktop ? workspacePath ? workspace?.name : '本地文档' : '开发预览'} <span>/</span> {workspacePath ?? name}</div>
+      <div className="file-actions" aria-label="文件操作">
+        <button disabled={disabled} onClick={() => { if (mayReplace()) load('', '未命名.md', blankSnapshot(), null, null, true) }}>新建文档</button>
+        <button disabled={disabled} onClick={() => void open()}>打开文件</button>
+        {desktop && <button disabled={disabled} onClick={() => void chooseWorkspace()}>打开工作区</button>}
+        <button disabled={disabled} onClick={() => void save(true)}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
+        {desktop && fileId && <button disabled={disabled} onClick={() => void reloadExternal()}>重新加载外部版本</button>}
+      </div>
+      <div className="breadcrumb" title={workspacePath ?? name}>{desktop ? workspacePath ? workspace?.name : '本地文档' : '开发预览'} <span>/</span> {workspacePath ?? name}{dirty && <span aria-label="未保存"> *</span>}</div>
       <div className="top-actions"><span className="workspace-badge">v0.1 开发版</span><button disabled={disabled} className="primary-button" onClick={() => void save()}>{desktop ? '保存' : '下载 Markdown'} <span>{shortcuts}</span></button></div>
     </header>
     <div className="workspace">
       {showFiles && <aside className="sidebar left-sidebar">
         <div className="sidebar-heading"><h2>文档</h2><button className="icon-button" aria-label="收起文件栏" onClick={() => setShowFiles(false)}>‹</button></div>
-        <button className="quick-row" disabled={disabled} onClick={() => void open()}>↗ <span>打开文件</span></button>
-        {desktop && <button className="quick-row" disabled={disabled} onClick={() => void chooseWorkspace()}>▤ <span>打开工作区</span></button>}
         {workspace && <button className="quick-row" disabled={disabled} onClick={() => void chooseWorkspace(true)}>⟳ <span>刷新文件树</span></button>}
-        {desktop && fileId && <button className="quick-row" disabled={disabled} onClick={() => void reloadExternal()}>⟳ <span>重新加载外部版本</span></button>}
-        <button className="quick-row" disabled={disabled} onClick={() => { if (mayReplace()) load('', '未命名.md', blankSnapshot(), null, null, true) }}>＋ <span>新建文档</span></button>
-        <button className="quick-row" disabled={disabled} onClick={() => void save(true)}>↧ <span>{desktop ? '另存为 / 冲突副本' : '下载副本'}</span></button>
         <div className="sidebar-label">当前文件</div><div className="file-row active">□ {name}{dirty ? ' ·' : ''}</div>
         {workspace && <WorkspaceTree key={treeRevision} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
-        <div className="outline-empty"><strong>原文保持，文件自由</strong><p>预览来自 Markdown。打开未编辑文件再保存时，保留原始字节、BOM 和换行。</p><p>{desktop ? '系统对话框授予当前文件的访问权限。' : '浏览器预览编辑应用副本，下载不会自动覆盖原文件。'}</p></div>
+        {!workspace && <div className="outline-empty"><p>从顶部打开工作区，浏览 Markdown 和图片文件。</p></div>}
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.1.0-dev</span></div>
       </aside>}
-      {!showFiles && <button className="reopen-sidebar left-reopen" aria-label="展开文件栏" onClick={() => setShowFiles(true)}>›</button>}
       <main className="editor-area">
-        <div className="document-tabs"><div className="tab active"><span className="tab-dot" />{name}{dirty && ' *'}</div></div>
-        <div className="view-switcher"><div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => setView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => setView('split')}>分屏</button><button disabled title="尚未通过中文输入与光标验证">即时渲染 · 待验证</button></div><button className="focus-button" onClick={() => setFocus(!focus)}>{focus ? '退出专注' : '专注模式'}</button></div>
-        <div className="toolbar">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button></div>
+        <div className="view-switcher"><div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => setView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => setView('split')}>分屏</button><button disabled title="尚未通过中文输入与光标验证">即时渲染 · 待验证</button></div><div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => setShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button><button className="focus-button" onClick={() => setFocus(!focus)}>{focus ? '退出专注' : '专注模式'}</button></div></div>
+        <div className="toolbar">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码滚动同步预览</span>}</div>
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${view}`} inert={disabled}>
-          <Editor key={epoch} ref={editor} initialText={text} onChange={changed} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} />
-          {view === 'split' && <article ref={preview} className="preview" aria-label="Markdown 预览" onDoubleClick={(event) => {
+          <Editor key={epoch} ref={editor} initialText={text} onChange={changed} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} />
+          {view === 'split' && <article ref={preview} className="preview" aria-label="Markdown 预览" onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
             const reference = parsed.images.find((item) => item.from === Number(node?.dataset.sourceFrom))
             if (reference && parsedText.current === text) void images.edit(reference)
@@ -379,7 +447,6 @@ export default function App() {
         <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {text.split('\n').length} 行<span className="status-spacer" />{draftStatus}</div>
       </main>
       {showOutline && <aside className="sidebar right-sidebar"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline">{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} onClick={() => editor.current?.jump(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</aside>}
-      {!showOutline && <button className="reopen-sidebar right-reopen" aria-label="展开大纲" onClick={() => setShowOutline(true)}>‹</button>}
     </div>
   </div>
 }

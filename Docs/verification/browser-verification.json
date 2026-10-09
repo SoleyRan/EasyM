@@ -1,7 +1,7 @@
 {
   "browser": "154.0.4258.62",
   "platform": "win32",
-  "verifiedAt": "2026-10-09T04:53:42.260Z",
+  "verifiedAt": "2026-10-09T06:30:54.695Z",
   "imageChecks": [
     "PNG pixels, crop, rotation, flips, resize",
     "JPEG EXIF orientations 1–8 and normalisation",

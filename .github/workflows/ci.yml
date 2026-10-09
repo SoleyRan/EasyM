@@ -21,10 +21,13 @@ jobs:
       - run: pnpm verify:workers
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify:browser
+      - run: pnpm verify:writing
       - uses: actions/upload-artifact@v4
         with:
           name: browser-verification
-          path: test-results/browser-verification.json
+          path: |
+            test-results/browser-verification.json
+            test-results/writing-verification.json
           if-no-files-found: error
 
   desktop:

@@ -7,6 +7,8 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
 
 - 源码与分屏视图，即时渲染保留待验证入口；
+- 顶部文件操作、按需展开文件树/大纲，分屏源码滚动同步预览；
+- 代码块语言选择、语言修改撤销/重做和清晰的代码块配色；
 - Markdown 源范围补丁、工具栏命令、标题大纲；
 - 本地草稿自动保存、未应用图片操作恢复和显式保存状态；
 - PNG/JPEG 导入、后台处理、裁剪/旋转/翻转/尺寸/Alt、取消和应用；
@@ -19,7 +21,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 - 桌面工作区目录选择、延迟加载文件树和树内图片拖入；
 - Windows 复制图片文件后粘贴的原生兼容路径，以及失焦时刷新草稿。
 
-浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP。2026-10-09 已通过 TypeScript 检查、45 项前端测试、15 项 Windows Rust 测试、生产 Worker 检查和 Edge 生产包回归（真实像素/EXIF、图片实例隔离、IndexedDB 草稿恢复），并生成 Windows Release 可执行文件。Windows 原生交互与 macOS/Linux 关键路径仍待验收，当前尚未达到 v0.1 发布门槛。即时渲染视图保持禁用，源码和分屏是当前稳定路径。设计冻结见 [Docs/Easy-Markdown-v0.1-设计冻结.md](Docs/Easy-Markdown-v0.1-设计冻结.md)，实现与验收状态见 [Docs/Easy-Markdown-v0.1-实现说明.md](Docs/Easy-Markdown-v0.1-实现说明.md)。
+浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP。2026-10-09 已通过 TypeScript 检查、49 项前端测试、15 项 Windows Rust 测试、生产 Worker 检查和 Edge 生产包回归（真实像素/EXIF、图片实例隔离、IndexedDB 草稿恢复、代码语言和分屏滚动），并生成 Windows Release 可执行文件。Windows 原生交互与 macOS/Linux 关键路径仍待验收，当前尚未达到 v0.1 发布门槛。即时渲染视图保持禁用，源码和分屏是当前稳定路径。设计冻结见 [Docs/Easy-Markdown-v0.1-设计冻结.md](Docs/Easy-Markdown-v0.1-设计冻结.md)，实现与验收状态见 [Docs/Easy-Markdown-v0.1-实现说明.md](Docs/Easy-Markdown-v0.1-实现说明.md)。
 
 ## 开发
 
@@ -34,6 +36,7 @@ pnpm build
 pnpm verify:workers
 pnpm exec playwright install chromium
 pnpm verify:browser
+pnpm verify:writing
 pnpm verify:performance
 ```
 
@@ -46,7 +49,7 @@ pnpm desktop:build
 
 Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图标已包含在项目中，SVG 源文件位于 `src-tauri/icons/app-icon.svg`；修改后运行 `pnpm.cmd icons` 重新生成各平台图标。
 
-已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行两项浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
+已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
 Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。附带项目与第三方许可的便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip`，解压后运行 `easym.exe`；系统需要已安装 WebView2 Runtime。它是未签名的开发候选包，运行验收状态见 [验收记录](Docs/Easy-Markdown-v0.1-验收记录.md)，构建校验值见 [windows-build.json](Docs/verification/windows-build.json)。
 

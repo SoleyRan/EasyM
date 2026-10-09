@@ -1,0 +1,39 @@
+/* Compact writing layout; the file tree and outline are optional panels. */
+.topbar { height: auto; min-height: 54px; flex: 0 0 auto; padding: 8px 16px; gap: 16px; flex-wrap: wrap; }
+.brand { width: auto; flex-shrink: 0; font-size: 15px; }
+.brand-mark { width: 28px; height: 28px; }
+.file-actions { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.file-actions button, .pane-actions button { background: transparent; border-radius: 6px; padding: 7px 10px; font-size: 12px; white-space: nowrap; }
+.file-actions button:hover, .pane-actions button:hover { background: #e9f1fe; color: #235bca; }
+.pane-actions button[aria-expanded=true] { background: #e9f1fe; color: #235bca; }
+.breadcrumb { min-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-actions { gap: 12px; margin-left: auto; }
+.workspace-badge { display: none; }
+.view-switcher { height: 42px; flex: 0 0 42px; padding: 0 16px; margin: 0; border-bottom: 1px solid #edf1f6; }
+.view-tabs button { padding: 10px 14px; font-size: 12px; }
+.pane-actions { display: flex; align-items: center; gap: 4px; }
+.toolbar { flex: 0 0 auto; height: auto; min-height: 42px; margin: 8px 12px 0; padding: 4px 8px; flex-wrap: wrap; }
+.code-language { display: flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 12px; color: #657790; }
+.code-language select { max-width: 150px; padding: 5px 8px; border: 1px solid #d5deeb; border-radius: 5px; background: #fff; color: #273852; font: inherit; }
+.toolbar-hint { font-size: 11px; padding: 0 6px; }
+.content-grid { padding: 10px 12px 12px; overflow: hidden; }
+.content-grid.view-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; padding: 10px 12px 12px; }
+.codemirror-host { min-height: 0; }
+.view-split .preview { min-height: 0; padding: 20px 26px; overscroll-behavior: contain; }
+.cm-scroller { overscroll-behavior: contain; }
+.left-sidebar { width: 220px; flex: 0 0 220px; padding: 16px 12px; }
+.right-sidebar { width: 220px; flex: 0 0 220px; padding: 16px; }
+.sidebar-heading h2 { font-size: 14px; }
+.statusbar { height: 28px; flex: 0 0 28px; padding: 0 16px; }
+.error-banner, .recovery-banner { margin: 8px 12px 0; }
+.preview pre { background: #1e293b; color: #e4edff; line-height: 1.65; }
+.preview pre code { display: block; background: transparent; color: inherit; padding: 0; border-radius: 0; font-family: 'SFMono-Regular', Consolas, monospace; }
+.focus-mode .editor-area { max-width: none; margin: 0; }
+.focus-mode .content-grid { padding: 10px 12px 12px; }
+@media (max-width: 1150px) {
+  .brand strong { display: none; }
+  .topbar { gap: 8px; }
+  .file-actions button { padding: 7px; }
+  .toolbar-hint { display: none; }
+  .view-split .preview { padding: 16px; }
+}

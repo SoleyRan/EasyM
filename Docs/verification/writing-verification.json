@@ -1,0 +1,16 @@
+{
+  "verifiedAt": "2026-10-09T06:43:25.616Z",
+  "browser": "154.0.4258.62",
+  "checks": [
+    "code contrast",
+    "language insertion/change/removal and undo/redo",
+    "source scroll sync at middle/top/bottom",
+    "resize and new document scroll reset",
+    "1440/960 writing area and optional outline"
+  ],
+  "styles": {
+    "color": "rgb(228, 237, 255)",
+    "background": "rgba(0, 0, 0, 0)",
+    "parentColor": "rgb(228, 237, 255)"
+  }
+}

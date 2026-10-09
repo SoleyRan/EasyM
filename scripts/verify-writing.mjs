@@ -1,0 +1,103 @@
+import assert from 'node:assert/strict'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { chromium } from 'playwright'
+import { serveProduction } from './serve-production.mjs'
+
+const server = await serveProduction()
+let browser
+try {
+  browser = await chromium.launch({ channel: process.env.EASYM_TEST_BROWSER || undefined })
+  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.goto(server.url)
+  const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
+  const language = page.getByRole('combobox', { name: '代码块语言' })
+  const body = () => editor.evaluate((element) => [...element.querySelectorAll('.cm-line')].map((line) => line.textContent).join('\n'))
+  await page.getByRole('button', { name: '分屏', exact: true }).click()
+  await editor.fill('```javascript\nconst x = 1;\n```\n\n行内 `code`')
+  await page.locator('.preview pre code.language-javascript').waitFor()
+  const styles = await page.locator('.preview pre code').evaluate((element) => ({ color: getComputedStyle(element).color, background: getComputedStyle(element).backgroundColor, parentColor: getComputedStyle(element.parentElement).color }))
+  assert.equal(styles.color, styles.parentColor)
+  assert.equal(styles.background, 'rgba(0, 0, 0, 0)')
+  assert.notEqual(await page.locator('.preview p code').evaluate((element) => getComputedStyle(element).backgroundColor), styles.background)
+  await editor.press('Control+Home')
+  await editor.press('ArrowDown')
+  await language.selectOption('python')
+  await page.locator('.preview pre code.language-python').waitFor()
+  assert.equal(await body(), '```python\nconst x = 1;\n```\n\n行内 `code`')
+  await page.getByRole('button', { name: '撤销', exact: true }).click()
+  await page.locator('.preview pre code.language-javascript').waitFor()
+  await page.getByRole('button', { name: '重做', exact: true }).click()
+  await page.locator('.preview pre code.language-python').waitFor()
+  await language.selectOption('')
+  await page.waitForFunction(() => document.querySelector('.preview pre code')?.className === '')
+  assert.equal(await body(), '```\nconst x = 1;\n```\n\n行内 `code`')
+
+  await editor.fill('print("hello")')
+  await editor.press('Control+a')
+  await language.selectOption('python')
+  await page.getByRole('button', { name: '代码块', exact: true }).click()
+  await page.locator('.preview pre code.language-python').waitFor()
+  assert.equal(await body(), '```python\nprint("hello")\n```\n')
+  await page.getByRole('button', { name: '撤销', exact: true }).click()
+  assert.equal(await body(), 'print("hello")')
+
+  const longText = Array.from({ length: 80 }, (_, i) => `## Section ${i}\n\n${'中文 Markdown 段落 '.repeat(12)}\n\n\`\`\`python\nprint(${i})\n\`\`\``).join('\n\n')
+  await editor.fill(longText)
+  await page.getByRole('heading', { name: 'Section 79', exact: true }).waitFor()
+  const source = page.locator('.cm-scroller')
+  const preview = page.locator('.preview')
+  await source.evaluate((element) => { element.scrollTop = 0 })
+  await page.waitForFunction(() => document.querySelector('.preview').scrollTop === 0)
+  // Scrollbar track drag, rather than wheel input only.
+  const box = await source.boundingBox()
+  await page.mouse.move(box.x + box.width - 5, box.y + 10)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width - 5, box.y + box.height * .5, { steps: 12 })
+  await page.mouse.up()
+  // Overlay scrollbars may be hidden in headless mode; also exercise a direct thumb-position change.
+  await source.evaluate((element) => { element.scrollTop = (element.scrollHeight - element.clientHeight) * .45 })
+  await page.waitForFunction(() => document.querySelector('.preview').scrollTop > 1000)
+  await page.waitForFunction(() => {
+    const s = document.querySelector('.cm-scroller').getBoundingClientRect()
+    const p = document.querySelector('.preview').getBoundingClientRect()
+    const sourceHeading = [...document.querySelectorAll('.cm-line')].find((line) => line.getBoundingClientRect().top >= s.top && /^## Section \d+/.test(line.textContent))
+    const previewHeading = [...document.querySelectorAll('.preview h2')].find((heading) => heading.getBoundingClientRect().top >= p.top)
+    return sourceHeading && previewHeading && Math.abs(Number(sourceHeading.textContent.match(/\d+/)[0]) - Number(previewHeading.textContent.match(/\d+/)[0])) <= 1
+  })
+  await page.setViewportSize({ width: 960, height: 900 })
+  await source.evaluate((element) => { element.scrollTop = (element.scrollHeight - element.clientHeight) * .5 })
+  await page.waitForFunction(() => document.querySelector('.preview').scrollTop > 1000)
+  await source.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await page.waitForFunction(() => { const p = document.querySelector('.preview'); return p.scrollHeight - p.clientHeight - p.scrollTop < 2 })
+  await source.evaluate((element) => { element.scrollTop = 0 })
+  await page.waitForFunction(() => document.querySelector('.preview').scrollTop === 0)
+  for (const width of [1440, 960]) {
+    await page.setViewportSize({ width, height: 900 })
+    const layout = await page.locator('.content-grid').boundingBox()
+    assert.ok(layout.width >= width * .96, `Editing width at ${width}: ${layout.width}`)
+    assert.ok(layout.height > 650, `Editing height: ${layout.height}`)
+    assert.equal(await page.locator('.left-sidebar:visible, .right-sidebar:visible').count(), 0)
+    assert.ok(await preview.evaluate((element) => element.clientHeight < element.scrollHeight))
+    await mkdir('test-results', { recursive: true })
+    await page.screenshot({ path: `test-results/writing-${width}.png` })
+  }
+  await page.getByRole('button', { name: '展开大纲' }).click()
+  assert.equal(await page.locator('.right-sidebar:visible').count(), 1)
+  await page.locator('.pane-actions').getByRole('button', { name: '收起大纲' }).click()
+  assert.equal(await page.locator('.right-sidebar:visible').count(), 0)
+  await source.evaluate((element) => { element.scrollTop = element.scrollHeight })
+  await page.waitForFunction(() => document.querySelector('.preview').scrollTop > 1000)
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: '新建文档', exact: true }).click()
+  await page.waitForFunction(() => document.querySelector('.preview').scrollTop === 0)
+  assert.equal(await body(), '')
+  assert.deepEqual(errors, [])
+  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['code contrast', 'language insertion/change/removal and undo/redo', 'source scroll sync at middle/top/bottom', 'resize and new document scroll reset', '1440/960 writing area and optional outline'], styles }
+  await writeFile('test-results/writing-verification.json', JSON.stringify(report, null, 2) + '\n')
+  console.log(JSON.stringify(report, null, 2))
+} finally {
+  await browser?.close()
+  await server.close()
+}

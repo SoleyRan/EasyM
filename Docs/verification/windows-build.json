@@ -1,11 +1,11 @@
 {
-  "recordedAt": "2026-10-09T05:40:23.688Z",
+  "recordedAt": "2026-10-09T06:43:45.235Z",
   "version": "0.1.0",
   "target": "x86_64-pc-windows-msvc",
   "sourceTree": {
     "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
-    "files": 86,
-    "sha256": "81649320219c03ffb717a52431b10e8f15aea816118315d3cbbe4563f58afa75"
+    "files": 90,
+    "sha256": "cd7a022680e3b6061ece37e1369239f13f0fa841a976ed33a489fc969266ba2a"
   },
   "toolchain": {
     "node": "v24.19.0",
@@ -15,8 +15,8 @@
   "artifacts": [
     {
       "path": "src-tauri/target/release/easym.exe",
-      "bytes": 9837056,
-      "sha256": "079d1b8204cf57ac5affb7ebe58e555c4684a7c09c0547e4c5aaf6e2198b7c03"
+      "bytes": 9838592,
+      "sha256": "401af5468edea58c3c566597ea51b52daafb39ff9eb28c9a6441e457e4ac0d67"
     },
     {
       "path": "pnpm-lock.yaml",
@@ -35,23 +35,23 @@
     },
     {
       "path": "src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip",
-      "bytes": 3726664,
-      "sha256": "08182007132ba683313f6dbdb7f38953c036c4832820f48cd7c2a0debda651fd"
+      "bytes": 3727956,
+      "sha256": "37b4828b4052e5295158c6bf7680c98287a961de559d7800000ca4ba4e634d0b"
     },
     {
-      "path": "dist/assets/index-CNZFJixO.css",
-      "bytes": 13466,
-      "sha256": "2911005e76a4dd11e9fb9f28dd527a1c2c90875b26b48edf4bde8e4f936e0d4e"
+      "path": "dist/assets/index-Btb3xyJ1.js",
+      "bytes": 1208705,
+      "sha256": "268045c3e7737bbb009a13488964b0a6f1d04c0b11b594c7ba8653bb2c663c7e"
     },
     {
-      "path": "dist/assets/index-DwlULyar.js",
-      "bytes": 1205050,
-      "sha256": "fbfc3f6d27d757749dc175faacd6d4e84d815f64826576512e64704831b6a4a4"
+      "path": "dist/assets/index-C1n2DWkG.css",
+      "bytes": 15768,
+      "sha256": "97c6cffb5c9f4285e5ece46188c7b3dfd75106247b2299e20840539630cd3782"
     },
     {
       "path": "src-tauri/target/release/bundle/nsis/Easy Markdown_0.1.0_x64-setup.exe",
-      "bytes": 2532683,
-      "sha256": "9cdce78b74ed55d6fc51e1b80dcd00877d22cf31c222021a89427f8a1ae95040"
+      "bytes": 2532931,
+      "sha256": "26c403f3e35a69574b0575e91fb1ecd8734fa444cb920ec0f75c62dc7191167b"
     }
   ]
 }

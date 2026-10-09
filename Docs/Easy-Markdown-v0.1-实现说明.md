@@ -50,14 +50,22 @@ v0.1 已建立可运行的编辑闭环，并补充 Windows 桌面可靠性实现
 
 ## 已验证证据
 
+### 写作体验修正（2026-10-09）
+
+- 代码块独立设置深色背景和浅色文字，内部 `code` 使用透明背景；行内代码保留原有浅色背景，避免浅色底层覆盖代码块。
+- 工具栏增加代码块语言选择。光标位于围栏代码块中时修改当前块的语言；其他位置选择新块的默认语言，再用代码块按钮包裹选区。修改支持撤销/重做，保留正文和围栏；切换非空语言保留附加 info，选择“无语言”清空整段 info，避免附加信息被解析为语言。当前提供常用语言选项并保留文档已有语言，暂未增加按语言的预览语法高亮。
+- 分屏监听源码实际滚动事件，包括滚动条拖动。按源码可见行与预览块的源位置插值定位，顶部/底部对齐；预览可独立滚动。定位缓存按解析、布局变化和图片加载失效，动画帧合并滚动更新，缓存内二分查询；文档切换重置位置，过期解析不用于同步。一个很长的代码块或表格内部为插值近似，非逐像素映射。
+- 新建、打开、工作区和另存操作移到顶部；默认收起文件树与大纲，按需展开；取消重复文件标签行、缩小边距与栏高，专注模式使用完整编辑宽度。顶部保留未保存标记。
+- 新增 `pnpm verify:writing`，验证代码配色、语言插入/修改/删除与撤销重做、长文档分屏顶部/中段/底部同步、窗口调整、新文档位置重置及 1440/960 宽度布局；CI 同时执行这项回归。证据见 `Docs/verification/writing-verification.json`。
+
 在当前 Windows 开发环境中：
 
 - `pnpm typecheck` 通过；
-- `pnpm.cmd test` 通过，12 个测试文件、45 项测试；
+- `pnpm.cmd test` 通过，13 个测试文件、49 项测试；
 - `pnpm build` 通过；
 - 2026-10-09：`cargo test --manifest-path src-tauri/Cargo.toml --locked --offline` 通过，15 项 Rust 单元测试成功；
-- 2026-10-09：Windows Release 重新构建成功，生成 `src-tauri/target/release/easym.exe`（9,837,056 bytes，SHA-256 `079D1B8204CF57AC5AFFB7EBE58E555C4684A7C09C0547E4C5AAF6E2198B7C03`）；最终校验信息见 `Docs/verification/windows-build.json`。安装包步骤需要首次下载 WiX/NSIS 工具。
-- 最终前端构建主包约 1,205.05 kB（gzip 约 401.15 kB），仍超过默认 500 kB 提示阈值；性能脚本已覆盖 5 MiB 文本、100 KiB 单行、100 张图片和 20 MiB 图片边界，结果保存于 `test-results/performance-verification.json`，不能代替固定基准机和真实桌面 WebView 的 p95 验收。
+- 2026-10-09：Windows Release 重新构建，生成 `src-tauri/target/release/easym.exe`；最终大小与校验信息见 `Docs/verification/windows-build.json`。安装包步骤需要首次下载 WiX/NSIS 工具。
+- 最终前端构建主包约 1,208.71 kB（gzip 约 402.79 kB），仍超过默认 500 kB 提示阈值；性能脚本已覆盖 5 MiB 文本、100 KiB 单行、100 张图片和 20 MiB 图片边界，结果保存于 `test-results/performance-verification.json`，不能代替固定基准机和真实桌面 WebView 的 p95 验收。
 - 浏览器回归确认工具栏、图片面板、取消、应用、撤销、重做、文档开头插图换行、分屏预览、真实 PNG 像素/裁剪/旋转/翻转/缩放、JPEG EXIF 方向 1–8、透明 PNG、JPEG 白底和 IndexedDB 正文/资源/未应用 recipe 恢复；
 - ZIP 路径穿越、绝对路径、设备路径、重复条目和图片资源缺失有自动化测试；
 - 图片应用写入失败、正文版本过期有故障测试；编辑时发现源副本哈希变化会拒绝应用并保留原引用；
@@ -80,7 +88,7 @@ v0.1 已建立可运行的编辑闭环，并补充 Windows 桌面可靠性实现
 
 `Docs/dependencies/THIRD-PARTY-NOTICES.md` 与 `sbom.cdx.json` 记录 373 个依赖版本（pnpm 生产依赖、Windows 过滤后的 Cargo 构建与运行依赖）。当前清单的完整许可文本缺项为 0；7 个未附带许可文件的包补充了上游许可，commit/来源和 SHA-256 位于 `license-sources.json`，提取说明见 `scripts/external-licenses/README.md`。这不是完整的三平台发行许可结论：MPL 来源代码可用性、其他平台依赖和最终分发附带文本仍在发布验收中。
 
-Windows 便携开发包 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip` 已包含程序、项目 LICENSE 和上述第三方文件；解压后运行，要求系统已有 WebView2 Runtime。压缩包路径与内嵌程序哈希核对通过，具体校验值见 `Docs/verification/windows-build.json`。NSIS 首次工具下载曾超时，重试下载并通过官方哈希校验后，已利用项目内缓存生成 `src-tauri/target/release/bundle/nsis/Easy Markdown_0.1.0_x64-setup.exe`（2,532,683 bytes）；安装包同样附带 LICENSE 与 `third-party/` 资源，未签名、安装/卸载仍待验证，详情见验收记录。
+Windows 便携开发包 `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip` 已包含程序、项目 LICENSE 和上述第三方文件；解压后运行，要求系统已有 WebView2 Runtime。压缩包路径与内嵌程序哈希核对通过，具体校验值见 `Docs/verification/windows-build.json`。NSIS 首次工具下载曾超时，重试下载并通过官方哈希校验后，已利用项目内缓存重新生成 `src-tauri/target/release/bundle/nsis/Easy Markdown_0.1.0_x64-setup.exe`；安装包同样附带 LICENSE 与 `third-party/` 资源，未签名、安装/卸载仍待验证，详情见验收记录。
 
 ## 当前边界
 

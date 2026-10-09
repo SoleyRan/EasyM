@@ -39,7 +39,7 @@ for (const path of sourcePaths.sort()) {
   sourceHash.update(path + '\0')
   sourceHash.update(createHash('sha256').update(await readFile(path)).digest())
 }
-for (const file of ['browser-verification.json', 'performance-verification.json']) {
+for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json']) {
   await copyFile(resolve('test-results', file), resolve(output, file))
 }
 await writeFile(resolve(output, 'windows-build.json'), JSON.stringify({

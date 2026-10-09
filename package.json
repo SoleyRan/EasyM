@@ -15,6 +15,7 @@
     "verify:workers": "node scripts/verify-workers.mjs",
     "verify:browser": "node scripts/verify-browser.mjs",
     "verify:performance": "node scripts/verify-performance.mjs",
+    "verify:writing": "node scripts/verify-writing.mjs",
     "tauri": "tauri",
     "icons": "tauri icon src-tauri/icons/app-icon.svg --output src-tauri/icons",
     "desktop:dev": "tauri dev",

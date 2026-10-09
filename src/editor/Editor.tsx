@@ -4,7 +4,8 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } f
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
 import { markdown } from '@codemirror/lang-markdown'
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language'
+import { defaultHighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
+import type { FencedBlock } from '../core/code-block'
 import type { TextPatch, Selection } from '../core/document'
 import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '../platform/workspace'
 import { nativeClipboardFiles, supportedImageFiles } from '../platform/clipboard'
@@ -16,18 +17,30 @@ export interface EditorHandle {
   undo(): void
   redo(): void
   composing(): boolean
+  fencedCode(): FencedBlock | null
 }
 
-interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void }
+export interface SourceScroll { offset: number; fraction: number; ratio: number }
+function fencedCode(editor: EditorView): FencedBlock | null {
+  let node = syntaxTree(editor.state).resolveInner(editor.state.selection.main.head, -1)
+  while (node.name !== 'FencedCode' && node.parent) node = node.parent
+  if (node.name !== 'FencedCode') return null
+  const opening = editor.state.doc.lineAt(node.from)
+  const language = /^[`~]{3,}\s*([^\s]*)/.exec(editor.state.doc.sliceString(node.from, opening.to))?.[1] ?? ''
+  return { from: node.from, to: node.to, language }
+}
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined }, ref) {
+interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void }
+
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
-  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage })
-  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage }
+  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage })
+  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage }
   useImperativeHandle(ref, () => ({
     selection: () => view.current?.state.selection.main ?? { anchor: 0, head: 0 },
     composing: () => view.current?.composing ?? false,
+    fencedCode: () => view.current ? fencedCode(view.current) : null,
     patch: (patches, selection) => {
       const editor = view.current
       if (!editor || editor.composing) return false
@@ -57,6 +70,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
           keymap.of([{ key: 'Mod-s', run: (v) => { if (!v.composing) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap]),
           keymap.of([['Mod-b', 'bold'], ['Mod-i', 'italic'], ['Mod-k', 'link'], ['Mod-Shift-h', 'heading'], ['Mod-Shift-u', 'bullet'], ['Mod-Shift-o', 'ordered'], ['Mod-Shift-t', 'task'], ['Mod-Shift-q', 'quote'], ['Mod-Shift-c', 'code'], ['Mod-Shift-p', 'image']].map(([key, kind]) => ({ key, run: (v: EditorView) => { if (!v.composing) callbacks.current.onCommand(kind); return true } }))),
           EditorView.domEventHandlers({
+            scroll: (_event, v) => {
+              const scroll = v.scrollDOM
+              const height = Math.max(0, scroll.getBoundingClientRect().top - v.documentTop)
+              const line = v.lineBlockAtHeight(height)
+              const range = scroll.scrollHeight - scroll.clientHeight
+              callbacks.current.onScroll?.({ offset: line.from, fraction: Math.min(1, Math.max(0, (height - line.top) / line.height)), ratio: range > 0 ? scroll.scrollTop / range : 0 })
+              return false
+            },
             paste: (event, v) => {
               if (v.composing) return false
               const files = supportedImageFiles(event.clipboardData?.files ?? [])
@@ -84,6 +105,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
           EditorView.contentAttributes.of({ 'aria-label': 'Markdown 源码编辑器', spellcheck: 'false' }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
+            if (update.selectionSet || update.docChanged) callbacks.current.onCodeLanguage?.(fencedCode(update.view)?.language ?? null)
           }),
         ],
       }),
