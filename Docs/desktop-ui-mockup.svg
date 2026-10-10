@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="900" viewBox="0 0 1440 900">
+  <defs>
+    <linearGradient id="top" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#eff6ff"/><stop offset="1" stop-color="#f8fafc"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0f172a" flood-opacity=".15"/></filter>
+    <style>
+      .ui{font-family:Inter,"Segoe UI","Microsoft YaHei",sans-serif;fill:#0f172a}.muted{fill:#64748b}.small{font-size:13px}.tiny{font-size:11px}.body{font-size:15px}.title{font-size:24px;font-weight:700}.h{font-size:16px;font-weight:700}.code{font-family:Consolas,monospace;font-size:14px}.line{stroke:#e2e8f0;stroke-width:1}.blue{fill:#2563eb}.panel{fill:#fff;stroke:#e2e8f0}.chip{fill:#eff6ff;stroke:#bfdbfe}.button{fill:#fff;stroke:#cbd5e1}.accent{fill:#dbeafe;stroke:#60a5fa}.white{fill:#fff}
+    </style>
+  </defs>
+  <rect width="1440" height="900" fill="#f1f5f9"/>
+  <rect x="26" y="24" width="1388" height="852" rx="14" fill="#fff" filter="url(#shadow)"/>
+  <rect x="26" y="24" width="1388" height="54" rx="14" fill="url(#top)"/>
+  <circle cx="55" cy="51" r="9" fill="#ef4444"/><circle cx="82" cy="51" r="9" fill="#f59e0b"/><circle cx="109" cy="51" r="9" fill="#22c55e"/>
+  <text x="140" y="58" class="ui h">Markdown 办公</text><text x="292" y="58" class="ui muted small">我的工作区 / 项目方案.md</text>
+  <text x="1068" y="56" class="ui muted small">本地工作区</text>
+  <rect x="1292" y="36" width="98" height="30" rx="8" fill="#2563eb"/><text x="1321" y="56" class="ui small white">导出 ⌄</text>
+
+  <rect x="26" y="78" width="260" height="798" fill="#f8fafc"/>
+  <text x="50" y="116" class="ui h">工作区</text><rect x="48" y="130" width="210" height="34" rx="8" fill="#fff" stroke="#cbd5e1"/><text x="64" y="152" class="ui small">⌕  搜索文档</text>
+  <text x="50" y="198" class="ui muted tiny">文件夹</text>
+  <text x="58" y="230" class="ui body">⌄  项目文档</text><text x="78" y="263" class="ui body">▸  会议纪要</text><text x="78" y="296" class="ui body">▸  资料与附件</text>
+  <rect x="44" y="320" width="218" height="38" rx="8" fill="#dbeafe"/><text x="60" y="345" class="ui body">▣  项目方案.md</text>
+  <text x="60" y="386" class="ui body">□  需求清单.md</text><text x="60" y="419" class="ui body">□  会议纪要-10月.md</text>
+  <text x="50" y="474" class="ui muted tiny">快捷入口</text><text x="60" y="508" class="ui body">★  收藏</text><text x="60" y="541" class="ui body">◷  最近打开</text><text x="60" y="574" class="ui body">▤  模板</text>
+  <line x1="26" y1="812" x2="286" y2="812" class="line"/><text x="52" y="845" class="ui small">⚙ 设置</text><text x="170" y="845" class="ui muted small">v0.1.0</text>
+
+  <rect x="286" y="78" width="818" height="798" fill="#fff"/>
+  <rect x="286" y="78" width="818" height="48" fill="#fff"/><text x="312" y="109" class="ui small">即时渲染</text><text x="400" y="109" class="ui muted small">源码</text><text x="458" y="109" class="ui muted small">分屏</text><line x1="305" y1="124" x2="375" y2="124" stroke="#2563eb" stroke-width="2"/>
+  <rect x="310" y="142" width="768" height="42" rx="8" fill="#f8fafc" stroke="#e2e8f0"/><text x="328" y="168" class="ui small">B</text><text x="364" y="168" class="ui small"><tspan font-style="italic">I</tspan></text><text x="400" y="168" class="ui small">H</text><text x="438" y="168" class="ui small">☷</text><text x="478" y="168" class="ui small">☑</text><text x="520" y="168" class="ui small">▣</text><line x1="560" y1="150" x2="560" y2="174" class="line"/><text x="588" y="168" class="ui small">↶</text><text x="624" y="168" class="ui small">↷</text><text x="926" y="168" class="ui muted small">Markdown 输入</text>
+  <text x="324" y="236" class="ui title">项目方案</text><text x="324" y="268" class="ui muted small">最后保存：刚刚 · 自动保存已开启</text>
+  <line x1="324" y1="290" x2="1042" y2="290" class="line"/>
+  <text x="324" y="334" class="ui h">一、目标</text><text x="324" y="370" class="ui body">建立一个可跨平台使用的 Markdown 办公编辑器，</text><text x="324" y="398" class="ui body">支持离线编辑、文档导出和清晰的文件组织。</text>
+  <rect x="318" y="430" width="724" height="36" rx="5" fill="#eff6ff"/><text x="330" y="455" class="ui h"><tspan class="muted">##</tspan><tspan dx="8">二、方案概览</tspan></text><line x1="480" y1="438" x2="480" y2="459" stroke="#2563eb"/>
+  <text x="324" y="492" class="ui body">桌面端采用本地优先架构，文档保存为普通 .md 文件。</text><text x="324" y="520" class="ui body">图片和附件放在文档旁的 assets 文件夹中。</text>
+  <rect x="324" y="550" width="718" height="240" rx="8" fill="#f1f5f9" stroke="#60a5fa" stroke-width="2"/>
+  <rect x="342" y="568" width="682" height="204" rx="5" fill="#eaf2ff"/>
+  <text x="366" y="595" class="ui small muted">项目推进流程</text>
+  <rect x="372" y="621" width="165" height="90" rx="10" fill="#dbeafe"/><text x="421" y="660" class="ui h">需求梳理</text><text x="403" y="685" class="ui small muted">明确目标与范围</text>
+  <path d="M550 666h24m-7-6 7 6-7 6" stroke="#6d96cd" stroke-width="2" fill="none"/>
+  <rect x="588" y="621" width="165" height="90" rx="10" fill="#dbeafe"/><text x="637" y="660" class="ui h">开发验证</text><text x="619" y="685" class="ui small muted">完成关键交互</text>
+  <path d="M766 666h24m-7-6 7 6-7 6" stroke="#6d96cd" stroke-width="2" fill="none"/>
+  <rect x="804" y="621" width="165" height="90" rx="10" fill="#dbeafe"/><text x="853" y="660" class="ui h">办公交付</text><text x="835" y="685" class="ui small muted">整理文档与导出</text>
+  <rect x="342" y="568" width="682" height="35" fill="#334155" opacity=".10"/><rect x="342" y="729" width="682" height="43" fill="#334155" opacity=".10"/><rect x="342" y="603" width="18" height="126" fill="#334155" opacity=".10"/><rect x="987" y="603" width="37" height="126" fill="#334155" opacity=".10"/>
+  <rect x="360" y="603" width="627" height="126" fill="none" stroke="#2563eb" stroke-width="2"/><path d="M569 603v126m209-126v126M360 645h627m-627 42h627" stroke="#fff" opacity=".7"/>
+  <g fill="#fff" stroke="#2563eb" stroke-width="2"><rect x="355" y="598" width="10" height="10"/><rect x="982" y="598" width="10" height="10"/><rect x="355" y="724" width="10" height="10"/><rect x="982" y="724" width="10" height="10"/></g>
+  <text x="762" y="756" class="ui tiny blue">裁剪预览 · 尚未应用</text>
+  <text x="324" y="821" class="ui muted small">正文已保存 · 图片修改待应用</text><text x="324" y="850" class="ui muted tiny">界面概念原型 · 非运行截图</text>
+
+  <rect x="1104" y="78" width="310" height="798" fill="#f8fafc"/>
+  <text x="1132" y="116" class="ui h">文档大纲</text><text x="1132" y="154" class="ui body">一、目标</text><text x="1132" y="187" class="ui body">二、方案概览</text><text x="1132" y="220" class="ui muted body">三、技术路线</text>
+  <line x1="1128" y1="252" x2="1390" y2="252" class="line"/><text x="1132" y="288" class="ui h">图片操作</text><text x="1132" y="315" class="ui small muted">截图-01.png · 文档内副本</text>
+  <rect x="1128" y="334" width="262" height="410" rx="10" fill="#fff" stroke="#cbd5e1" filter="url(#shadow)"/>
+  <rect x="1150" y="350" width="66" height="30" rx="6" class="accent"/><text x="1169" y="370" class="ui small blue">裁剪</text><text x="1227" y="370" class="ui small muted">尺寸</text><text x="1305" y="370" class="ui small muted">旋转</text>
+  <text x="1150" y="416" class="ui small">裁剪比例</text><rect x="1150" y="428" width="218" height="32" rx="6" class="button"/><text x="1166" y="449" class="ui small">自由</text><text x="1227" y="449" class="ui small muted">1:1　4:3　16:9</text>
+  <text x="1150" y="490" class="ui small">输出尺寸（像素）</text><rect x="1150" y="502" width="102" height="32" rx="6" class="button"/><text x="1167" y="523" class="ui small">1376 px</text><rect x="1262" y="502" width="106" height="32" rx="6" class="button"/><text x="1280" y="523" class="ui small">520 px</text>
+  <text x="1150" y="563" class="ui small">☑ 缩放时锁定宽高比</text><text x="1150" y="599" class="ui small">查看倍率</text><rect x="1150" y="611" width="218" height="32" rx="6" class="button"/><text x="1167" y="632" class="ui small">－</text><text x="1238" y="632" class="ui small">100%</text><text x="1340" y="632" class="ui small">＋</text>
+  <rect x="1150" y="674" width="218" height="32" rx="6" class="button"/><text x="1203" y="695" class="ui small">恢复粘贴时状态</text>
+  <text x="1132" y="778" class="ui small">保存为当前图片的新副本。</text><text x="1132" y="802" class="ui small muted">源文件保持原样，可撤销。</text>
+  <rect x="1132" y="825" width="76" height="32" rx="6" class="button"/><text x="1156" y="846" class="ui small">取消</text><rect x="1220" y="825" width="170" height="32" rx="6" fill="#2563eb"/><text x="1280" y="846" class="ui small white">应用修改</text>
+</svg>
