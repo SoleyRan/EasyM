@@ -4,10 +4,10 @@ import { CloseDialog } from './editor/CloseDialog'
 import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
 import { drafts } from './platform/drafts'
 import { releaseDocument, type OpenedFile } from './platform/storage'
-import type { Workspace } from './platform/workspace'
+import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
 
-interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null }
+interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }
 type Theme = keyof typeof themes
@@ -93,14 +93,14 @@ export default function App() {
     }).catch((err) => setError(String(err)))
     return () => { alive = false }
   }, [])
-  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null) => {
+  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null, location?: WorkspaceLocation) => {
     if (nextWorkspace) setWorkspace(nextWorkspace)
     if (file?.id) {
       const existing = tabs.find((tab) => handles.current.get(tab.id)?.summary.fileId === file.id)
-      if (existing) { setActive(existing.id); return }
+      if (existing) { setTabs(previous => previous.map(tab => tab.id === existing.id ? { ...tab, location } : tab)); setActive(existing.id); return }
     }
     const id = crypto.randomUUID()
-    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, path }])
+    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, path, location }])
     setActive(id)
   }
   const targetHandles = () => closing === 'window' ? tabs.map((tab) => handles.current.get(tab.id)).filter((handle): handle is DocumentHandle => !!handle) : closing ? [handles.current.get(closing)].filter((handle): handle is DocumentHandle => !!handle) : []
@@ -210,7 +210,7 @@ export default function App() {
     </div>
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
     {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} path={tab.path} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
     </section>)}
     {closing && <CloseDialog scope={closing === 'window' ? 'window' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
   </div>

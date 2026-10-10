@@ -50,3 +50,13 @@ v0.1 仍有真实 IME、macOS/Linux 原生 GUI、发行签名和许可复核等�
 第 2 步验证：`pnpm typecheck`、`pnpm test`（18 文件、100 测试）、`pnpm build`、`pnpm verify:workers`、`pnpm verify:browser`、`pnpm verify:writing`、`pnpm verify:search`、`pnpm verify:performance` 以及 `EASYM_TEST_BROWSER=msedge pnpm verify:live` 全部通过。即时渲染证据见 [v0.2 即时渲染验证](verification/v0.2-live-preview-verification.json)，包含真实鼠标正反向选区、中文/emoji/软换行、格式切换和撤销、图片编辑、搜索替换、主题、未知语法安全性及大小限制。浏览器脚本另对组合事件做合成保护检查；真实 Windows IME 仍需原生验收。构建保留既有大 chunk 提示，App 测试保留非阻断 React act 提示。本机源码模式 5 MiB 文本/100 KiB 单行输入 p95 分别为 16.2/27.4 ms，未代替原生延迟验收。
 
 本步骤没有原生 Rust 修改，未重复执行 Rust 测试或生成新的 Windows 安装包。默认仍是源码；独立行内图片保持源码形式，列表/引用等嵌套结构中的代码与表格暂保留语法，未扩展为可视表格单元格编辑器。下一步进入工作区搜索与文件树/大纲键盘操作。
+
+## 第 3 步：工作区与大纲增强（实现完成）
+
+工作区搜索只在用户授权的当前目录内执行，递归读取 `.md`/`.markdown`，忽略隐藏目录、`node_modules`、`target` 和符号链接。搜索在 Tauri 后台线程运行，查询、目录、文件、总读取量和结果数均有上限；单文件最多 2 MiB，总读取最多 64 MiB，结果最多 1000 条。结果携带相对路径、行号、预览片段和 SHA-256 revision，不修改原文件。
+
+搜索请求带有独立 request id，可以取消；新查询、切换标签或卸载编辑器时取消旧任务，过期结果不会覆盖当前结果。打开结果时复用已有文档标签，重新校验文件 revision，并在源文中定位到匹配行；文件已外部变化或当前标签存在未保存编辑时，保留正文并提示重新搜索。搜索状态会显示扫描数、跳过数和是否达到限制。
+
+文件树保持按需展开，支持方向键、Home/End、目录展开/收起和当前项滚动；大纲支持方向键导航，键盘移动不会误触发标题跳转。中文路径、BOM、CRLF、无效 UTF-8、NUL 字节、大文件、隐藏目录、取消和结果上限均有 Rust 契约测试；前端覆盖请求取消、过期结果、行定位、revision/脏正文保护、标签复用和键盘导航。
+
+第 3 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（19 个文件、106 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers` 和 `cargo test --manifest-path src-tauri/Cargo.toml --locked --offline`（19 项 Rust 测试）通过。Edge 的 `verify:browser`、`verify:search` 和新增 `verify:workspace` 通过。工作区生产界面使用确定性 IPC fixture 验证，真实文件系统行为由 Rust 测试覆盖；原生 WebView 的完整目录搜索仍待实机验收。证据见 [工作区验证](verification/v0.2-workspace-verification.json)，桌面/紧凑窗口截图保存在 `test-results/workspace-*.png`。生产构建仍保留既有大 chunk 提示。下一步进入内置模板。

@@ -142,3 +142,12 @@
 .live-image-selected img { outline: 2px solid var(--accent); outline-offset: 3px; }
 .live-rendered-block p { margin: 0; }
 .live-rendered-block hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
+.workspace-search { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.workspace-search input { min-width: 0; flex: 1; padding: 5px 7px; border: 1px solid var(--border); border-radius: 4px; background: var(--page); color: var(--text); }
+.workspace-search button { padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
+.workspace-search button:disabled { opacity: .5; }
+.workspace-search-results { max-height: 280px; overflow: auto; border-bottom: 1px solid var(--border); }
+.workspace-search-result { display: flex; flex-direction: column; align-items: flex-start; width: 100%; gap: 2px; padding: 7px 10px; border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text); text-align: left; cursor: pointer; }
+.workspace-search-result:hover { background: var(--hover); }
+.workspace-search-result strong, .workspace-search-result span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-search-result span { color: var(--muted); font-size: 12px; }

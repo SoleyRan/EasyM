@@ -9,8 +9,8 @@ import { blankSnapshot } from './core/codec'
 import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
 
-const native = vi.hoisted(() => ({ requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
-vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen }))
+const native = vi.hoisted(() => ({ requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
+vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen, searchWorkspace: native.search, cancelWorkspaceSearch: native.cancelSearch }))
 vi.mock('./platform/window', () => ({ listenForClose: async (request: () => void) => { native.requestClose.mockImplementation(request); return () => undefined }, closeWindow: native.close, minimizeWindow: native.minimize, toggleMaximizeWindow: native.maximize, dragWindow: native.drag, setFullscreen: native.fullscreen, windowState: native.state, listenWindowState: async (changed: () => void) => { native.stateListener.mockImplementation(changed); return () => undefined } }))
 vi.mock('./platform/storage', () => ({ desktop: true, releaseDocument: vi.fn(), openDocument: native.open, reloadDocument: native.reload, saveDocument: native.save, materializeResources: async (_id: unknown, resources: unknown) => resources, readImage: vi.fn(), readImageBlob: vi.fn() }))
 vi.mock('./editor/usePreview', () => ({ usePreview: (text: string) => ({ parsed: { html: '', headings: [], images: [] }, parsedText: { current: text } }) }))
@@ -20,7 +20,7 @@ vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props
   useImperativeHandle(ref, () => ({
     selection: () => ({ anchor: 0, head: 0 }), composing: () => native.composing,
     patch: (patches: TextPatch[]) => { const next = applyPatches(body, patches); setBody(next); props.onChange(next); return true },
-    jump: () => undefined, undo: () => undefined, redo: () => undefined,
+    jump: native.jump, undo: () => undefined, redo: () => undefined,
   }))
   return createElement('textarea', { 'aria-label': 'Markdown 源码编辑器', value: body, onKeyDown: (event: { key: string; ctrlKey: boolean }) => { if (event.ctrlKey && event.key === 's') props.onSave() }, onChange: (event: { target: { value: string } }) => { setBody(event.target.value); props.onChange(event.target.value) } })
 }) }))
@@ -34,6 +34,7 @@ beforeEach(async () => {
   vi.stubGlobal('Blob', CloneableBlob)
   native.requestClose.mockReset(); native.close.mockReset(); native.close.mockResolvedValue(undefined); native.save.mockReset(); native.open.mockReset(); native.reload.mockReset()
   native.workspace.mockReset(); native.workspaceOpen.mockReset()
+  native.search.mockReset(); native.cancelSearch.mockReset(); native.cancelSearch.mockResolvedValue(undefined); native.jump.mockReset()
   native.minimize.mockReset(); native.minimize.mockResolvedValue(undefined); native.maximize.mockReset(); native.maximize.mockResolvedValue(undefined); native.drag.mockReset(); native.drag.mockResolvedValue(undefined); native.fullscreen.mockReset(); native.fullscreen.mockResolvedValue(undefined); native.state.mockReset(); native.state.mockResolvedValue({ maximized: false, fullscreen: false }); native.stateListener.mockReset()
   native.composing = false
   localStorage.clear()
@@ -56,6 +57,72 @@ async function edit(text: string) {
   await act(async () => { setter.call(editor, text); editor.dispatchEvent(new Event('input', { bubbles: true })); editor.dispatchEvent(new Event('change', { bubbles: true })) })
 }
 async function requestClose() { await act(async () => native.requestClose()) }
+
+async function workspaceQuery(value: string) {
+  const input = container.querySelector('.document-panel:not([hidden]) input[aria-label="搜索工作区"]')!
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
+
+const searchReport = (path: string, revision = 'hash') => ({ results: [{ path, line: 2, preview: '中文 needle', revision }], scanned: 1, skipped: 0, limited: false, cancelled: false })
+async function searchResult() {
+  const button = container.querySelector<HTMLButtonElement>('.document-panel:not([hidden]) .workspace-search-result')!
+  await act(async () => button.click()); await settle()
+}
+
+it('cancels obsolete workspace searches and ignores late results and failures', async () => {
+  native.workspace.mockResolvedValue({ id: 'workspace', name: 'notes', entries: [] })
+  let resolveOld!: (value: unknown) => void
+  native.search.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+  native.search.mockResolvedValueOnce(searchReport('new.md'))
+  await mount(); await click('打开工作区'); await workspaceQuery('old'); await click('搜索')
+  const requestId = native.search.mock.calls[0][2]
+  await workspaceQuery('new')
+  expect(native.cancelSearch).toHaveBeenCalledWith(requestId)
+  await click('搜索')
+  await act(async () => resolveOld(searchReport('old.md'))); await settle()
+  const panel = container.querySelector('.document-panel:not([hidden])')!
+  expect(panel.querySelector('.workspace-search-results')?.textContent).toContain('new.md')
+  expect(panel.querySelector('.workspace-search-results')?.textContent).not.toContain('old.md')
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('opens search results at the source line, reuses tabs, and rejects stale disk and dirty local versions', async () => {
+  native.workspace.mockResolvedValue({ id: 'workspace', name: 'notes', entries: [] })
+  native.search.mockResolvedValue(searchReport('中文.md'))
+  native.workspaceOpen.mockResolvedValue({ id: 'file', name: '中文.md', bytes: new TextEncoder().encode('# title\r\n中文 needle'), revision: 'hash' })
+  await mount(); await click('打开工作区'); await workspaceQuery('needle'); await click('搜索')
+  await searchResult()
+  expect(native.jump).toHaveBeenCalledWith(8)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  await click('未命名.md'); native.jump.mockClear(); await searchResult()
+  expect(native.jump).toHaveBeenCalledWith(8)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  await edit('unsaved local'); await click('未命名.md'); native.jump.mockClear(); await searchResult()
+  expect(container.querySelector('.document-panel:not([hidden]) [role=alert]')?.textContent).toContain('本地编辑已变化')
+  expect(native.jump).not.toHaveBeenCalled()
+  await click('未命名.md')
+  native.workspaceOpen.mockResolvedValue({ id: 'file', name: '中文.md', bytes: new TextEncoder().encode('changed'), revision: 'new' })
+  await searchResult()
+  expect(container.querySelector('.document-panel:not([hidden]) [role=alert]')?.textContent).toContain('文件已变化')
+  expect(container.querySelector('.document-panel:not([hidden]) textarea')?.textContent).not.toContain('changed')
+})
+
+it('exposes workspace search limits and cancels a running search on demand', async () => {
+  native.workspace.mockResolvedValue({ id: 'workspace', name: 'notes', entries: [] })
+  native.search.mockResolvedValueOnce({ ...searchReport('note.md'), skipped: 2, limited: true })
+  await mount(); await click('打开工作区'); await workspaceQuery('needle'); await click('搜索')
+  expect(container.textContent).toContain('跳过 2 项')
+  expect(container.textContent).toContain('结果不完整')
+  let resolve!: (value: unknown) => void
+  native.search.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+  await click('搜索'); await click('取消')
+  expect(native.cancelSearch).toHaveBeenCalledWith(native.search.mock.calls[1][2])
+  await act(async () => resolve(searchReport('cancelled.md'))); await settle()
+  expect(container.textContent).not.toContain('cancelled.md')
+})
 
 it('closes an unchanged document and keeps an undisposed recovery draft', async () => {
   await mount(); await requestClose()

@@ -11,11 +11,12 @@ import { useImages } from './useImages'
 import { emptyResources } from '../platform/images'
 import { usePreview } from './usePreview'
 import { WorkspaceTree } from './WorkspaceTree'
-import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, type Workspace, type WorkspaceImage } from '../platform/workspace'
+import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, searchWorkspace, cancelWorkspaceSearch, type Workspace, type WorkspaceImage, type WorkspaceSearchReport, type WorkspaceLocation } from '../platform/workspace'
 import type { OpenedFile } from '../platform/storage'
 import { readClipboardImageFiles } from '../platform/clipboard'
 import { ResizableSidebar } from './ResizableSidebar'
 import { MAX_LIVE_DOCUMENT } from '../core/live-preview'
+import { navigateButtons } from './navigation'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -53,13 +54,13 @@ export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload'
 export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
-  id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null
+  id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void
-  onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null): void
+  onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null, location?: WorkspaceLocation): void
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
 }
-export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, path, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : blank ? '' : initialText)
   const [view, setView] = useState<ViewMode>('source')
@@ -84,6 +85,11 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [highlightLimited, setHighlightLimited] = useState(false)
   const [workspacePath, setWorkspacePath] = useState<string | null>(path ?? null)
   const [treeRevision, setTreeRevision] = useState(0)
+  const [workspaceQuery, setWorkspaceQuery] = useState('')
+  const [workspaceReport, setWorkspaceReport] = useState<WorkspaceSearchReport | null>(null)
+  const [workspaceSearching, setWorkspaceSearching] = useState(false)
+  const workspaceSearchRequest = useRef<string | null>(null)
+  const navigatedLocation = useRef<string | null>(null)
   const editor = useRef<EditorHandle>(null)
   const preview = useRef<HTMLElement>(null)
   const sourceScroll = useRef<SourceScroll>({ offset: 0, fraction: 0, ratio: 0 })
@@ -168,7 +174,8 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }
   function jumpTo(offset: number) {
     if (reading) {
-      const node = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? []).find((element) => Number(element.dataset.sourceFrom) === offset)
+      const nodes = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? [])
+      const node = nodes.filter((element) => Number(element.dataset.sourceFrom) <= offset).at(-1) ?? nodes[0]
       node?.scrollIntoView({ block: 'start' })
       return
     }
@@ -370,14 +377,15 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     return !dirty || window.confirm('当前正文未写入文件。继续将替换当前编辑内容；请先保存或下载副本。')
   }
 
-  async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null) {
+  async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null, location?: WorkspaceLocation) {
     if (disabled || saving.current || editor.current?.composing()) return
     setBusy(true)
     try {
       const file = await read()
       if (!file) return
+      if (location && file.revision !== location.revision) { setError('文件已变化，请重新搜索后再定位。'); return }
       decodeFile(file.bytes)
-      onOpen(file, path, workspace)
+      onOpen(file, path, workspace, location)
     } catch (err) { setError(errorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -455,6 +463,45 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     editor.current?.format(kind, codeLanguage)
   }
   function chooseView(next: ViewMode) { if (!editor.current?.composing()) setView(next) }
+  async function searchCurrentWorkspace() {
+    if (!workspace || disabled || !workspaceQuery.trim()) return
+    cancelSearch()
+    const requestId = crypto.randomUUID()
+    workspaceSearchRequest.current = requestId
+    setWorkspaceSearching(true); setWorkspaceReport(null)
+    try {
+      const report = await searchWorkspace(workspace.id, workspaceQuery.trim(), requestId)
+      if (requestId === workspaceSearchRequest.current && !report.cancelled) setWorkspaceReport(report)
+    } catch (err) { if (requestId === workspaceSearchRequest.current) setError(errorMessage(err)) }
+    finally { if (requestId === workspaceSearchRequest.current) { workspaceSearchRequest.current = null; setWorkspaceSearching(false) } }
+  }
+  function cancelSearch() {
+    const requestId = workspaceSearchRequest.current
+    workspaceSearchRequest.current = null
+    if (requestId) void cancelWorkspaceSearch(requestId).catch(() => undefined)
+    setWorkspaceSearching(false)
+  }
+  useEffect(() => {
+    setWorkspaceSearching(false)
+    return () => {
+      const requestId = workspaceSearchRequest.current
+      workspaceSearchRequest.current = null
+      if (requestId) void cancelWorkspaceSearch(requestId).catch(() => undefined)
+    }
+  }, [workspace?.id, active])
+  useEffect(() => { setWorkspaceReport(null) }, [workspace?.id])
+  useEffect(() => {
+    if (!location || !active || !draftReady || pendingDraft || location.token === navigatedLocation.current || (reading && parsedText.current !== text)) return
+    navigatedLocation.current = location.token
+    if (revision !== location.revision || text !== snapshot.originalText) { setError('当前文件或本地编辑已变化，请保存并重新搜索后再定位。'); return }
+    let offset = 0
+    for (let line = 1; line < location.line; line++) {
+      const next = text.indexOf('\n', offset)
+      if (next < 0) { setError('匹配行已不存在，请重新搜索。'); return }
+      offset = next + 1
+    }
+    jumpTo(offset)
+  }, [location, active, draftReady, pendingDraft, revision, text, snapshot, reading, parsed.html])
   async function renderImage(resource: string): Promise<string | null> {
     const blob = images.resources.assets[resource]
     if (blob) return URL.createObjectURL(blob)
@@ -499,8 +546,18 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       {showFiles && <ResizableSidebar side="left">
         <div className="sidebar-heading"><h2>文档</h2><button className="icon-button" aria-label="收起文件栏" onClick={() => onShowFiles(false)}>‹</button></div>
         {workspace && <button className="quick-row" disabled={disabled} onClick={() => void chooseWorkspace(true)}>⟳ <span>刷新文件树</span></button>}
+        {workspace && <form className="workspace-search" role="search" aria-label="工作区搜索" onSubmit={(event) => { event.preventDefault(); void searchCurrentWorkspace() }}>
+          <input aria-label="搜索工作区" value={workspaceQuery} placeholder="搜索 Markdown" maxLength={4096} onChange={(event) => { cancelSearch(); setWorkspaceQuery(event.target.value); setWorkspaceReport(null) }} />
+          <button type="submit" disabled={disabled || !workspaceQuery.trim()}>搜索</button>
+          {workspaceSearching && <button type="button" onClick={cancelSearch}>取消</button>}
+        </form>}
+        {workspaceSearching && <div role="status" className="tree-empty">正在搜索…</div>}
+        {workspace && workspaceReport && <div className="workspace-search-results" aria-label="工作区搜索结果" onKeyDown={event => navigateButtons(event, '.workspace-search-result')}>
+          <div className="tree-empty" role="status">{workspaceReport.results.length} 条匹配 · 扫描 {workspaceReport.scanned} 个文件{workspaceReport.skipped > 0 && ` · 跳过 ${workspaceReport.skipped} 项`}{workspaceReport.limited && ' · 已达搜索上限，结果不完整'}</div>
+          {workspaceReport.results.length ? workspaceReport.results.map((result, index) => <button key={`${result.path}:${result.line}:${index}`} className="workspace-search-result" title={`${result.path}:${result.line}`} onClick={() => void open(() => openWorkspaceDocument(workspace.id, result.path), result.path, { token: crypto.randomUUID(), line: result.line, revision: result.revision })}><strong>{result.path}</strong><span>第 {result.line} 行 · {result.preview || '空行'}</span></button>) : <div className="tree-empty">没有匹配结果</div>}
+        </div>}
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
-        {workspace && <WorkspaceTree key={treeRevision} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
+        {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.1.0-dev</span></div>
       </ResizableSidebar>}
@@ -526,7 +583,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         </div>
         <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{view === 'live' && (text.length > MAX_LIVE_DOCUMENT || highlightLimited) && <span title="即时渲染暂限 1 Mi 字符且单行不超过 20,000 字符；源码和分屏仍可用"> · 即时渲染已降级为源码</span>}{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
       </main>
-      {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline">{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
+      {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline" aria-label="文档大纲" onKeyDown={event => navigateButtons(event, '.outline-item')}>{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
   </div>
 }

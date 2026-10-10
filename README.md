@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前正在 `feature/v0.2` 分步骤开发，范围、顺序与验收见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)。第 1 步文档内查找/替换与第 2 步即时渲染已实现并完成浏览器回归，接下来是工作区搜索和文件树/大纲增强。
+当前正在 `feature/v0.2` 分步骤开发，范围、顺序与验收见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)。第 1 步文档内查找/替换、第 2 步即时渲染和第 3 步工作区搜索/文件树大纲增强已实现并完成针对性验证，下一步是内置模板。
 
 已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
 
@@ -50,6 +50,7 @@ pnpm verify:browser
 pnpm verify:writing
 pnpm verify:search
 pnpm verify:live
+pnpm verify:workspace
 pnpm verify:performance
 ```
 
