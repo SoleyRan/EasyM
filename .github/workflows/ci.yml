@@ -22,6 +22,8 @@ jobs:
       - run: pnpm verify:regression
       - name: Verify search with a slower browser
         run: pnpm verify:search --slow
+      - name: Verify templates with a slower browser
+        run: pnpm verify:templates --slow
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -35,6 +37,8 @@ jobs:
             test-results/live-preview-verification.json
             test-results/workspace-verification.json
             test-results/templates-verification.json
+            test-results/templates-slow-verification.json
+            test-results/templates-failure.png
             test-results/export-verification.json
             test-results/context-menu-verification.json
             test-results/regression-verification.json

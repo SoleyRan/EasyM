@@ -6,9 +6,15 @@ import { serveProduction } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser
+let page
+const cpuThrottlingRate = process.argv.includes('--slow') ? 6 : 1
 try {
   browser = await chromium.launch({ channel: process.env.EASYM_TEST_BROWSER || undefined })
-  const page = await browser.newPage({ viewport: { width: 1280, height: 860 } })
+  page = await browser.newPage({ viewport: { width: 1280, height: 860 } })
+  if (cpuThrottlingRate > 1) {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottlingRate })
+  }
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   page.on('dialog', dialog => { void (dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss()) })
@@ -52,6 +58,9 @@ try {
   await dialog.getByLabel('文档标题').fill('空白草稿')
   await dialog.getByRole('button', { name: '创建文档' }).click()
   assert.equal(await body(), '')
+  // DocumentEditor reports its summary in an effect after the new tab mounts.
+  // count() is a snapshot, so wait for the reported title before asserting it.
+  await page.getByRole('tab', { name: '空白草稿.md', exact: true }).waitFor()
   assert.equal(await page.getByRole('tab', { name: '空白草稿.md', exact: true }).count(), 1)
   await page.getByRole('button', { name: '关闭 空白草稿.md', exact: true }).click()
   await page.waitForFunction(() => document.querySelectorAll('[role=tab]').length === 2)
@@ -97,9 +106,14 @@ try {
   assert.ok((await body()).startsWith('# 项目说明'))
   assert.equal(await page.getByRole('tab').count(), 3)
   assert.deepEqual(errors, [])
-  const report = { stage: 'v0.2-step-4', verifiedAt: new Date().toISOString(), browser: await browser.version(), passed: true, checks: ['EM template entry', 'initial focus, focus trap, Escape/cancel and return focus', 'blank/meeting/project templates', 'literal Chinese/emoji/dollar/nested placeholder substitutions', 'script text does not execute', 'independent tabs and preserved source', 'untouched blank closes without prompt', 'generated draft survives reload', 'first browser download preserves exact Markdown', 'four themes and compact dialog layout'] }
-  await writeFile('test-results/templates-verification.json', JSON.stringify(report, null, 2) + '\n')
+  const report = { stage: 'v0.2-step-4', verifiedAt: new Date().toISOString(), browser: await browser.version(), passed: true, cpuThrottlingRate, checks: ['EM template entry', 'initial focus, focus trap, Escape/cancel and return focus', 'blank/meeting/project templates', 'literal Chinese/emoji/dollar/nested placeholder substitutions', 'script text does not execute', 'independent tabs and preserved source', 'untouched blank closes without prompt', 'generated draft survives reload', 'first browser download preserves exact Markdown', 'four themes and compact dialog layout'] }
+  await writeFile(cpuThrottlingRate > 1 ? 'test-results/templates-slow-verification.json' : 'test-results/templates-verification.json', JSON.stringify(report, null, 2) + '\n')
   console.log('Template verification passed: generation, safe text, tabs, draft recovery, download, keyboard and themes.')
+} catch (error) {
+  await mkdir('test-results', { recursive: true })
+  await page?.screenshot({ path: 'test-results/templates-failure.png' }).catch(() => undefined)
+  console.error({ tabs: await page?.getByRole('tab').allTextContents(), activePanel: await page?.locator('.document-panel:not([hidden])').getAttribute('id') })
+  throw error
 } finally {
   await browser?.close()
   await server.close()

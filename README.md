@@ -59,7 +59,7 @@ pnpm verify:export
 pnpm verify:performance
 ```
 
-构建后可用 `pnpm verify:regression` 串行执行全部功能回归，添加 `--performance` 同时测量性能。CI 使用统一入口，性能数据在本机单独记录；各项命令仍可独立运行。`pnpm verify:search --slow` 使用 6 倍 CPU 降速验证初始化竞态；正文 fixture 等待草稿初始化后的可用编辑区。依赖清单生成后运行 `node scripts/verify-notices.mjs`，核验 SBOM 版本、许可文件字节哈希、链接大小写和补充文本来源。
+构建后可用 `pnpm verify:regression` 串行执行全部功能回归，添加 `--performance` 同时测量性能。CI 使用统一入口，性能数据在本机单独记录；各项命令仍可独立运行。`pnpm verify:search --slow` 和 `pnpm verify:templates --slow` 使用 6 倍 CPU 降速验证初始化及标签标题更新竞态；正文 fixture 等待草稿初始化后的可用编辑区。依赖清单生成后运行 `node scripts/verify-notices.mjs`，核验 SBOM 版本、许可文件字节哈希、链接大小写和补充文本来源。
 
 安装 Rust、系统 WebView 和 Tauri 依赖后，可以运行：
 
