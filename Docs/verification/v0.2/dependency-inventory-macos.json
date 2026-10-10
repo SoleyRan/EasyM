@@ -1,0 +1,19 @@
+{
+  "target": "aarch64-apple-darwin",
+  "dependencies": 402,
+  "missingLicenseTexts": [
+    "cargo:block2@0.6.2",
+    "cargo:dispatch2@0.3.1",
+    "cargo:objc2-app-kit@0.3.2",
+    "cargo:objc2-core-foundation@0.3.2",
+    "cargo:objc2-core-graphics@0.3.2",
+    "cargo:objc2-encode@4.1.0",
+    "cargo:objc2-exception-helper@0.1.1",
+    "cargo:objc2-foundation@0.3.2",
+    "cargo:objc2-io-surface@0.3.2",
+    "cargo:objc2-quartz-core@0.3.2",
+    "cargo:objc2-web-kit@0.3.2",
+    "cargo:objc2@0.6.5"
+  ],
+  "completeLicenseTexts": false
+}

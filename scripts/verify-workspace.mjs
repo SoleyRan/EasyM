@@ -91,8 +91,7 @@ try {
   }
   assert.equal(await page.evaluate(() => window.workspaceCalls.some(call => call.command === 'save_document')), false)
   assert.deepEqual(errors, [])
-  await mkdir('Docs/verification', { recursive: true })
-  await writeFile('Docs/verification/v0.2-workspace-verification.json', JSON.stringify({
+  await writeFile('test-results/workspace-verification.json', JSON.stringify({
     verifiedAt: new Date().toISOString(), browser: browser.version(), passed: true,
     scope: 'Production frontend with deterministic IPC fixture; real filesystem and limits covered by Rust tests. Native WebView end-to-end remains pending.',
     checks: ['search result file/line navigation and existing tab reuse', 'file tree lazy expansion and directional navigation', 'outline keyboard navigation and source jump', 'cancel and late-result rejection', 'changed file rejection without overwrite', 'desktop/compact search layout screenshots', 'search and navigation issue no save commands'],

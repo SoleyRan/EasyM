@@ -1,0 +1,53 @@
+{
+  "verifiedAt": "2026-10-10T07:53:40.309Z",
+  "machine": {
+    "os": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) 5 220H",
+    "logicalCpus": 16,
+    "memoryGiB": 31.7
+  },
+  "cases": [
+    {
+      "name": "5 MiB text",
+      "bytes": 5242880,
+      "openMs": 2501,
+      "inputSamples": 40,
+      "inputEventToNextFrameP95Ms": 15.8,
+      "targetMs": 50,
+      "targetMet": true,
+      "sourceHighlightLimited": false
+    },
+    {
+      "name": "100 KiB single line",
+      "bytes": 102400,
+      "openMs": 154,
+      "inputSamples": 40,
+      "inputEventToNextFrameP95Ms": 16,
+      "targetMs": 50,
+      "targetMet": true,
+      "sourceHighlightLimited": true,
+      "fullPreviewAndUndoVerified": true
+    },
+    {
+      "name": "100 local 800×600 images",
+      "restoreAndDecodeMs": 451,
+      "imageCount": 100,
+      "allDecoded": true
+    },
+    {
+      "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+      "boundaryBytes": 20971520,
+      "accepted": {
+        "durationMs": 39.5,
+        "width": 800,
+        "height": 600
+      },
+      "rejected": {
+        "durationMs": 13.9,
+        "error": "图片文件超过 20 MB。"
+      }
+    }
+  ],
+  "browser": "155.0.4283.45"
+}

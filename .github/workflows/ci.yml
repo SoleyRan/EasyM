@@ -18,13 +18,10 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-      - run: pnpm verify:workers
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm verify:browser
-      - run: pnpm verify:writing
-      - run: pnpm verify:search
-      - run: pnpm verify:live
+      - run: pnpm verify:regression
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: browser-verification
           path: |
@@ -32,7 +29,11 @@ jobs:
             test-results/writing-verification.json
             test-results/search-verification.json
             test-results/live-preview-verification.json
-          if-no-files-found: error
+            test-results/workspace-verification.json
+            test-results/templates-verification.json
+            test-results/export-verification.json
+            test-results/regression-verification.json
+          if-no-files-found: warn
 
   desktop:
     strategy:
@@ -65,6 +66,7 @@ jobs:
           target=$(rustc -vV | awk '/^host:/ {print $2}')
           cargo metadata --manifest-path src-tauri/Cargo.toml --locked --filter-platform "$target" --format-version 1 > test-results/cargo-metadata.json
           node scripts/generate-notices.mjs test-results/npm-licenses.json test-results/cargo-metadata.json Docs/dependencies "$target"
+          node scripts/verify-notices.mjs Docs/dependencies
       - run: pnpm tauri build --no-bundle
       - name: Build Windows installer
         if: runner.os == 'Windows'

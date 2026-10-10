@@ -1,0 +1,6 @@
+{
+  "target": "x86_64-unknown-linux-gnu",
+  "dependencies": 503,
+  "missingLicenseTexts": [],
+  "completeLicenseTexts": true
+}

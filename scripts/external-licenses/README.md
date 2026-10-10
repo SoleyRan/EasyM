@@ -2,6 +2,8 @@
 
 These files supplement dependencies whose published packages omit a separate license file. The generator records source URLs, package versions and SHA-256 hashes in `Docs/dependencies/license-sources.json`.
 
+Supplemental text is emitted with canonical LF newlines so Windows Git checkout settings do not change provenance hashes. Generated content-addressed license files are marked binary in `.gitattributes` to preserve their exact bytes in Git; this only affects line endings, not the license terms.
+
 - alloc-stdlib, defmt-parser and webview2-rs: copied verbatim from the repository commit recorded in the generator. The webview2 macro release's earlier commit has identical license bytes.
 - selectors: its source header at commit `572ecba2d1600e7c3d490586692a209faf703baa` points to Mozilla's MPL 2.0. The full text comes from `https://www.mozilla.org/media/MPL/2.0/index.txt`.
 - format: the copyright line comes from `format.js` at its npm `gitHead`, `4f898096759776b7c84fa7a25b13c923dadfe46e`. The permission and warranty paragraphs are extracted from its declared license URL, `https://sjs.mit-license.org/`, retrieved on 2026-10-09. That website dynamically uses the current year; the dependency's original 2010–2013 copyright is retained. This extraction only removes HTML markup and folds whitespace.

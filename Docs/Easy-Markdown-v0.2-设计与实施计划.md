@@ -73,6 +73,8 @@ EM 菜单新增“从模板新建”，提供空白文档、会议纪要和项�
 
 ## 第 5 步：HTML 与系统打印（实现完成，待原生实机验收）
 
+本步骤已提交：`93c27ac feat(export): add safe HTML export and system printing`。
+
 EM 菜单新增“导出 HTML”和“打印文档”，Ctrl/Cmd+P 也可打开打印预览。导出始终基于当前 Markdown 源文重新解析，不使用可能滞后的预览 Worker 结果，也不调用 Markdown 保存流程，因此不会改变文件身份、脏状态、撤销栈或草稿。HTML 是单文件静态文档，带严格的 `default-src 'none'` CSP 和内联排版/打印样式；继续复用安全 Markdown 渲染器，清理原始 HTML、危险链接和脚本。导出与打印准备期间阻止编辑、另存和关闭，失败或取消后保留当前文档。
 
 本地 PNG/JPEG 通过已有授权的图片读取接口或草稿资源加载，转换为 `data:` URL 内联；资源读取按路径去重，总图片受 128 MiB 限制，单图仍受 20 MiB、图片头和尺寸校验限制，最终 HTML 上限 192 MiB。远程、绝对路径、越界路径、缺失或无法识别的图片不会请求网络，改为可见文字占位并提示缺图。桌面 HTML 导出使用独立保存对话框和临时文件原子写入，不加入 Markdown 文件会话，也不允许覆盖打开的文档或写入 Markdown 扩展名；浏览器模式下载 HTML。
@@ -88,3 +90,13 @@ EM 菜单新增“导出 HTML”和“打印文档”，Ctrl/Cmd+P 也可打开�
 第 5 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（22 个文件、120 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers`、`cargo test --manifest-path src-tauri/Cargo.toml --locked --offline`（21 项 Rust 测试）、`EASYM_TEST_BROWSER=msedge pnpm.cmd verify:browser` 和 `EASYM_TEST_BROWSER=msedge pnpm.cmd verify:export` 通过。Edge 回归实际下载并打开独立 HTML，检查中文、代码高亮、表格边框、缺图占位、PNG 内联、无脚本/危险链接/网络请求、脏状态保持、Ctrl+P、Esc、打印媒体和 12 页 A4 PDF；浏览器打印调用使用 stub，不声称自动操作了原生系统打印面板。证据见 [HTML 与打印验证](verification/v0.2-export-verification.json)，截图和 PDF 保存在 `test-results/`。
 
 本步没有新增依赖、版本号调整或安装包。下一步进入第 6 步：回归汇总、许可复核和 Windows 开发包，原生三平台打印与旧版验收缺口继续明确保留。
+
+## 第 6 步：回归与开发包（本机收尾完成，待发行验收）
+
+产品版本统一为 0.2.0，界面显示 `v0.2.0-dev`。新增统一串行回归 `verify:regression`，记录版本、生产入口哈希、各项结果与耗时，可添加 `--performance`。CI 使用统一入口上传功能报告；三平台桌面编译/测试、Windows disposable runner 安装/卸载继续保留，本轮尚未运行远程 CI。
+
+本轮 `typecheck`、120 项前端单测、21 项 Windows Rust 单测、生产构建及 Edge 全量回归通过。5 MiB 正文/100 KiB 单行输入 p95 为 15.8/16.0 ms。Release 已编译，独立 WebView2 配置下原生窗口启动/正常关闭通过，Windows 0.2.0 NSIS 和带样例便携 ZIP 已生成；安装/卸载与原生功能验收没有因此自动通过。
+
+许可生成器修复 Windows 文件名大小写与补充文本换行差异；新增精确字节哈希、链接、SBOM/来源验证和 Git 文件属性。Windows 407 个依赖版本、Linux 503 个文本缺项为 0；macOS 402 个仍缺 12 个，保留发行复核缺口。
+
+新增中文 Markdown/PNG 体验样例与 [v0.2 验收与交付](Easy-Markdown-v0.2-验收与交付.md)，包含当前结果、限制、实机检查与执行方。新证据集中在 `Docs/verification/v0.2/`，旧版证据不覆盖；构建记录标明生成时的第 5 步 HEAD 加未提交工作区，并以源树/产物 SHA-256 关联。第 6 步改动与本记录一并提交，不 push。下一步为实机验收、远程 CI 与发行门槛复核，而非继续增加 v0.2 功能。

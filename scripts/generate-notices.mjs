@@ -7,7 +7,9 @@ const [npmInput, cargoInput, outputDirectory = 'Docs/dependencies', target = 'x8
 if (!npmInput || !cargoInput) throw new Error('Usage: node scripts/generate-notices.mjs npm-licenses.json cargo-metadata.json [output-directory] [target]')
 const npm = JSON.parse((await readFile(npmInput, 'utf8')).replace(/^\uFEFF/, ''))
 const cargo = JSON.parse((await readFile(cargoInput, 'utf8')).replace(/^\uFEFF/, ''))
+if (npm.error || !Object.values(npm).every(Array.isArray)) throw new Error(`Invalid pnpm license inventory: ${npm.error?.message ?? 'expected license groups'}`)
 const output = resolve(outputDirectory)
+const appVersion = JSON.parse(await readFile('package.json', 'utf8')).version
 const externalLicenseRoot = resolve('scripts/external-licenses')
 const externalLicenses = {
   'cargo:alloc-stdlib@0.3.0': [{ file: 'alloc-stdlib-LICENSE.txt', source: 'https://github.com/dropbox/rust-alloc-no-stdlib/blob/0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE' }],
@@ -25,6 +27,19 @@ const externalLicenses = {
   'cargo:libappindicator-sys@0.9.0': [{ file: 'libappindicator-LICENSE-MIT.txt', source: 'https://github.com/tauri-apps/libappindicator-rs/blob/eafd1e3682a1247f595410266091e9684021cb6f/LICENSE-MIT' }],
 }
 await mkdir(output, { recursive: true })
+await mkdir(resolve(output, 'licenses'), { recursive: true })
+const licenseNames = new Map((await readdir(resolve(output, 'licenses'))).map(name => [name.toLowerCase(), name]))
+async function bundleText(bytes, filename) {
+  const hash = createHash('sha256').update(bytes).digest('hex')
+  const candidate = `${hash}-${basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_')}`
+  // Preserve existing filename casing on case-insensitive Windows filesystems,
+  // so generated links also resolve after checkout on case-sensitive Linux.
+  const name = licenseNames.get(candidate.toLowerCase()) ?? candidate
+  licenseNames.set(candidate.toLowerCase(), name)
+  const path = `licenses/${name}`
+  await writeFile(resolve(output, path), bytes)
+  return { path, hash }
+}
 const records = []
 for (const [license, packages] of Object.entries(npm)) {
   for (const pkg of packages) for (let i = 0; i < pkg.versions.length; i++) {
@@ -57,22 +72,18 @@ for (const pkg of records) {
     const path = resolve(pkg.directory, filename)
     if (!(await stat(path)).isFile()) continue
     const text = await readFile(path)
-    const hash = createHash('sha256').update(text).digest('hex')
-    const target = `licenses/${hash}-${basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_')}.txt`
-    await mkdir(resolve(output, 'licenses'), { recursive: true })
-    await writeFile(resolve(output, target), text)
-    links.push(`[${basename(filename)}](${target})`)
+    const bundled = await bundleText(text, filename + '.txt')
+    links.push(`[${basename(filename)}](${bundled.path})`)
   }
   const external = externalLicenses[`${pkg.ecosystem}:${pkg.name}@${pkg.version}`] ?? []
   for (const item of external) {
     const source = resolve(externalLicenseRoot, item.file)
-    const text = await readFile(source)
-    const hash = createHash('sha256').update(text).digest('hex')
-    const target = `licenses/${hash}-${basename(item.file).replace(/[^a-zA-Z0-9._-]/g, '_')}`
-    await mkdir(resolve(output, 'licenses'), { recursive: true })
-    await writeFile(resolve(output, target), text)
-    links.push(`[${basename(item.file)}](${target})`)
-    provenance.push({ package: `${pkg.ecosystem}:${pkg.name}@${pkg.version}`, file: target, sha256: hash, source: item.source })
+    // Supplemental text is checked out on Windows too; canonical LF keeps its
+    // provenance hash stable across Git autocrlf configurations.
+    const text = Buffer.from((await readFile(source, 'utf8')).replaceAll('\r\n', '\n'))
+    const bundled = await bundleText(text, item.file)
+    links.push(`[${basename(item.file)}](${bundled.path})`)
+    provenance.push({ package: `${pkg.ecosystem}:${pkg.name}@${pkg.version}`, file: bundled.path, sha256: bundled.hash, source: item.source })
   }
   if (!links.length) missing.push(`${pkg.ecosystem}:${pkg.name}@${pkg.version}`)
   const purl = `pkg:${pkg.ecosystem}/${pkg.name.split('/').map(encodeURIComponent).join('/')}@${pkg.version}`
@@ -87,6 +98,6 @@ await writeFile(resolve(output, 'THIRD-PARTY-NOTICES.md'), lines.join('\n'))
 await writeFile(resolve(output, 'license-sources.json'), JSON.stringify(provenance, null, 2) + '\n')
 await writeFile(resolve(output, 'inventory.json'), JSON.stringify({ target, dependencies: records.length, missingLicenseTexts: missing, completeLicenseTexts: missing.length === 0 }, null, 2) + '\n')
 await writeFile(resolve(output, 'sbom.cdx.json'), JSON.stringify({ bomFormat: 'CycloneDX', specVersion: '1.5', version: 1,
-  metadata: { properties: [{ name: 'easym:target', value: target }], component: { type: 'application', name: 'EasyM', version: '0.1.0', licenses: [{ license: { id: 'Apache-2.0' } }] } }, components }, null, 2) + '\n')
+  metadata: { properties: [{ name: 'easym:target', value: target }], component: { type: 'application', name: 'EasyM', version: appVersion, licenses: [{ license: { id: 'Apache-2.0' } }] } }, components }, null, 2) + '\n')
 console.log(`${records.length} dependency versions; ${missing.length} packages missing bundled license texts.`)
 if (missing.length && process.env.EASYM_STRICT_LICENSES === 'true') process.exitCode = 1

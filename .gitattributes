@@ -1,0 +1,3 @@
+# Content-addressed license filenames and provenance use their exact bytes.
+Docs/dependencies/licenses/** -text whitespace=cr-at-eol
+scripts/external-licenses/*.txt text eol=lf

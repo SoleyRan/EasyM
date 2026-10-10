@@ -1,6 +1,6 @@
 {
   "name": "easym",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -21,6 +21,7 @@
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "verify:templates": "node scripts/verify-templates.mjs",
     "verify:export": "node scripts/verify-export.mjs",
+    "verify:regression": "node scripts/verify-regression.mjs",
     "tauri": "tauri",
     "icons": "tauri icon src-tauri/icons/app-icon.svg --output src-tauri/icons",
     "desktop:dev": "tauri dev",
