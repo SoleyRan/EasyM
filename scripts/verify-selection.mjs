@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 
 // Drive native mouse selection, rather than setting DOM/editor selections.
 export async function verifySelection(page, selectTheme) {
@@ -45,7 +46,7 @@ export async function verifySelection(page, selectTheme) {
     await selectTheme(theme)
     for (const mode of ['源码', '分屏']) {
       await page.getByRole('button', { name: mode, exact: true }).click()
-      await editor.fill(text)
+      await fillSource(page, text)
       await editor.press('Control+Home')
       const sample = await point(from), before = await pixel(sample)
       await select(text, from, to)
@@ -71,14 +72,14 @@ export async function verifySelection(page, selectTheme) {
       await page.getByRole('button', { name: '重做', exact: true }).click()
       assert.equal(await body(), text)
       assert.equal(await boldButton.getAttribute('aria-pressed'), 'false')
-      await editor.fill(text)
+      await fillSource(page, text)
       await select(text, to, from)
       await page.getByRole('button', { name: '斜体', exact: true }).click()
       assert.equal(await body(), text.slice(0, from) + '*' + text.slice(from, to) + '*' + text.slice(to), 'Reverse mouse selection is preserved')
       assert.equal(await page.getByRole('button', { name: '斜体', exact: true }).getAttribute('aria-pressed'), 'true')
       await page.getByRole('button', { name: '斜体', exact: true }).click()
       assert.equal(await body(), text)
-      await editor.fill(text)
+      await fillSource(page, text)
       await select(text, from, to)
       // Keyboard activation must use the same range after focus leaves the editor.
       await page.getByRole('button', { name: '链接', exact: true }).focus()
@@ -87,7 +88,7 @@ export async function verifySelection(page, selectTheme) {
       assert.equal(await page.getByRole('button', { name: '链接', exact: true }).getAttribute('aria-pressed'), 'true')
       await page.getByRole('button', { name: '链接', exact: true }).click()
       assert.equal(await body(), text)
-      await editor.fill(text)
+      await fillSource(page, text)
       await select(text, from, text.length - 2)
       await page.getByRole('button', { name: '引用', exact: true }).click()
       assert.equal(await body(), '> ' + text.replace('\n', '\n> '), 'Multiline commands affect selected lines without losing text')
@@ -95,7 +96,7 @@ export async function verifySelection(page, selectTheme) {
       await page.getByRole('button', { name: '引用', exact: true }).click()
       assert.equal(await body(), text)
       for (const format of ['标题', '无序列表', '有序列表', '任务列表']) {
-        await editor.fill(text)
+        await fillSource(page, text)
         await select(text, from, to)
         const button = page.getByRole('button', { name: format, exact: true })
         await button.click()
@@ -105,7 +106,7 @@ export async function verifySelection(page, selectTheme) {
         assert.equal(await button.getAttribute('aria-pressed'), 'false')
       }
       const codeText = 'code text\n'
-      await editor.fill(codeText)
+      await fillSource(page, codeText)
       await select(codeText, 0, codeText.length - 1)
       const codeButton = page.getByRole('button', { name: '代码块', exact: true })
       await codeButton.click()
@@ -114,7 +115,7 @@ export async function verifySelection(page, selectTheme) {
       assert.equal(await body(), codeText)
       assert.equal(await codeButton.getAttribute('aria-pressed'), 'false')
       const mixed = '**bold** plain'
-      await editor.fill(mixed)
+      await fillSource(page, mixed)
       await select(mixed, 0, mixed.length)
       assert.equal(await boldButton.getAttribute('aria-pressed'), 'mixed')
       await boldButton.click()
@@ -126,7 +127,7 @@ export async function verifySelection(page, selectTheme) {
   }
   // Exercise a native drag across visual wraps in a single physical line.
   const wrapped = '中文 soft wrap words🙂 '.repeat(30)
-  await editor.fill(wrapped)
+  await fillSource(page, wrapped)
   await editor.press('Control+Home')
   await select(wrapped, 5, wrapped.indexOf('中文', 120))
   const selected = await page.evaluate(() => window.getSelection().toString())

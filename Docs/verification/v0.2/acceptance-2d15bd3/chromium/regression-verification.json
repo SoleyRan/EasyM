@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "startedAt": "2026-10-10T09:42:38.061Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 171
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 5897
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 58825
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 6619
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 20657
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 2464
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 6179
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 6262
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 6792
+    }
+  ],
+  "distIndexSha256": "c68aea03545eba52b7e1d60e1d079482f8c229923a8fac81287a3e926e1c2ab4",
+  "finishedAt": "2026-10-10T09:44:31.933Z"
+}

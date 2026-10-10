@@ -8,7 +8,21 @@
 
 v0.2 新增文档内查找/替换、即时渲染、工作区搜索及树/大纲键盘导航、内置模板、安全单文件 HTML 导出和系统打印入口。原始 Markdown 仍为唯一正文，默认打开源码视图；保存、草稿、图片副本、冲突保护继续沿用既有契约。具体范围见 [实施计划](Easy-Markdown-v0.2-设计与实施计划.md)。
 
-## 本轮验证
+## 当前提交增量验收（2026-10-10）
+
+本次核对 HEAD `2d15bd3`：22 个前端测试文件、125 项通过，Windows Rust 21 项通过，TypeScript 和生产构建通过。完整 Edge 功能回归与性能检查、6 倍 CPU 降速的查找回归均通过。新证据见 [acceptance-2d15bd3](verification/v0.2/acceptance-2d15bd3/windows-build.json)；`sourceDirty: true` 包含本次 CI 脚本修复，尚未提交/push。应用源码无变更，生产入口和现有 Release/安装包/便携包哈希与右键菜单交付记录一致。
+
+另使用与本次 CI 相同的 Chromium `156.0.8078.4` 在 Windows 完成全部功能回归及 6 倍 CPU 降速查找，均通过：[功能汇总](verification/v0.2/acceptance-2d15bd3/chromium/regression-verification.json)、[慢速查找](verification/v0.2/acceptance-2d15bd3/chromium/search-slow-verification.json)。这验证浏览器版本兼容性，不能冒充修复后的 Ubuntu CI 结果。`chromium/` 下随构建复制的性能报告仍是 Edge 基线，以报告 `browser` 字段为准。
+
+[CI run 38039408927](https://github.com/SoleyRan/EasyM/actions/runs/38039408927) 在同一 HEAD 的 Windows、Linux、macOS 桌面任务均成功：Rust 分别为 21/22/22 项，Release 均编译成功；Windows 安装、启动、卸载通过，已下载 [安装报告](verification/v0.2/acceptance-2d15bd3/ci-installer-verification.json)。macOS 依然缺 12 项完整许可文本，成功编译不等于满足正式发行门槛。
+
+前端 CI 在查找脚本第 80 行失败：新标签正文填入时草稿初始化未完成，编辑区仍 `inert`，Playwright 的 `fill()` 会丢失填入，导致 needle 得到零项。降低 CPU 速度可在首次填入复现同一问题。修复增加公共 `fillSource`，定位活动标签的非 inert 编辑区后再填入；相关正文 fixture 共用此等待。CI 新增 `pnpm verify:search --slow`（6 倍 CPU 降速），上传对应报告和失败截图；未以增加超时替代初始化等待。修复后的远程前端 CI 仍需提交/push 后确认。
+
+本机重新验证 Windows 407 个依赖、211 份许可文本，无缺项；便携包 219 项及内嵌 exe 哈希正确；独立 WebView2 配置的窗口启动与正常关闭通过。原生 UI 自动化工具在输入后读取状态超时，恢复后截图点击返回窗口边界 13×13，无法可靠驱动文件/打印对话框；编辑、IME、原生对话框项目不记为通过。测试使用独立配置，不读取日常草稿或操作日常文档。
+
+性能复测：5 MiB 打开 1937 ms、输入到下一帧 p95 17.5 ms；100 KiB 单行打开 175 ms、p95 25.1 ms，均低于 50 ms 目标；100 张本地图恢复/解码 484 ms；20 MiB PNG 边界接受，多 1 字节拒绝。这些仍是浏览器基线，不能替代真实 IME 或大图内存压力验收。
+
+## 第 6 步历史验证
 
 | 检查 | 结果 | 证据/范围 |
 | --- | --- | --- |
@@ -68,7 +82,7 @@ macOS 的 block2、dispatch2、objc2 及框架包仍缺完整条款，上游声�
 | Windows 真实输入法/选区 | 用户实机 | 用中文输入法组合、候选选择、回车；源码/即时渲染拖选任意文字，格式按钮应用/取消与撤销正确；组合不被工具栏打断 |
 | Windows 原生文件与图片闭环 | 用户实机 | 中文/空格路径工作区搜索；模板首次另存与取消、自动保存、外部冲突副本、图片 recipe/剪贴板、草稿重启恢复均保留数据 |
 | Windows 原生导出/打印 | 用户实机 | HTML 保存对话框取消不丢正文；离线 HTML 图片完整；原生打印/PDF 的分页、表头、长代码正确，返回编辑后撤销/主题正常 |
-| 本轮三平台 CI | 后续提交/push 后自动执行 | 前端统一回归、三平台 Rust/构建和 Windows 安装/启动/卸载均成功，按实际 commit 记录新证据 |
+| CI 修复后的前端回归 | 提交/push 后自动执行 | 当前 HEAD 的三平台桌面任务已通过；修复脚本后的前端统一回归和慢速查找需新一次 CI 确认 |
 | macOS/Linux 原生 GUI | 有对应设备的用户/测试人员 | 文件/图片/草稿、真实 IME、搜索/模板、打印/PDF 和取消等关键路径通过，记录 OS/WebView 版本 |
 | 发行签名与 macOS 许可复核 | 项目维护者提供身份/环境并复核 | 补完 macOS 条款，完成所需签名/公证和发行检查 |
 

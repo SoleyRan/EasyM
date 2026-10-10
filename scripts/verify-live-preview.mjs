@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
@@ -40,7 +41,7 @@ try {
   const undo = () => page.getByRole('button', { name: '撤销', exact: true }).click()
   const redo = () => page.getByRole('button', { name: '重做', exact: true }).click()
   const text = '# 中文标题\n\n**加粗**、*斜体*、~~删除~~、`行内代码` 和 [链接](https://example.com)\n\n- 列表\n- [x] 已完成\n\n> 引用\n\n```javascript\nconst answer = 42;\n```\n\n| A | B |\n| - | - |\n| 中文 | 2 |\n\n![远程图片](https://remote.example/a.png)\n\n最后一行'
-  await editor.fill(text)
+  await fillSource(page, text)
   await live()
   await page.locator('.live-block-code').waitFor()
   await page.locator('.live-block-table table').waitFor()
@@ -71,7 +72,7 @@ try {
   await editor.evaluate(element => { element.dataset.testIdentity = 'same-editor' })
   const formatted = '前缀 **加粗文字** 后缀\n\n末尾'
   for (const reverse of [false, true]) {
-    await editor.fill(formatted); await live()
+    await fillSource(page, formatted); await live()
     await page.locator('.live-strong').waitFor()
     const start = await point('前缀 加粗文字 后缀', 3), end = await point('前缀 加粗文字 后缀', 7)
     await drag(reverse ? end : start, reverse ? start : end)
@@ -86,18 +87,18 @@ try {
   }
   checks.push('forward/reverse native mouse selection across hidden markers; format state/toggle; shared editor and undo across three views')
   const multiline = '前缀 中文🙂选择 后缀\n第二行原文\n\n末尾'
-  await editor.fill(multiline); await live()
+  await fillSource(page, multiline); await live()
   await drag(await point('前缀 中文🙂选择 后缀', 3), await point('第二行原文', 3))
   await page.getByRole('button', { name: '引用', exact: true }).click()
   assert.equal(await source(), '> 前缀 中文🙂选择 后缀\n> 第二行原文\n\n末尾')
   const wrapped = '中文 soft wrap words🙂 '.repeat(25)
-  await editor.fill(wrapped + '\n\n末尾'); await live()
+  await fillSource(page, wrapped + '\n\n末尾'); await live()
   const from = 5, to = wrapped.indexOf('中文', 120)
   await drag(await point(wrapped, from), await point(wrapped, to))
   await bold.click()
   assert.equal(await source(), wrapped.slice(0, from) + '**' + wrapped.slice(from, to).trimEnd() + '**' + wrapped.slice(from + wrapped.slice(from, to).trimEnd().length) + '\n\n末尾')
   checks.push('Chinese/emoji cross-line and soft-wrap pointer selections apply only selected text')
-  await editor.fill(text); await live()
+  await fillSource(page, text); await live()
   await page.locator('.live-block-table td').first().click()
   await page.waitForFunction(() => !document.querySelector('.live-block-table'))
   assert.ok((await editor.textContent()).includes('| 中文 | 2 |'))
@@ -129,7 +130,7 @@ try {
   checks.push('synthetic composition pauses presentation and guards mode changes (native IME still requires desktop testing)')
   // Imported local resources resolve to managed object URLs, and double-click
   // edits the correct instance without forcing the live view back to split.
-  await editor.fill('图片文档\n\n')
+  await fillSource(page, '图片文档\n\n')
   await live()
   const fixture = await page.evaluate(() => {
     const canvas = document.createElement('canvas'); canvas.width = 40; canvas.height = 30
@@ -159,17 +160,17 @@ try {
   await page.waitForFunction(() => !document.querySelector('.live-block-image'))
   checks.push('local image blob resource, correct double-click edit, cancel/apply and source reveal; live view retained')
   const unknown = '---\ntitle: **原始**\n---\n\n<custom data-x="原样">\n<script>window.UNSAFE=true</script>\n</custom>\n\n未知 {{token}}\n\n末尾'
-  await source(); await editor.fill(unknown); await live()
+  await source(); await fillSource(page, unknown); await live()
   assert.equal(await source(), unknown)
   assert.equal(await page.evaluate(() => window.UNSAFE), undefined)
   checks.push('front matter, unknown syntax and raw HTML preserve source without execution')
-  await editor.fill('x'.repeat(20_001)); await live()
+  await fillSource(page, 'x'.repeat(20_001)); await live()
   assert.equal(await page.locator('.cm-live-preview').count(), 0)
   assert.ok((await page.locator('.statusbar').textContent()).includes('即时渲染已降级为源码'))
-  await editor.fill(('a'.repeat(1500) + '\n').repeat(700))
+  await fillSource(page, ('a'.repeat(1500) + '\n').repeat(700))
   assert.equal(await page.locator('.cm-live-preview').count(), 0)
   assert.ok((await page.locator('.statusbar').textContent()).includes('即时渲染已降级为源码'))
-  await editor.fill(text)
+  await fillSource(page, text)
   await page.locator('.live-block-code').waitFor()
   checks.push('oversized documents and long lines degrade explicitly to source; shortening restores rendering')
   for (const theme of ['清爽浅色', '午夜深色', '暖纸', '护眼绿']) {
@@ -184,7 +185,7 @@ try {
   }
   await page.getByRole('button', { name: '新建标签', exact: true }).click()
   assert.equal(await page.getByRole('button', { name: '源码', exact: true }).getAttribute('class'), 'selected')
-  await editor.fill('独立标签'); await page.getByRole('tab').first().click()
+  await fillSource(page, '独立标签'); await page.getByRole('tab').first().click()
   assert.equal(await page.getByRole('button', { name: '即时渲染', exact: true }).getAttribute('class'), 'selected')
   assert.equal(await source(), text)
   checks.push('four theme table/code styles; tab view and text independence')

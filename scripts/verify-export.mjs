@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
@@ -22,7 +23,7 @@ try {
     await page.getByRole('menuitem', { name, exact: true }).click()
   }
   // Immediate export after an edit must not use the debounced preview's old body.
-  await editor.fill('# 中文导出\n\n**latest**\n\n<script>globalThis.exportExecuted=true</script>\n\n[unsafe](javascript:alert%281%29)\n\n![remote](https://evil.example/track.png)\n\n![missing](gone.png)\n\n|甲|乙|\n|---|---|\n|一|二|\n\n```js\nconst value = "中文"\n```')
+  await fillSource(page, '# 中文导出\n\n**latest**\n\n<script>globalThis.exportExecuted=true</script>\n\n[unsafe](javascript:alert%281%29)\n\n![remote](https://evil.example/track.png)\n\n![missing](gone.png)\n\n|甲|乙|\n|---|---|\n|一|二|\n\n```js\nconst value = "中文"\n```')
   const downloadEvent = page.waitForEvent('download'); await action('导出 HTML')
   const download = await downloadEvent
   assert.equal(download.suggestedFilename(), '未命名.html')
@@ -83,7 +84,7 @@ try {
   assert.equal(await source(), beforePrint)
   // Multi-page output exercises headers, tables, long code, Chinese and page rules.
   const long = '# 多页中文\n\n' + Array.from({ length: 45 }, (_, i) => `## 第 ${i + 1} 节\n\n中文段落 ${'内容与分页 '.repeat(20)}\n\n|列一|列二|\n|---|---|\n|中文|${i + 1}|`).join('\n\n') + '\n\n```text\n' + '很长的代码'.repeat(100) + '\n```'
-  await editor.fill(long); await action('打印文档'); await page.locator('.print-dialog').waitFor()
+  await fillSource(page, long); await action('打印文档'); await page.locator('.print-dialog').waitFor()
   await page.waitForFunction(() => document.body.classList.contains('easym-print-ready') && document.querySelector('#easym-print-root h1')?.textContent === '多页中文')
   await page.emulateMedia({ media: 'print' })
   await page.pdf({ path: 'test-results/export-multipage.pdf', format: 'A4', printBackground: true })

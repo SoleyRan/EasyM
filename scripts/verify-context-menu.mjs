@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
@@ -54,7 +55,7 @@ try {
   await page.getByRole('button', { name: '隐藏格式工具栏', exact: true }).click({ button: 'right' })
   assert.equal(await menu.count(), 0)
 
-  await editor.fill('plain 中文')
+  await fillSource(page, 'plain 中文')
   await editor.press('Control+a')
   await contextEditor()
   await action('复制')
@@ -78,7 +79,7 @@ try {
 
   await page.evaluate(() => { window.delayClipboard = true })
   await editor.press('Control+a'); await contextEditor(); await action('粘贴文本')
-  await editor.fill('changed while reading clipboard')
+  await fillSource(page, 'changed while reading clipboard')
   await page.evaluate(() => { window.delayClipboard = false; window.finishPaste('stale clipboard') })
   await page.getByRole('alert').filter({ hasText: '正文或选区已变化' }).waitFor()
   assert.equal(await body(), 'changed while reading clipboard')
@@ -125,7 +126,7 @@ try {
     }
   }
   await page.getByRole('button', { name: '源码', exact: true }).click()
-  await editor.fill('# 预览标题\n\n[地址](https://example.com)')
+  await fillSource(page, '# 预览标题\n\n[地址](https://example.com)')
   await page.getByRole('button', { name: '分屏', exact: true }).click()
   await page.locator('.preview h1').waitFor()
   await page.locator('.preview a').click({ button: 'right' }); await action('复制链接地址')

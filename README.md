@@ -59,7 +59,7 @@ pnpm verify:export
 pnpm verify:performance
 ```
 
-构建后可用 `pnpm verify:regression` 串行执行全部功能回归，添加 `--performance` 同时测量性能。CI 使用统一入口，性能数据在本机单独记录；各项命令仍可独立运行。依赖清单生成后运行 `node scripts/verify-notices.mjs`，核验 SBOM 版本、许可文件字节哈希、链接大小写和补充文本来源。
+构建后可用 `pnpm verify:regression` 串行执行全部功能回归，添加 `--performance` 同时测量性能。CI 使用统一入口，性能数据在本机单独记录；各项命令仍可独立运行。`pnpm verify:search --slow` 使用 6 倍 CPU 降速验证初始化竞态；正文 fixture 等待草稿初始化后的可用编辑区。依赖清单生成后运行 `node scripts/verify-notices.mjs`，核验 SBOM 版本、许可文件字节哈希、链接大小写和补充文本来源。
 
 安装 Rust、系统 WebView 和 Tauri 依赖后，可以运行：
 
@@ -74,7 +74,7 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.2.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 `samples/体验指南.md`，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)，校验值见 [v0.2 构建记录](Docs/verification/v0.2/windows-build.json)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/卸载待本轮 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs Docs/verification/v0.2` 记录证据。
+Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/启动/卸载已通过提交 `2d15bd3` 的 Windows CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs Docs/verification/v0.2` 记录证据。
 
 ## 许可
 

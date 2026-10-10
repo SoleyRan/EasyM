@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
@@ -6,16 +7,21 @@ import { serveProduction } from './serve-production.mjs'
 const server = await serveProduction()
 let browser
 let page
+const cpuThrottlingRate = process.argv.includes('--slow') ? 6 : 1
 try {
   browser = await chromium.launch({ channel: process.env.EASYM_TEST_BROWSER || undefined })
   page = await browser.newPage({ viewport: { width: 1280, height: 860 } })
+  if (cpuThrottlingRate > 1) {
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('Emulation.setCPUThrottlingRate', { rate: cpuThrottlingRate })
+  }
   const errors = []
   page.on('pageerror', error => errors.push(error.message))
   page.on('dialog', dialog => { void dialog.dismiss() })
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const body = () => editor.evaluate((element) => [...element.querySelectorAll('.cm-line')].map((line) => line.textContent).join('\n'))
   await page.goto(server.url)
-  await editor.fill('中文 word\nWORD 中文\nwords')
+  await fillSource(page, '中文 word\nWORD 中文\nwords')
   await page.getByRole('button', { name: '查找 / 替换', exact: true }).click()
   const search = page.getByRole('search', { name: '文档内查找与替换' })
   await search.getByRole('textbox', { name: '查找文本' }).fill('中文')
@@ -44,7 +50,7 @@ try {
   await search.getByRole('textbox', { name: '查找文本' }).press('Escape')
   assert.equal(await search.count(), 0)
   assert.equal(await page.locator('.cm-searchMatch').count(), 0)
-  await editor.fill('alpha alpha alphabet ALPHA\n中文🙂中文\n\\n $1 .*')
+  await fillSource(page, 'alpha alpha alphabet ALPHA\n中文🙂中文\n\\n $1 .*')
   await editor.press('Control+Home')
   await editor.press('Control+f')
   const query = search.getByRole('textbox', { name: '查找文本' })
@@ -74,7 +80,7 @@ try {
   // Independent tab query/state and close/reopen use the same editor instance.
   await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
   await page.getByRole('menuitem', { name: '新建文档', exact: true }).click()
-  await editor.fill('second tab needle')
+  await fillSource(page, 'second tab needle')
   await page.getByRole('button', { name: '查找 / 替换', exact: true }).click()
   await query.fill('needle')
   await search.getByText('0 / 1 项', { exact: true }).waitFor()
@@ -86,7 +92,7 @@ try {
   const secondQuery = page.getByRole('search', { name: '文档内查找与替换' }).getByRole('textbox', { name: '查找文本' })
   assert.equal(await secondQuery.inputValue(), 'needle')
   await search.getByRole('button', { name: '关闭查找' }).click()
-  await editor.fill('a'.repeat(10_001))
+  await fillSource(page, 'a'.repeat(10_001))
   await page.getByRole('button', { name: '查找 / 替换', exact: true }).click()
   await query.fill('a')
   await search.getByText('超过 10,000 项', { exact: true }).waitFor()
@@ -96,7 +102,7 @@ try {
   await query.fill('aa')
   await search.getByText('0 / 5000 项', { exact: true }).waitFor()
   await search.getByRole('button', { name: '关闭查找' }).click()
-  await editor.fill(Array.from({ length: 90 }, (_, i) => `## Section ${i}\n\n${'段落 '.repeat(20)}`).join('\n\n'))
+  await fillSource(page, Array.from({ length: 90 }, (_, i) => `## Section ${i}\n\n${'段落 '.repeat(20)}`).join('\n\n'))
   await editor.press('Control+Home')
   await page.getByRole('button', { name: '分屏', exact: true }).click()
   await page.locator('.preview h2').last().waitFor()
@@ -115,11 +121,13 @@ try {
   })
   assert.deepEqual(errors, [])
   await mkdir('test-results', { recursive: true })
-  const report = { stage: 'v0.2-step-1', verifiedAt: new Date().toISOString(), browser: await browser.version(), passed: true, checks: ['Chinese and emoji source offsets', 'literal query and replacement', 'case and whole word', 'forward/reverse wraparound', 'single/all replacement undo', 'Ctrl+F/Enter/Shift+Enter/Escape', 'search input composition guard (synthetic events)', 'independent tab queries', 'bounded and superseded worker counts', 'split source and preview navigation'] }
-  await writeFile('test-results/search-verification.json', JSON.stringify(report, null, 2) + '\n')
+  const report = { stage: 'v0.2-step-1', verifiedAt: new Date().toISOString(), browser: await browser.version(), passed: true, cpuThrottlingRate, checks: ['Chinese and emoji source offsets', 'literal query and replacement', 'case and whole word', 'forward/reverse wraparound', 'single/all replacement undo', 'Ctrl+F/Enter/Shift+Enter/Escape', 'search input composition guard (synthetic events)', 'independent tab queries', 'bounded and superseded worker counts', 'split source and preview navigation'] }
+  await writeFile(cpuThrottlingRate > 1 ? 'test-results/search-slow-verification.json' : 'test-results/search-verification.json', JSON.stringify(report, null, 2) + '\n')
   await page.screenshot({ path: 'test-results/search-verification.png' })
   console.log('Search verification passed: Unicode, replace/undo, keyboard/IME guards, tabs, worker limits and split navigation.')
 } catch (error) {
+  await mkdir('test-results', { recursive: true })
+  await page?.screenshot({ path: 'test-results/search-failure.png' }).catch(() => undefined)
   console.error(await page?.evaluate(() => {
     const panel = document.querySelector('.document-panel:not([hidden])')
     const preview = panel?.querySelector('.preview')

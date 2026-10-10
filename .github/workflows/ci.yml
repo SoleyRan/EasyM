@@ -20,6 +20,8 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify:regression
+      - name: Verify search with a slower browser
+        run: pnpm verify:search --slow
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -28,6 +30,8 @@ jobs:
             test-results/browser-verification.json
             test-results/writing-verification.json
             test-results/search-verification.json
+            test-results/search-slow-verification.json
+            test-results/search-failure.png
             test-results/live-preview-verification.json
             test-results/workspace-verification.json
             test-results/templates-verification.json

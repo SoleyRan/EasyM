@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
@@ -19,7 +20,7 @@ try {
   }
   const dialog = page.locator('.template-dialog')
   await page.goto(server.url)
-  await editor.fill('当前标签保留正文')
+  await fillSource(page, '当前标签保留正文')
   await open()
   assert.equal(await dialog.getByLabel('模板', { exact: true }).evaluate(element => element === document.activeElement), true)
   await dialog.getByLabel('模板', { exact: true }).press('Shift+Tab')
