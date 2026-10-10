@@ -53,7 +53,7 @@ const native = JSON.parse((await readFile('test-results/native-startup-verificat
 assert.equal(native.version, config.version)
 assert.equal(native.passed, true)
 assert.equal(native.executableSha256, artifacts.find(item => item.path.endsWith('/easym.exe')).sha256)
-for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'regression-verification.json', 'native-startup-verification.json']) {
+for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'context-menu-verification.json', 'regression-verification.json', 'native-startup-verification.json']) {
   await copyFile(resolve('test-results', file), resolve(output, file))
 }
 await writeFile(resolve(output, 'windows-build.json'), JSON.stringify({

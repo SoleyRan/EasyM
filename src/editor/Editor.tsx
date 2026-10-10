@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
-import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands'
+import { history, historyKeymap, defaultKeymap, undo, redo, undoDepth, redoDepth, selectAll } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
@@ -17,6 +17,7 @@ import { search, openSearchPanel, closeSearchPanel, findNext, findPrevious } fro
 import { createSearchPanel } from './search-panel'
 import { liveRendering, setLiveEnabled, setLiveBlocks } from './live-decoration'
 import type { ParsedDocument } from '../core/markdown'
+import { useContextMenu } from './ContextMenu'
 
 export interface EditorHandle {
   selection(): Selection
@@ -56,6 +57,7 @@ function fencedCode(editor: EditorView): FencedBlock | null {
 interface Props { initialText: string; live?: boolean; parsed?: ParsedDocument; previewText?: string; imageContext?: unknown; onRenderImage?(resource: string): Promise<string | null>; onEditImage?(offset: number): void; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
 
 export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, live = false, parsed, previewText, imageContext, onRenderImage = async () => null, onEditImage = () => undefined, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
+  const contextMenu = useContextMenu()
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const composition = useRef(false)
@@ -201,5 +203,32 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
     if (!editor || !parsed?.blocks || previewText === undefined || editor.state.doc.length > 1024 * 1024 || editor.state.doc.toString() !== previewText) return
     editor.dispatch({ effects: setLiveBlocks.of({ doc: editor.state.doc, blocks: parsed.blocks, context: imageContext }) })
   }, [parsed, previewText, imageContext])
-  return <div ref={host} className="codemirror-host" />
+  return <div ref={host} className="codemirror-host" onContextMenu={event => {
+    const editor = view.current
+    if (!editor || !(event.target as HTMLElement).closest('.cm-content, .cm-scroller, .cm-gutters')) return
+    if (isComposing(editor)) { event.preventDefault(); event.stopPropagation(); return }
+    const position = editor.posAtCoords({ x: event.clientX, y: event.clientY })
+    if (position !== null && !editor.state.selection.ranges.some(range => position >= range.from && position <= range.to)) editor.dispatch({ selection: { anchor: position } })
+    const state = editor.state
+    const selection = state.selection.main
+    const selected = state.selection.ranges.map(range => state.doc.sliceString(range.from, range.to)).join('\n')
+    const replace = (text: string) => {
+      if (!view.current || view.current !== editor || editor.state.doc !== state.doc || !editor.state.selection.eq(state.selection) || editor.state.readOnly || host.current?.closest('[inert]') || isComposing(editor)) throw new Error('正文或选区已变化，请重新选择后操作。')
+      editor.dispatch({ ...editor.state.replaceSelection(text), userEvent: 'input.paste', annotations: isolateHistory.of('full') })
+      editor.focus()
+    }
+    const formats = formatState(state.doc, selection, syntaxTree(state))
+    contextMenu(event, [
+      { label: '撤销', disabled: undoDepth(state) === 0, run: () => { undo(editor); editor.focus() } },
+      { label: '重做', disabled: redoDepth(state) === 0, run: () => { redo(editor); editor.focus() } },
+      { label: '剪切', disabled: !selected, run: async () => { await navigator.clipboard.writeText(selected); replace('') } },
+      { label: '复制', disabled: !selected, run: () => navigator.clipboard.writeText(selected) },
+      { label: '粘贴文本', run: async () => replace(await navigator.clipboard.readText()) },
+      { label: '全选', disabled: state.doc.length === 0, run: () => { selectAll(editor); editor.focus() } },
+      { label: '加粗', checked: formats.bold === true, run: () => callbacks.current.onCommand('bold') },
+      { label: '斜体', checked: formats.italic === true, run: () => callbacks.current.onCommand('italic') },
+      { label: '插入图片', run: () => callbacks.current.onCommand('image') },
+      { label: '查找 / 替换', run: () => { openSearchPanel(editor) } },
+    ])
+  }} />
 })

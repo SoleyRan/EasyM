@@ -60,6 +60,66 @@ async function edit(text: string) {
 }
 async function requestClose() { await act(async () => native.requestClose()) }
 
+async function tabContext(index: number) {
+  const tab = container.querySelectorAll('[role=tab]')[index]
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 20 })
+  await act(async () => tab.dispatchEvent(event)); await settle()
+  expect(event.defaultPrevented).toBe(true)
+}
+
+it('closes the right-clicked background tab without changing other dirty documents', async () => {
+  await mount(); await click('新建标签'); await edit('keep active body')
+  await tabContext(0); await click('关闭当前')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('keep active body')
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  expect(native.close).not.toHaveBeenCalled()
+})
+
+it('closes other tabs relative to the clicked tab and keeps its edits intact', async () => {
+  await mount(); await edit('keep clicked body'); await click('新建标签'); await click('新建标签')
+  await tabContext(0); await click('关闭所有其他')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('keep clicked body')
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  await tabContext(0)
+  expect([...container.querySelectorAll<HTMLButtonElement>('.context-menu button')].find(button => button.textContent === '关闭所有其他')?.disabled).toBe(true)
+})
+
+it('protects all targeted tabs on cancel and closes all without exiting the app on discard', async () => {
+  await mount(); await edit('first body'); await click('新建标签'); await edit('second body')
+  await tabContext(0); await click('关闭所有'); await click('返回编辑')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect([...container.querySelectorAll<HTMLTextAreaElement>('textarea')].map(input => input.value)).toEqual(['first body', 'second body'])
+  await tabContext(1); await click('关闭所有'); await click('不保存关闭')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('')
+  expect(await drafts.keys()).toEqual([])
+  expect(native.close).not.toHaveBeenCalled()
+})
+
+it('retains only the closing tabs as drafts and preserves the excluded tab', async () => {
+  await mount(); await edit('retain first'); await click('新建标签'); await edit('retain second'); await click('新建标签')
+  await tabContext(2); await click('关闭所有其他'); await click('保留草稿并关闭')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('')
+  const bodies = await Promise.all((await drafts.keys()).map(async key => (await drafts.load(key))?.text))
+  expect(bodies.sort()).toEqual(['retain first', 'retain second'])
+})
+
+it('keeps every target tab open when a batch save is cancelled after an earlier save succeeds', async () => {
+  await mount(); await edit('first saved'); await click('新建标签'); await edit('second cancelled')
+  native.save.mockResolvedValueOnce({ id: 'saved-first', name: 'first.md', revision: 'r1', destination: 'disk' }).mockResolvedValueOnce(null)
+  await tabContext(0); await click('关闭所有'); await click('保存并关闭')
+  expect(native.save).toHaveBeenCalledTimes(2)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(container.querySelector('.close-dialog')).not.toBeNull()
+  expect(container.querySelectorAll<HTMLTextAreaElement>('textarea')[1].value).toBe('second cancelled')
+  await click('返回编辑')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(container.querySelectorAll('[role=tab]')[1].textContent).toContain('*')
+})
+
 it('exports current source without saving or clearing dirty drafts, including cancellation and failure', async () => {
   await mount(); await edit('# 新正文\n\n**bold**'); await click('导出 HTML')
   expect(native.exportHtml).toHaveBeenCalledWith('未命名.html', expect.stringContaining('<strong>bold</strong>'))

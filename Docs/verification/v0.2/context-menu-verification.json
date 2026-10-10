@@ -1,0 +1,16 @@
+{
+  "verifiedAt": "2026-10-10T08:45:39.039Z",
+  "passed": true,
+  "browser": "155.0.4283.45",
+  "checks": [
+    "default menus suppressed on controls/status",
+    "editor copy/cut/paste undo and format toggle",
+    "delayed/denied clipboard retains source",
+    "search input edit/composition guard",
+    "3 views and 4 themes, viewport fit and keyboard navigation",
+    "preview links/selection, outline and workspace paths",
+    "background tab batch close, cancel and discard, last-tab blank replacement"
+  ],
+  "clipboard": "isolated fixture; OS clipboard untouched",
+  "workspace": "deterministic IPC fixture"
+}

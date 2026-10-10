@@ -21,6 +21,7 @@
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "verify:templates": "node scripts/verify-templates.mjs",
     "verify:export": "node scripts/verify-export.mjs",
+    "verify:context-menu": "node scripts/verify-context-menu.mjs",
     "verify:regression": "node scripts/verify-regression.mjs",
     "tauri": "tauri",
     "icons": "tauri icon src-tauri/icons/app-icon.svg --output src-tauri/icons",

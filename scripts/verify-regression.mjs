@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 
 // Build/typecheck/unit tests run before this suite. Each browser script creates
 // its own profile and production server; run serially to keep timing reproducible.
-const scripts = ['workers', 'browser', 'writing', 'search', 'live-preview', 'workspace', 'templates', 'export']
+const scripts = ['workers', 'browser', 'writing', 'search', 'live-preview', 'workspace', 'templates', 'export', 'context-menu']
 if (process.argv.includes('--performance')) scripts.push('performance')
 const pkg = JSON.parse(await readFile('package.json', 'utf8'))
 const config = JSON.parse(await readFile('src-tauri/tauri.conf.json', 'utf8'))

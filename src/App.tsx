@@ -8,6 +8,7 @@ import { drafts } from './platform/drafts'
 import { releaseDocument, type OpenedFile } from './platform/storage'
 import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
+import { ContextMenuProvider, useContextMenu } from './editor/ContextMenu'
 
 interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
@@ -15,12 +16,18 @@ const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', f
 type Theme = keyof typeof themes
 
 export default function App() {
+  return <ContextMenuProvider><Application /></ContextMenuProvider>
+}
+
+function Application() {
+  const contextMenu = useContextMenu()
   const [tabs, setTabs] = useState<Tab[]>([first])
   const [active, setActive] = useState(first.id)
   const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
   const handles = useRef(new Map<string, DocumentHandle>())
-  const [closing, setClosing] = useState<string | 'window' | null>(null)
+  const [closing, setClosing] = useState<string[] | 'window' | null>(null)
   const [closeBusy, setCloseBusy] = useState(false)
+  const closeOperation = useRef(false)
   const [error, setError] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
@@ -113,24 +120,29 @@ export default function App() {
     setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, seed, path, location }])
     setActive(id)
   }
-  const targetHandles = () => closing === 'window' ? tabs.map((tab) => handles.current.get(tab.id)).filter((handle): handle is DocumentHandle => !!handle) : closing ? [handles.current.get(closing)].filter((handle): handle is DocumentHandle => !!handle) : []
-  const remove = async (id: string, keepDraft: boolean) => {
-    const tab = tabs.find((tab) => tab.id === id)
-    if (!keepDraft && tab) await drafts.clear(tab.draftKey)
-    await releaseDocument(handles.current.get(id)?.summary.fileId ?? null)
-    handles.current.delete(id)
-    const remaining = tabs.filter((tab) => tab.id !== id)
-    if (remaining.length) { setTabs(remaining); if (active === id) setActive(remaining.at(-1)!.id) }
+  const targetHandles = () => (closing === 'window' ? tabs.map(tab => tab.id) : closing ?? []).map(id => handles.current.get(id)).filter((handle): handle is DocumentHandle => !!handle)
+  const remove = async (ids: string[], keepDraft: boolean) => {
+    for (const id of ids) {
+      const tab = tabs.find((tab) => tab.id === id)
+      if (!keepDraft && tab) await drafts.clear(tab.draftKey)
+      await releaseDocument(handles.current.get(id)?.summary.fileId ?? null)
+    }
+    ids.forEach(id => handles.current.delete(id))
+    const remaining = tabs.filter((tab) => !ids.includes(tab.id))
+    if (remaining.length) { setTabs(remaining); if (ids.includes(active)) setActive(remaining.at(-1)!.id) }
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
-  const requestClose = (id: string | 'window') => {
+  const requestClose = (id: string | string[] | 'window') => {
     if (templateOpen) { cancelTemplate(); return }
-    const targets = id === 'window' ? [...handles.current.values()] : [handles.current.get(id)].filter((h): h is DocumentHandle => !!h)
-    if (closeBusy || targets.length !== (id === 'window' ? tabs.length : 1) || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
+    const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
+    if (!ids.length) return
+    const targets = ids.map(target => handles.current.get(target)).filter((h): h is DocumentHandle => !!h)
+    if (closing || closeBusy || closeOperation.current || targets.length !== ids.length || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
     setError('')
-    if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id); return }
-    if (id === 'window') void closeWindow().catch((err) => setError(String(err)))
-    else void remove(id, false).catch((err) => setError(String(err)))
+    setMenuOpen(false)
+    if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id === 'window' ? 'window' : ids); return }
+    closeOperation.current = true; setCloseBusy(true)
+    void (id === 'window' ? closeWindow() : remove(ids, false)).catch((err) => setError(String(err))).finally(() => { closeOperation.current = false; setCloseBusy(false) })
   }
   const closeRequest = useRef(() => undefined as void); closeRequest.current = () => requestClose('window')
   useEffect(() => {
@@ -139,8 +151,8 @@ export default function App() {
     return () => { disposed = true; stop?.() }
   }, [])
   async function finish(action: 'save' | 'retain' | 'discard') {
-    if (!closing || closeBusy) return
-    setCloseBusy(true); setError('')
+    if (!closing || closeBusy || closeOperation.current) return
+    closeOperation.current = true; setCloseBusy(true); setError('')
     try {
       for (const handle of targetHandles()) {
         if (action === 'save' && handle.summary.dirty) { if (!await handle.save()) { setError(`${handle.summary.name} 保存未完成。返回编辑后查看该标签的提示；恢复中的草稿需先恢复再保存。`); return } }
@@ -151,7 +163,7 @@ export default function App() {
       else await remove(closing, action !== 'save')
       setClosing(null)
     } catch (err) { if (action === 'discard') targetHandles().forEach((handle) => handle.resume()); setError(String(err)) }
-    finally { setCloseBusy(false) }
+    finally { closeOperation.current = false; setCloseBusy(false) }
   }
   function cancelTemplate() {
     restoreTemplateFocus.current = true
@@ -207,7 +219,19 @@ export default function App() {
         if (list.scrollWidth <= list.clientWidth || event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
         list.scrollLeft += event.deltaY * (event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? list.clientWidth : 1)
       }}>
-        {tabs.map((tab) => <div className={`document-tab ${tab.id === active ? 'active' : ''}`} key={tab.id}>
+        {tabs.map((tab) => <div className={`document-tab ${tab.id === active ? 'active' : ''}`} key={tab.id} onContextMenu={event => {
+          setMenuOpen(false)
+          const canClose = (ids: string[]) => ids.length > 0 && !closing && !closeBusy && !closeOperation.current && !templateOpen && ids.every(id => {
+            const handle = handles.current.get(id)
+            return !!handle && !handle.summary.busy && handle.canLeave()
+          })
+          const all = tabs.map(item => item.id), others = all.filter(id => id !== tab.id)
+          contextMenu(event, [
+            { label: '关闭当前', disabled: !canClose([tab.id]), run: () => requestClose(tab.id) },
+            { label: '关闭所有', disabled: !canClose(all), run: () => requestClose(all) },
+            { label: '关闭所有其他', disabled: !canClose(others), run: () => requestClose(others) },
+          ])
+        }}>
           <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={blocked} onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canLeave()) return
             event.preventDefault()
@@ -227,13 +251,13 @@ export default function App() {
       </div>}
     </div>
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || templateOpen}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen}>
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
     </section>)}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
       if (!handles.current.get(active)?.canEdit()) return
       setTemplateOpen(false); add(undefined, null, null, undefined, seed)
     }} />}
-    {closing && <CloseDialog scope={closing === 'window' ? 'window' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
+    {closing && <CloseDialog scope={closing === 'window' ? 'window' : closing.length > 1 ? 'tabs' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
   </div>
 }

@@ -20,7 +20,8 @@
 .content-grid.view-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 12px; padding: 10px 12px 12px; }
 .source-pane { height: 100%; min-height: 0; min-width: 0; }
 .source-pane[hidden] { display: none; }
-.codemirror-host { min-height: 0; }
+/* Keep CodeMirror panels and tooltips below application menus and dialogs. */
+.codemirror-host { min-height: 0; isolation: isolate; }
 .view-split .preview { min-height: 0; padding: 20px 26px; overscroll-behavior: contain; }
 .cm-scroller { overscroll-behavior: contain; }
 .left-sidebar, .right-sidebar { width: 220px; flex: 0 0 220px; padding: 0; min-width: 0; overflow: visible; }

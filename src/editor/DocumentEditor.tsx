@@ -22,6 +22,7 @@ import { readClipboardImageFiles } from '../platform/clipboard'
 import { ResizableSidebar } from './ResizableSidebar'
 import { MAX_LIVE_DOCUMENT } from '../core/live-preview'
 import { navigateButtons } from './navigation'
+import { useContextMenu, type ContextAction } from './ContextMenu'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -66,6 +67,7 @@ interface Props {
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
 }
 export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+  const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
   const [view, setView] = useState<ViewMode>('source')
@@ -613,7 +615,21 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
           <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
-          {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
+          {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onContextMenu={event => {
+            const selected = window.getSelection()
+            const selectedText = selected?.rangeCount && event.currentTarget.contains(selected.getRangeAt(0).commonAncestorContainer) ? selected.toString() : ''
+            const image = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
+            const reference = image && parsed.images.find(item => item.from === Number(image.dataset.sourceFrom))
+            const actions: ContextAction[] = [
+              { label: '复制', disabled: !selectedText, run: () => navigator.clipboard.writeText(selectedText) },
+              { label: '全选预览', run: () => { window.getSelection()?.selectAllChildren(preview.current!) } },
+            ]
+            if (reference && !reading) actions.unshift({ label: '编辑图片副本', disabled: disabled || parsedText.current !== text, run: () => { if (!disabled && parsedText.current === text) void images.edit(reference) } })
+            if (image?.alt) actions.push({ label: '复制图片说明', run: () => navigator.clipboard.writeText(image.alt) })
+            const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
+            if (link) actions.push({ label: '复制链接地址', run: () => navigator.clipboard.writeText(link.getAttribute('href')!) })
+            contextMenu(event, actions)
+          }} onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
             if (reading) return
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
             const reference = parsed.images.find((item) => item.from === Number(node?.dataset.sourceFrom))
@@ -627,7 +643,10 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         </div>
         <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{view === 'live' && (text.length > MAX_LIVE_DOCUMENT || highlightLimited) && <span title="即时渲染暂限 1 Mi 字符且单行不超过 20,000 字符；源码和分屏仍可用"> · 即时渲染已降级为源码</span>}{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
       </main>
-      {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline" aria-label="文档大纲" onKeyDown={event => navigateButtons(event, '.outline-item')}>{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
+      {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline" aria-label="文档大纲" onKeyDown={event => navigateButtons(event, '.outline-item')}>{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onContextMenu={event => contextMenu(event, [
+        { label: '跳转到标题', disabled: disabled && !reading, run: () => jumpTo(heading.offset) },
+        { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
+      ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
   </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}</>
 }

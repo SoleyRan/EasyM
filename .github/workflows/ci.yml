@@ -32,6 +32,7 @@ jobs:
             test-results/workspace-verification.json
             test-results/templates-verification.json
             test-results/export-verification.json
+            test-results/context-menu-verification.json
             test-results/regression-verification.json
           if-no-files-found: warn
 
