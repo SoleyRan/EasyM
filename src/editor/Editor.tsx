@@ -12,6 +12,7 @@ import type { TextPatch, Selection } from '../core/document'
 import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '../platform/workspace'
 import { nativeClipboardFiles, supportedImageFiles } from '../platform/clipboard'
 import { largeLines } from './large-lines'
+import { formatState, toggleFormat, type Format, type FormatState } from '../core/formatting'
 
 export interface EditorHandle {
   selection(): Selection
@@ -21,6 +22,7 @@ export interface EditorHandle {
   redo(): void
   composing(): boolean
   fencedCode(): FencedBlock | null
+  format(kind: Format, language: string): void
   scrollToSource(offset: number, ratio: number): void
 }
 
@@ -46,17 +48,24 @@ function fencedCode(editor: EditorView): FencedBlock | null {
   return { from: node.from, to: node.to, language }
 }
 
-interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void }
+interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
-  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited })
-  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited }
+  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats })
+  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats }
   useImperativeHandle(ref, () => ({
     selection: () => view.current?.state.selection.main ?? { anchor: 0, head: 0 },
     composing: () => view.current?.composing ?? false,
     fencedCode: () => view.current ? fencedCode(view.current) : null,
+    format: (kind, language) => {
+      const editor = view.current
+      if (!editor || editor.composing) return
+      const result = toggleFormat(0, editor.state.doc, editor.state.selection.main, syntaxTree(editor.state), kind, language)
+      editor.dispatch({ changes: result.patches, selection: result.selection, userEvent: 'input.toolbar', annotations: isolateHistory.of('full') })
+      editor.focus()
+    },
     patch: (patches, selection) => {
       const editor = view.current
       if (!editor || editor.composing) return false
@@ -90,6 +99,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
   }), [])
 
   useEffect(() => {
+    let previousFormats: FormatState | undefined
+    const updateFormats = (state: EditorState) => {
+      const formats = formatState(state.doc, state.selection.main, syntaxTree(state))
+      if (!previousFormats || Object.keys(formats).some(key => formats[key as Format] !== previousFormats![key as Format])) {
+        previousFormats = formats
+        callbacks.current.onFormats?.(formats)
+      }
+    }
     const language = new Compartment()
     const support = markdown({ codeLanguages: languages })
     const limited = EditorState.create({ doc: initialText, extensions: [largeLines] }).field(largeLines) > 0
@@ -145,6 +162,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
             if (update.docChanged) callbacks.current.onHighlightLimited?.(update.state.field(largeLines) > 0)
             if (update.selectionSet || update.docChanged) callbacks.current.onCodeLanguage?.(fencedCode(update.view)?.language ?? null)
+            if (update.selectionSet || update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) updateFormats(update.state)
           }),
         ],
       }),
@@ -152,6 +170,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
     view.current = editor
     callbacks.current.onHighlightLimited?.(limited)
     callbacks.current.onCodeLanguage?.(fencedCode(editor)?.language ?? null)
+    updateFormats(editor.state)
     return () => { editor.destroy(); view.current = null }
   }, [])
   return <div ref={host} className="codemirror-host" />

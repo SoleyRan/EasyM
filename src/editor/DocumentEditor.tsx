@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { prefixLines, replaceSelection, wrapSelection } from '../core/document'
+import { emptyFormats, type Format } from '../core/formatting'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from '../core/codec'
 import { parseDocument } from '../core/markdown'
 import { Editor, type EditorHandle, type SourceScroll } from './Editor'
@@ -17,7 +17,7 @@ import { readClipboardImageFiles } from '../platform/clipboard'
 import { ResizableSidebar } from './ResizableSidebar'
 
 type ViewMode = 'source' | 'split'
-type Command = 'bold' | 'italic' | 'quote' | 'bullet' | 'task' | 'heading' | 'ordered' | 'code' | 'link'
+type Command = Format
 const initialText = '# 欢迎使用 EasyM\n\n本地优先的 Markdown 编辑器。\n\n## 开始写作\n\n点击左上角 EM 菜单打开文件或创建新文档。使用「分屏」查看预览，点击「大纲」跳转到标题。\n\n- 使用工具栏或快捷键修改当前选区，可点击「格式工具栏」隐藏或显示按钮\n- 粘贴、拖入或选择 PNG/JPEG 图片\n- 双击预览图片，编辑当前图片的副本\n\n> 本地文件在停止输入后自动保存；新建文档自动保留草稿，首次请通过 EM 菜单另存为。'
 
 function documentStatistics(text: string) {
@@ -79,6 +79,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [draftUnavailable, setDraftUnavailable] = useState(false)
   const [showOutline, setShowOutline] = useState(false)
   const [codeLanguage, setCodeLanguage] = useState('')
+  const [formats, setFormats] = useState(emptyFormats)
   const [highlightLimited, setHighlightLimited] = useState(false)
   const [workspacePath, setWorkspacePath] = useState<string | null>(path ?? null)
   const [treeRevision, setTreeRevision] = useState(0)
@@ -444,13 +445,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
 
   function command(kind: Command) {
     if (disabled || editor.current?.composing()) return
-    const selection = editor.current?.selection() ?? { anchor: 0, head: 0 }
-    const current = changeRevision.current
-    const result = kind === 'bold' || kind === 'italic' ? wrapSelection(current, text, selection, kind === 'bold' ? '**' : '*')
-      : kind === 'code' ? codeBlockCommand(current, text, selection, codeLanguage, editor.current?.fencedCode() ?? null)
-      : kind === 'link' ? replaceSelection(current, selection, `[${text.slice(Math.min(selection.anchor, selection.head), Math.max(selection.anchor, selection.head)) || '链接文字'}](https://example.com)`)
-      : prefixLines(current, text, selection, { heading: '## ', quote: '> ', bullet: '- ', task: '- [ ] ', ordered: '1. ' }[kind])
-    if (result.baseTextRevision === changeRevision.current) editor.current?.patch(result.patches, result.selection)
+    editor.current?.format(kind, codeLanguage)
   }
 
   function chooseCodeLanguage(language: string) {
@@ -493,12 +488,12 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       </ResizableSidebar>}
       <main className="editor-area">
         <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => setView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => setView('split')}>分屏</button><button disabled title="尚未通过中文输入与光标验证">即时渲染 · 待验证</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
-        {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
+        {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} aria-pressed={formats[kind]} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} onChange={changed} onHighlightLimited={setHighlightLimited} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
+          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
             if (reading) return
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')

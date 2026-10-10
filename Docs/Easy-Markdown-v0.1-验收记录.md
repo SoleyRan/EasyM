@@ -4,9 +4,13 @@
 
 ## 自动化证据
 
+2026-10-10 补充：鼠标选区显示修复后，生产 Edge 验证四种主题下源码/分屏的实际拖选与高亮像素，以及正反向中文/emoji、跨行、视觉折行、工具栏加粗/斜体/链接/引用、键盘激活和撤销/重做。当前行半透明背景不再遮住 CodeMirror 选区。本轮性能复测通过；Windows 原生记录仍标注原测试日期与校验值，不作为本次原生交互通过的证明。
+
+同日格式契约补充：加粗/斜体/标题/列表/引用/代码块/链接支持应用与取消；按钮按选区显示按下或混合状态，移动光标和撤销/重做自动更新。核心测试覆盖局部取消、嵌套格式、转义/代码字面值、不同列表转换、Setext/ATX 标题、完整/未闭合围栏和引用式链接；生产鼠标回归覆盖重复点击与四主题状态。详见实现说明的“格式切换与工具栏状态”。
+
 | 项目 | 当前结果 | 证据/复现入口 |
 | --- | --- | --- |
-| TypeScript 与前端单测 | 通过，79 项 / 14 文件 | `pnpm.cmd typecheck`、`pnpm.cmd test` |
+| TypeScript 与前端单测 | 通过，88 项 / 15 文件 | `pnpm.cmd typecheck`、`pnpm.cmd test` |
 | Windows Rust 单测 | 通过，16 项 | `cargo test --manifest-path src-tauri/Cargo.toml --locked --offline` |
 | Release 构建 | Windows MSVC 成功 | `pnpm.cmd tauri build --no-bundle`；校验值见 [windows-build.json](verification/windows-build.json) |
 | Windows 便携交付 | 已生成开发候选 ZIP，含程序与许可 | `src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip`；无重复与越界路径，内嵌 exe 哈希与独立产物一致；校验值见构建报告 |
@@ -14,7 +18,7 @@
 | 无 DOM Worker 初始化 | 通过，检查实际打包代码 | `pnpm.cmd verify:workers` |
 | 生产浏览器闭环 | 通过，使用与 Tauri 相同的 CSP | `pnpm.cmd verify:browser`；[报告](verification/browser-verification.json) |
 | 写作体验回归 | 通过，语言高亮、双向滚动、大纲两侧定位、多文档、四种主题、EM 菜单、侧栏拖拽、长名称和标签滚轮 | `pnpm.cmd verify:writing`；[报告](verification/writing-verification.json) |
-| 输入与资源性能样例 | 四组通过；5 MiB p95 17.2 ms，超长单行 p95 29.2 ms | `pnpm.cmd verify:performance`；[报告](verification/performance-verification.json) |
+| 输入与资源性能样例 | 四组通过；5 MiB p95 16.4 ms，超长单行 p95 25.6 ms | `pnpm.cmd verify:performance`；[报告](verification/performance-verification.json) |
 | 依赖交付 | Windows 406 / Linux 502 个版本，完整许可文本缺项为 0；macOS 401 个版本，12 项待复核 | [第三方清单](dependencies/THIRD-PARTY-NOTICES.md)、[SBOM](dependencies/sbom.cdx.json)、`verification/dependency-inventory-*.json` |
 | 三平台 CI | frontend、Windows、macOS、Ubuntu 全部成功，针对提交 `2b2156f` | [运行 37935155434](https://github.com/SoleyRan/EasyM/actions/runs/37935155434)、[报告](verification/ci-verification.json)；本轮新增安装器步骤尚未远程执行 |
 
@@ -40,10 +44,10 @@ Edge 154.0.4258.62，无头模式，1440×900；Windows 10.0.26200、Core 5 220H
 
 | 样例 | 结果 |
 | --- | --- |
-| 5 MiB 多段 Markdown | 打开 2,042 ms；输入 p95 17.2 ms |
-| 100 KiB 超长单行 | 打开 118 ms；输入 p95 29.2 ms；源码高亮降级、恢复、撤销和完整预览通过 |
-| 100 张 800×600 本地 PNG | 恢复并解码 473 ms，100 张均完成 |
-| 20 MiB PNG 字节边界 | 接受（136.2 ms），多 1 字节拒绝（29.4 ms） |
+| 5 MiB 多段 Markdown | 打开 2,291 ms；输入 p95 16.4 ms |
+| 100 KiB 超长单行 | 打开 126 ms；输入 p95 25.6 ms；源码高亮降级、恢复、撤销和完整预览通过 |
+| 100 张 800×600 本地 PNG | 恢复并解码 511 ms，100 张均完成 |
+| 20 MiB PNG 字节边界 | 接受（78.1 ms），多 1 字节拒绝（37.5 ms） |
 
 20 MiB 样例为有效 800×600 PNG 加尾部填充，用于确定字节边界，不能证明高熵大图或接近 2400 万像素的内存峰值。5 MiB 多段正文和 100 KiB 单行均满足本机 50 ms 目标；发布前仍需固定基准机、三平台 WebView 与真实图片内存/取消压力复测。该脚本不在 CI 中断言时间，以免不同硬件制造不可靠的门槛。
 

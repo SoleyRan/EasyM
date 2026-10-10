@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-09T14:32:02.064Z",
+  "verifiedAt": "2026-10-10T02:59:22.280Z",
   "browser": "154.0.4258.62",
   "checks": [
     "code contrast and language-specific source/preview highlighting",
@@ -20,7 +20,11 @@
     "save header removed; hideable formatting toolbar and persistent visibility",
     "file panel remains open on import into a new tab",
     "visible table cell borders and column alignment in all four themes",
-    "fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention"
+    "fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention",
+    "native mouse selection visible in four themes and source/split views",
+    "forward/reverse Chinese and emoji selection; multiline and soft-wrapped selection",
+    "selected-range toolbar toggles, keyboard activation and undo/redo",
+    "bold/italic/link/heading/lists/quote/code cancel without stacking; pressed/mixed state follows selection and undo"
   ],
   "styles": {
     "color": "rgb(39, 56, 82)",

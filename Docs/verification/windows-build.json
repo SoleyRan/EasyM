@@ -1,11 +1,11 @@
 {
-  "recordedAt": "2026-10-09T14:34:11.305Z",
+  "recordedAt": "2026-10-10T03:02:19.758Z",
   "version": "0.1.0",
   "target": "x86_64-pc-windows-msvc",
   "sourceTree": {
     "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
-    "files": 134,
-    "sha256": "431dfbb73e11feb16995eb39833795d9cc1ee71a8d1856693a62821c174fb605"
+    "files": 137,
+    "sha256": "7170f8a408bb2e1b0b00845c0bb5df34f274cd87500df8c526cee1bcbf504838"
   },
   "toolchain": {
     "node": "v24.19.0",
@@ -15,8 +15,8 @@
   "artifacts": [
     {
       "path": "src-tauri/target/release/easym.exe",
-      "bytes": 10317312,
-      "sha256": "c9f738860c9d91f85aa7ffeedc52d08c2741792d57614278a496e5113cc82330"
+      "bytes": 10318848,
+      "sha256": "7fa1c3c163fd2841ff07f810175f500140049f514fbf8ebfbda314d4e97461a4"
     },
     {
       "path": "pnpm-lock.yaml",
@@ -60,8 +60,8 @@
     },
     {
       "path": "src-tauri/target/release/bundle/portable/EasyM-0.1.0-windows-x64-dev.zip",
-      "bytes": 4187210,
-      "sha256": "450c860fc2a7e0eea14d50cc1105000f6326520b20c66d229fbf51e4a4d8aab7"
+      "bytes": 4189154,
+      "sha256": "417ee1ea780536fbd092850310345a73183b59f547248377609a4e72d5822556"
     },
     {
       "path": "dist/assets/apl-B4CMkyY2.js",
@@ -239,99 +239,99 @@
       "sha256": "24a7719ff1d38588f4889f8d0f6bca90690f58436a048ef8e3c644aabf1aaffd"
     },
     {
-      "path": "dist/assets/index-2fd7oDna.js",
-      "bytes": 103883,
-      "sha256": "283d858cc10e49b20b8ccb839b831308d533bfdc4183538c079c8ca25cfe7cca"
-    },
-    {
-      "path": "dist/assets/index-BBltnxL4.js",
-      "bytes": 47715,
-      "sha256": "3574e1781866f43367afff74453e17acec4fb0dd978e4a249eebe9052cb61e77"
-    },
-    {
-      "path": "dist/assets/index-BFJp07DW.js",
-      "bytes": 22965,
-      "sha256": "a3bcadd03016170dae07a1d096ff59adc24d014734b32b524994b95e467b50ea"
-    },
-    {
-      "path": "dist/assets/index-Bw4fFoH8.js",
-      "bytes": 2599,
-      "sha256": "5db59e3fa058349732999ea162b5a86da54a0dd5598b7ef8dd1fcf9f07c7e6c9"
-    },
-    {
-      "path": "dist/assets/index-C1XaAGuS.js",
-      "bytes": 30760,
-      "sha256": "ac33200483be03f8088fa027cddff351361552f1205dfb824da8a79420d73407"
-    },
-    {
-      "path": "dist/assets/index-CnaV-WXJ.js",
-      "bytes": 98141,
-      "sha256": "40cf2ca2a19318a055b012d21017ebf94c9ecf0c3b06999adfea72a20423490f"
-    },
-    {
-      "path": "dist/assets/index-CqyxDefd.js",
-      "bytes": 83667,
-      "sha256": "c8d31071dcad5cd1d53f839b041548c5dd63c4e3d9d95c55b3b7e6c3af998d21"
-    },
-    {
-      "path": "dist/assets/index-CyA3qTOB.js",
-      "bytes": 21828,
-      "sha256": "42ae74ac1473042ac8962b5fd465b1f9ac9de3f400c17c72d65edf6d285d0358"
-    },
-    {
-      "path": "dist/assets/index-D36JZd08.js",
-      "bytes": 4920,
-      "sha256": "14b81d9bf8ad4d851f1b46a818bc230a8ef8fb64861a8d8d01e3a6a5d7f306ef"
-    },
-    {
-      "path": "dist/assets/index-D58NlADx.js",
-      "bytes": 1616473,
-      "sha256": "40d226844bf9a8577f03150aeff7f4bbb10d3a3552ec00d3b91648318072b0b8"
-    },
-    {
-      "path": "dist/assets/index-D7m7g_dl.css",
-      "bytes": 24980,
-      "sha256": "b074f425745513f95f7ef0d8ddf5ebf016093be8fb3f4bd083c1cfc6ffff764d"
-    },
-    {
-      "path": "dist/assets/index-D9P5a6mq.js",
-      "bytes": 14637,
-      "sha256": "d62b7d042ac198ac7a454e247e2df3fce9a25748fa4369e4a38b2beb213f686f"
-    },
-    {
-      "path": "dist/assets/index-DaAW4eAI.js",
-      "bytes": 45068,
-      "sha256": "4ec0c10593ba38b0429899d1bc3e8a31c89b0ef338ec26688a0d9bc3a3920573"
-    },
-    {
-      "path": "dist/assets/index-DfKC-3OJ.js",
-      "bytes": 20797,
-      "sha256": "8f615c928356355ab407547e2bc9f982679e91b456a1e03a102e7a710262a9e1"
-    },
-    {
-      "path": "dist/assets/index-DUq8JnHn.js",
-      "bytes": 2390,
-      "sha256": "3039eab27292088fdddbe9698c87a3dd546c1e4211cda295241bf4b5e76afe5a"
-    },
-    {
-      "path": "dist/assets/index-NwiSzb6c.js",
-      "bytes": 32263,
-      "sha256": "0d1c4ff9c92bb700f14584364dc07392e812928d75333ecbc60b2cd7b29b2aa1"
-    },
-    {
-      "path": "dist/assets/index-Vldw8hYF.js",
-      "bytes": 3250,
-      "sha256": "266573a7f238b7e6bf6c22ca02a010debb5a0839e3bcafbf7163db6762209818"
-    },
-    {
-      "path": "dist/assets/index-Wu0oWKn0.js",
+      "path": "dist/assets/index-3epEBr_P.js",
       "bytes": 16220,
-      "sha256": "275df33f32abbb1bb467adab61452a644a998d4c4786b29fd759ecf966d90bd5"
+      "sha256": "f54408f6885a73ae529325025c851c7fb7d5ce4eecf4fb0034204ea63c6f2969"
     },
     {
-      "path": "dist/assets/index-ZcIr4oKn.js",
+      "path": "dist/assets/index-BA98duOR.js",
+      "bytes": 98141,
+      "sha256": "660524fbaead0c99c69057b8d9cd59f10d5da6becfbecea652a5e6da882487fa"
+    },
+    {
+      "path": "dist/assets/index-BcS2rkGl.css",
+      "bytes": 25295,
+      "sha256": "24eab0d2d3982ae3f310c4a81e217ad93f7aac8be8785a4eadd18b898365e47f"
+    },
+    {
+      "path": "dist/assets/index-Bw-vLKFe.js",
+      "bytes": 14637,
+      "sha256": "845a290c893ced829c136410cf42af3905d2b63a0ad40e4e000f5204c6216c85"
+    },
+    {
+      "path": "dist/assets/index-BZNAXG_2.js",
+      "bytes": 2390,
+      "sha256": "38920543a1a2bf83be8646439d73b627b1e4645dfa5573c4e3567a839a2a1c19"
+    },
+    {
+      "path": "dist/assets/index-C-6_k5ar.js",
+      "bytes": 1621885,
+      "sha256": "16fd6e13c602b1abcaaefce67b48962467902503cf4272586921315f54b8be20"
+    },
+    {
+      "path": "dist/assets/index-CDdEHY8W.js",
       "bytes": 12677,
-      "sha256": "a808a16f3531ef0a38920ce034622a0d2d86e235e9a00f8db0113fa9166a915f"
+      "sha256": "3443cd7426e33fae012c97a90b439d4f78696b0152d03124b2acf4354310c19f"
+    },
+    {
+      "path": "dist/assets/index-Ch2XNJX7.js",
+      "bytes": 21828,
+      "sha256": "19414e355deaa06803cfb5bc797130729e4549c1218ff13fe900260a2699556d"
+    },
+    {
+      "path": "dist/assets/index-CM15pSMB.js",
+      "bytes": 22965,
+      "sha256": "1fc94d2ee34dbd516bfd9951a542c1ec05223a1df85de9b660635d6a57fdbc55"
+    },
+    {
+      "path": "dist/assets/index-CuJju7pl.js",
+      "bytes": 83667,
+      "sha256": "4cd724ad45c72f6f9cd2c6725498e090ce3fd7e774a873e7c42a4efa046264b9"
+    },
+    {
+      "path": "dist/assets/index-Cw5Eb8i2.js",
+      "bytes": 4920,
+      "sha256": "f2c667cba4fa87c7d60b5b5446a5626602357dd036a18d642280554b0c975978"
+    },
+    {
+      "path": "dist/assets/index-DfkC_xNm.js",
+      "bytes": 32263,
+      "sha256": "bf8d0e6bb2c9822b49427a902c0e4cfd5a64c05f7c24e8199d74971c6a81f36c"
+    },
+    {
+      "path": "dist/assets/index-Dg5r0286.js",
+      "bytes": 2599,
+      "sha256": "aba9f789f06a386fea5d26567d557d2655bff5e12d19a0c222425c2b6aa26084"
+    },
+    {
+      "path": "dist/assets/index-Dnwza69E.js",
+      "bytes": 47715,
+      "sha256": "2631065b509608244bcaeb413f889069f5647362acffd260b5de3f2e286e0d65"
+    },
+    {
+      "path": "dist/assets/index-DO2lYC0Z.js",
+      "bytes": 3250,
+      "sha256": "5dc55fd3b8cdba1615fab55b156041f8fb7b8113d67e915e37f0097bc010d072"
+    },
+    {
+      "path": "dist/assets/index-DR7aTXGD.js",
+      "bytes": 45068,
+      "sha256": "4ac900e8f3314e124e4b507d0ecd6d9fba7686d179acd9a87c9437719b109b68"
+    },
+    {
+      "path": "dist/assets/index-J06aQMau.js",
+      "bytes": 30760,
+      "sha256": "bdc26393ba78bf6c5e1a69607d2f2991d0efbd62645c394928d09518c88422af"
+    },
+    {
+      "path": "dist/assets/index-ku9iGUZv.js",
+      "bytes": 103883,
+      "sha256": "09b85c6bbe92d020f66ae37d3238c9b87a4bf71f32dea1438dafaf6425a5ca0a"
+    },
+    {
+      "path": "dist/assets/index-lePaFcGY.js",
+      "bytes": 20797,
+      "sha256": "a73ef6add1e4544bae0d47a60b2b029ac8d5f96087ed2179f519cb987adae511"
     },
     {
       "path": "dist/assets/javascript-iXu5QeM3.js",
@@ -635,8 +635,8 @@
     },
     {
       "path": "src-tauri/target/release/bundle/nsis/EasyM_0.1.0_x64-setup.exe",
-      "bytes": 2994010,
-      "sha256": "bc7bccde9bd82edb55415765e91161c2a5b1a843b88b73a89c8c185109c545ee"
+      "bytes": 2994913,
+      "sha256": "2fae81aa6117ea63035a8932601aeb9ff656c78e513f3604e0200c4b6c16c41d"
     }
   ]
 }

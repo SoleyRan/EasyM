@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
+import { verifySelection } from './verify-selection.mjs'
 
 const server = await serveProduction()
 let browser
@@ -35,6 +36,7 @@ try {
   await page.reload()
   await page.getByRole('button', { name: '显示格式工具栏', exact: true }).click()
   await page.getByRole('toolbar').waitFor()
+  const selectionChecks = await verifySelection(page, selectTheme)
   await page.getByRole('button', { name: '分屏', exact: true }).click()
   await editor.fill('```javascript\nconst x = 1;\n```\n\n行内 `code`')
   await page.locator('.preview pre code.language-javascript').waitFor()
@@ -271,6 +273,7 @@ try {
   await page.waitForFunction((count) => document.querySelectorAll('[role=tab]').length === count, tabsBeforeClose - 1)
   assert.deepEqual(errors, [])
   const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through EM menu and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Style submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
+  report.checks.push(...selectionChecks)
   await writeFile('test-results/writing-verification.json', JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))
 } finally {

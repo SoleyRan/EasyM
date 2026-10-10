@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-09T14:32:31.036Z",
+  "verifiedAt": "2026-10-10T02:56:12.086Z",
   "machine": {
     "os": "win32",
     "release": "10.0.26200",
@@ -11,9 +11,9 @@
     {
       "name": "5 MiB text",
       "bytes": 5242880,
-      "openMs": 2042,
+      "openMs": 2291,
       "inputSamples": 40,
-      "inputEventToNextFrameP95Ms": 17.2,
+      "inputEventToNextFrameP95Ms": 16.4,
       "targetMs": 50,
       "targetMet": true,
       "sourceHighlightLimited": false
@@ -21,9 +21,9 @@
     {
       "name": "100 KiB single line",
       "bytes": 102400,
-      "openMs": 118,
+      "openMs": 126,
       "inputSamples": 40,
-      "inputEventToNextFrameP95Ms": 29.2,
+      "inputEventToNextFrameP95Ms": 25.6,
       "targetMs": 50,
       "targetMet": true,
       "sourceHighlightLimited": true,
@@ -31,7 +31,7 @@
     },
     {
       "name": "100 local 800×600 images",
-      "restoreAndDecodeMs": 473,
+      "restoreAndDecodeMs": 511,
       "imageCount": 100,
       "allDecoded": true
     },
@@ -39,12 +39,12 @@
       "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
       "boundaryBytes": 20971520,
       "accepted": {
-        "durationMs": 136.2,
+        "durationMs": 78.1,
         "width": 800,
         "height": 600
       },
       "rejected": {
-        "durationMs": 29.4,
+        "durationMs": 37.5,
         "error": "图片文件超过 20 MB。"
       }
     }

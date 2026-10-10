@@ -86,9 +86,13 @@
 .application .preview :is(th, td) { border: 1px solid var(--muted); padding: 8px 12px; min-width: 80px; }
 .application .preview th { background: var(--surface); font-weight: 600; }
 .application .preview tbody tr:nth-child(even) { background: var(--surface); }
-.application .cm-activeLine, .application .cm-activeLineGutter { background: var(--surface); }
+/* CodeMirror draws selection below the text; opaque line fills hide it. */
+.application .cm-activeLine { background: color-mix(in srgb, var(--surface) 35%, transparent); }
+.application .cm-activeLineGutter { background: var(--surface); }
 .application .cm-cursor { border-left-color: var(--text); }
-.application .cm-selectionBackground, .application .cm-editor.cm-focused .cm-selectionBackground { background: var(--selection); }
+.application .toolbar button[aria-pressed=true] { background: var(--selection); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.application .toolbar button[aria-pressed=mixed] { background: var(--hover); color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.application .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground { background: var(--selection); }
 .application ::selection { background: var(--selection); }
 .syntax-keyword, .hljs-keyword, .hljs-selector-tag, .hljs-literal { color: var(--keyword); }
 .syntax-string, .hljs-string, .hljs-regexp, .hljs-addition { color: var(--string); }
