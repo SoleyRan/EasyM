@@ -289,6 +289,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | @codemirror/language | 6.12.4 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/legacy-modes | 6.5.5 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/lint | 6.9.7 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
+| npm | @codemirror/search | 6.5.11 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/state | 6.7.6 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/streamparser | 6.0.0 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
 | npm | @codemirror/view | 6.43.13 | MIT | [LICENSE](licenses/05c6130cda97e7600ca91427a41e8a065efcf82365fc0293e7de80faec494c07-LICENSE.txt) |
@@ -413,7 +414,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | w3c-keyname | 2.2.8 | MIT | [LICENSE](licenses/869c30f368eb08735e779027b9f4bc9fea2f39624351856aebe42741f0bc0884-LICENSE.txt) |
 | npm | zwitch | 2.0.4 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 
-Inventory: 406 dependency versions.
+Inventory: 407 dependency versions.
 
 ## Missing license texts
 

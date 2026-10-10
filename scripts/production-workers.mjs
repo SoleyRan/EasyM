@@ -13,6 +13,6 @@ export async function productionWorkers() {
       if (typeof source === 'string' && source.startsWith('(function()')) workers.push(source)
     }
   }
-  assert.equal(workers.length, 2, 'Expected the shipped Markdown and image workers')
+  assert.equal(workers.length, 3, 'Expected the shipped Markdown, image and search workers')
   return workers
 }

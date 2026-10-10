@@ -1,4 +1,4 @@
-name: Validate v0.1
+name: Validate EasyM
 
 on:
   push:
@@ -22,12 +22,14 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify:browser
       - run: pnpm verify:writing
+      - run: pnpm verify:search
       - uses: actions/upload-artifact@v4
         with:
           name: browser-verification
           path: |
             test-results/browser-verification.json
             test-results/writing-verification.json
+            test-results/search-verification.json
           if-no-files-found: error
 
   desktop:

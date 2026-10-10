@@ -13,6 +13,8 @@ import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '.
 import { nativeClipboardFiles, supportedImageFiles } from '../platform/clipboard'
 import { largeLines } from './large-lines'
 import { formatState, toggleFormat, type Format, type FormatState } from '../core/formatting'
+import { search, openSearchPanel, closeSearchPanel, findNext, findPrevious } from '@codemirror/search'
+import { createSearchPanel } from './search-panel'
 
 export interface EditorHandle {
   selection(): Selection
@@ -23,6 +25,7 @@ export interface EditorHandle {
   composing(): boolean
   fencedCode(): FencedBlock | null
   format(kind: Format, language: string): void
+  openSearch(): void
   scrollToSource(offset: number, ratio: number): void
 }
 
@@ -48,16 +51,17 @@ function fencedCode(editor: EditorView): FencedBlock | null {
   return { from: node.from, to: node.to, language }
 }
 
-interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void }
+interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
-  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats })
-  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats }
+  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch })
+  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }
   useImperativeHandle(ref, () => ({
     selection: () => view.current?.state.selection.main ?? { anchor: 0, head: 0 },
     composing: () => view.current?.composing ?? false,
+    openSearch: () => { if (view.current && !view.current.composing) openSearchPanel(view.current) },
     fencedCode: () => view.current ? fencedCode(view.current) : null,
     format: (kind, language) => {
       const editor = view.current
@@ -116,13 +120,20 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
         doc: initialText,
         extensions: [
           lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
+          search({ top: true, literal: true, createPanel: createSearchPanel, scrollToMatch: range => EditorView.scrollIntoView(range, { y: 'start', yMargin: 8 }) }),
           largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
           EditorState.transactionExtender.of((transaction) => {
             const before = transaction.startState.field(largeLines) > 0
             const after = transaction.state.field(largeLines) > 0
             return before === after ? null : { effects: language.reconfigure(after ? [] : support) }
           }),
-          keymap.of([{ key: 'Mod-s', run: (v) => { if (!v.composing) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap]),
+          keymap.of([
+            { key: 'Mod-f', run: (v) => v.composing ? true : openSearchPanel(v) },
+            { key: 'F3', run: (v) => v.composing ? true : findNext(v), shift: (v) => v.composing ? true : findPrevious(v) },
+            { key: 'Mod-g', run: (v) => v.composing ? true : findNext(v), shift: (v) => v.composing ? true : findPrevious(v) },
+            { key: 'Escape', run: closeSearchPanel },
+            { key: 'Mod-s', run: (v) => { if (!v.composing) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap,
+          ]),
           keymap.of([['Mod-b', 'bold'], ['Mod-i', 'italic'], ['Mod-k', 'link'], ['Mod-Shift-h', 'heading'], ['Mod-Shift-u', 'bullet'], ['Mod-Shift-o', 'ordered'], ['Mod-Shift-t', 'task'], ['Mod-Shift-q', 'quote'], ['Mod-Shift-c', 'code'], ['Mod-Shift-p', 'image']].map(([key, kind]) => ({ key, run: (v: EditorView) => { if (!v.composing) callbacks.current.onCommand(kind); return true } }))),
           EditorView.domEventHandlers({
             scroll: (_event, v) => {
@@ -163,6 +174,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
             if (update.docChanged) callbacks.current.onHighlightLimited?.(update.state.field(largeLines) > 0)
             if (update.selectionSet || update.docChanged) callbacks.current.onCodeLanguage?.(fencedCode(update.view)?.language ?? null)
             if (update.selectionSet || update.docChanged || syntaxTree(update.startState) !== syntaxTree(update.state)) updateFormats(update.state)
+            if (update.transactions.some(transaction => transaction.isUserEvent('select.search') || transaction.isUserEvent('input.replace'))) callbacks.current.onSearchMatch?.(update.state.selection.main.from)
           }),
         ],
       }),

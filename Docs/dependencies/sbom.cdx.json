@@ -3421,6 +3421,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40codemirror/search@6.5.11",
+      "name": "@codemirror/search",
+      "version": "6.5.11",
+      "purl": "pkg:npm/%40codemirror/search@6.5.11",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40codemirror/state@6.7.6",
       "name": "@codemirror/state",
       "version": "6.7.6",
