@@ -19,6 +19,7 @@
     "verify:search": "node scripts/verify-search.mjs",
     "verify:live": "node scripts/verify-live-preview.mjs",
     "verify:workspace": "node scripts/verify-workspace.mjs",
+    "verify:templates": "node scripts/verify-templates.mjs",
     "tauri": "tauri",
     "icons": "tauri icon src-tauri/icons/app-icon.svg --output src-tauri/icons",
     "desktop:dev": "tauri dev",

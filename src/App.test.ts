@@ -307,11 +307,70 @@ it('shows file commands only in the EM menu and dismisses it on Escape', async (
   await mount()
   expect(container.querySelector('[role=menu]')).toBeNull()
   await click('EM 菜单')
-  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(6)
+  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(7)
   const trigger = container.querySelector<HTMLButtonElement>('.app-menu-trigger')!
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('[role=menu]')).toBeNull()
   expect(document.activeElement).toBe(trigger)
+})
+
+it('creates a template in a new tab without replacing the current document', async () => {
+  await mount(); await edit('current document')
+  await click('EM 菜单'); await click('从模板新建')
+  expect(container.querySelector('[role=dialog]')).not.toBeNull()
+  const templateSelect = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  await act(async () => { templateSelect.value = 'meeting'; templateSelect.dispatchEvent(new Event('change', { bubbles: true })) }); await settle()
+  const title = container.querySelector<HTMLInputElement>('.template-dialog input')!
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, '季度评审'); title.dispatchEvent(new Event('input', { bubbles: true })) })
+  await click('创建文档')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toContain('# 季度评审')
+  await click('未命名.md *')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('current document')
+})
+
+it('keeps a non-empty template as a recoverable draft and closes blank templates cleanly', async () => {
+  await mount(); await click('EM 菜单'); await click('从模板新建')
+  const templateSelect = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  await act(async () => { templateSelect.value = 'project'; templateSelect.dispatchEvent(new Event('change', { bubbles: true })) }); await settle(); await click('创建文档')
+  await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
+  expect(await drafts.keys()).toHaveLength(1)
+  await requestClose(); expect(container.querySelector('.close-dialog')).not.toBeNull()
+  await click('保留草稿并退出'); expect(native.close).toHaveBeenCalledOnce()
+  await act(async () => root.unmount()); root = createRoot(container); await mount()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('[role=tab]')[1].click()); await settle()
+  await click('恢复草稿')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toContain('# 项目说明')
+  await click('EM 菜单'); await click('从模板新建'); await click('创建文档')
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('.tab-close')[2].click()); await settle()
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('first saves a template with no disk identity and clears its draft', async () => {
+  await mount(); await click('EM 菜单'); await click('从模板新建')
+  const select = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  await act(async () => { select.value = 'meeting'; select.dispatchEvent(new Event('change', { bubbles: true })) }); await settle(); await click('创建文档')
+  await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
+  native.save.mockResolvedValue({ id: 'created', name: '会议纪要.md', revision: 'hash', destination: 'disk' })
+  await click('另存为 / 冲突副本')
+  expect(native.save.mock.calls[0][0]).toEqual({ id: null, name: '会议纪要.md', revision: null })
+  expect(new TextDecoder().decode(native.save.mock.calls[0][1])).toContain('# 会议纪要')
+  expect(native.save.mock.calls[0][2]).toBe(true)
+  expect(await drafts.keys()).toEqual([])
+})
+
+it('cancels the template dialog on Escape and returns focus to EM without adding tabs', async () => {
+  await mount(); await click('EM 菜单'); await click('从模板新建')
+  const select = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  expect(document.activeElement).toBe(select)
+  await act(async () => select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))); await settle()
+  expect(container.querySelector('.template-dialog')).toBeNull()
+  expect(document.activeElement).toBe(container.querySelector('.app-menu-trigger'))
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(await drafts.keys()).toEqual([])
 })
 async function waitAuto(ms = 1300) { await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, ms)) }); await settle() }
 async function openLocal(bytes = new TextEncoder().encode('disk')) {

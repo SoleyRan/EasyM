@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import DocumentEditor, { type DocumentHandle, type DocumentSummary, type FileAction } from './editor/DocumentEditor'
 import { CloseDialog } from './editor/CloseDialog'
+import { TemplateDialog } from './editor/TemplateDialog'
+import type { NewDocument } from './core/templates'
 import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
 import { drafts } from './platform/drafts'
 import { releaseDocument, type OpenedFile } from './platform/storage'
 import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
 
-interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null; location?: WorkspaceLocation }
+interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }
 type Theme = keyof typeof themes
@@ -21,6 +23,8 @@ export default function App() {
   const [closeBusy, setCloseBusy] = useState(false)
   const [error, setError] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [templateOpen, setTemplateOpen] = useState(false)
+  const restoreTemplateFocus = useRef(false)
   const [styleMenuOpen, setStyleMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [showFiles, setShowFiles] = useState(false)
@@ -84,6 +88,12 @@ export default function App() {
     if (styleMenuOpen) menu.current?.querySelector<HTMLButtonElement>('[role=menuitemradio][aria-checked=true]')?.focus()
   }, [styleMenuOpen])
   useEffect(() => {
+    if (!templateOpen && restoreTemplateFocus.current) {
+      restoreTemplateFocus.current = false
+      menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
+    }
+  }, [templateOpen])
+  useEffect(() => {
     document.getElementById(`tab-${active}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [active])
   useEffect(() => {
@@ -93,14 +103,14 @@ export default function App() {
     }).catch((err) => setError(String(err)))
     return () => { alive = false }
   }, [])
-  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null, location?: WorkspaceLocation) => {
+  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null, location?: WorkspaceLocation, seed?: NewDocument) => {
     if (nextWorkspace) setWorkspace(nextWorkspace)
     if (file?.id) {
       const existing = tabs.find((tab) => handles.current.get(tab.id)?.summary.fileId === file.id)
       if (existing) { setTabs(previous => previous.map(tab => tab.id === existing.id ? { ...tab, location } : tab)); setActive(existing.id); return }
     }
     const id = crypto.randomUUID()
-    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, path, location }])
+    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, seed, path, location }])
     setActive(id)
   }
   const targetHandles = () => closing === 'window' ? tabs.map((tab) => handles.current.get(tab.id)).filter((handle): handle is DocumentHandle => !!handle) : closing ? [handles.current.get(closing)].filter((handle): handle is DocumentHandle => !!handle) : []
@@ -114,6 +124,7 @@ export default function App() {
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
   const requestClose = (id: string | 'window') => {
+    if (templateOpen) { cancelTemplate(); return }
     const targets = id === 'window' ? [...handles.current.values()] : [handles.current.get(id)].filter((h): h is DocumentHandle => !!h)
     if (closeBusy || targets.length !== (id === 'window' ? tabs.length : 1) || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
     setError('')
@@ -142,13 +153,17 @@ export default function App() {
     } catch (err) { if (action === 'discard') targetHandles().forEach((handle) => handle.resume()); setError(String(err)) }
     finally { setCloseBusy(false) }
   }
-  const blocked = closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  function cancelTemplate() {
+    restoreTemplateFocus.current = true
+    setTemplateOpen(false)
+  }
+  const blocked = templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
   const fileAction = (action: FileAction) => {
     setMenuOpen(false)
     handles.current.get(active)?.run(action)
   }
   return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme}>
-    <div className="document-strip" hidden={reading}>
+    <div className="document-strip" hidden={reading} inert={templateOpen}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
         const inStyleMenu = !!(event.target as HTMLElement).closest('#style-menu')
         if ((inStyleMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && styleMenuOpen)) {
@@ -168,6 +183,7 @@ export default function App() {
         <button className="app-menu-trigger brand-mark" aria-label="EM 菜单" title="EasyM · 文件菜单" aria-haspopup="menu" aria-expanded={menuOpen} aria-controls="file-menu" disabled={closeBusy || !!closing} onClick={() => setMenuOpen(!menuOpen)}>EM</button>
         {menuOpen && <div className="file-menu" id="file-menu" role="menu" aria-label="文件菜单">
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('new')}>新建文档</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => { setMenuOpen(false); setTemplateOpen(true) }}>从模板新建</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('open')}>打开文件</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('workspace')}>打开工作区</button>
           <div className="menu-divider" role="separator" />
@@ -209,9 +225,13 @@ export default function App() {
       </div>}
     </div>
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || templateOpen}>
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
     </section>)}
+    {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
+      if (!handles.current.get(active)?.canEdit()) return
+      setTemplateOpen(false); add(undefined, null, null, undefined, seed)
+    }} />}
     {closing && <CloseDialog scope={closing === 'window' ? 'window' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
   </div>
 }

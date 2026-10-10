@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { emptyFormats, type Format } from '../core/formatting'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from '../core/codec'
+import type { NewDocument } from '../core/templates'
 import { parseDocument } from '../core/markdown'
 import { Editor, type EditorHandle, type SourceScroll } from './Editor'
 import { codeBlockCommand } from '../core/code-block'
@@ -54,26 +55,26 @@ export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload'
 export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
-  id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null; location?: WorkspaceLocation
+  id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void
   onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null, location?: WorkspaceLocation): void
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
 }
-export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
-  const [text, setText] = useState(file ? initial.text : blank ? '' : initialText)
+  const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
   const [view, setView] = useState<ViewMode>('source')
-  const [name, setName] = useState(file?.name ?? '未命名.md')
+  const [name, setName] = useState(file?.name ?? seed?.name ?? '未命名.md')
   const [fileId, setFileId] = useState<string | null>(file?.id ?? null)
   const [revision, setRevision] = useState<string | null>(file?.revision ?? null)
   const [snapshot, setSnapshot] = useState<FileSnapshot>(initial)
   const [epoch, setEpoch] = useState(0)
-  const [dirty, setDirty] = useState(false)
+  const [dirty, setDirty] = useState(!file && !!seed?.text)
   const [busy, setBusy] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
-  const [status, setStatus] = useState(file ? '文件已打开' : '准备就绪')
+  const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
   const [draftStatus, setDraftStatus] = useState('')
   const [error, setError] = useState('')
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null)

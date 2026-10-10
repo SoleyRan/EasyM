@@ -60,3 +60,11 @@ v0.1 仍有真实 IME、macOS/Linux 原生 GUI、发行签名和许可复核等�
 文件树保持按需展开，支持方向键、Home/End、目录展开/收起和当前项滚动；大纲支持方向键导航，键盘移动不会误触发标题跳转。中文路径、BOM、CRLF、无效 UTF-8、NUL 字节、大文件、隐藏目录、取消和结果上限均有 Rust 契约测试；前端覆盖请求取消、过期结果、行定位、revision/脏正文保护、标签复用和键盘导航。
 
 第 3 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（19 个文件、106 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers` 和 `cargo test --manifest-path src-tauri/Cargo.toml --locked --offline`（19 项 Rust 测试）通过。Edge 的 `verify:browser`、`verify:search` 和新增 `verify:workspace` 通过。工作区生产界面使用确定性 IPC fixture 验证，真实文件系统行为由 Rust 测试覆盖；原生 WebView 的完整目录搜索仍待实机验收。证据见 [工作区验证](verification/v0.2-workspace-verification.json)，桌面/紧凑窗口截图保存在 `test-results/workspace-*.png`。生产构建仍保留既有大 chunk 提示。下一步进入内置模板。
+
+## 第 4 步：内置模板（实现完成，未提交）
+
+EM 菜单新增“从模板新建”，提供空白文档、会议纪要和项目说明三种模板。模板在独立新标签中生成，当前标签、撤销栈和工作区状态保持不变；模板对话框支持模板选择、标题和日期输入、Markdown 内容预览、Esc 取消、焦点循环和紧凑窗口布局。文件名只使用安全字符并限制长度，空标题回退为“未命名.md”。
+
+模板变量只支持 `{{title}}` 和 `{{date}}`，使用一次性的字面文本替换，不执行 Markdown、HTML、脚本或模板表达式。生成正文继续通过已有源码编辑器、预览安全管线、自动草稿和另存为流程处理；空白模板保持干净，关闭不弹保存询问；有内容模板作为未保存草稿，刷新后可恢复，首次另存传入空磁盘身份并清除草稿。
+
+第 4 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（20 个文件、112 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers` 和 `EASYM_TEST_BROWSER=msedge pnpm.cmd verify:templates` 通过。模板 Edge 回归覆盖三种模板、中文/emoji/美元符号/嵌套占位符、脚本文本不执行、独立标签、空白文档关闭、草稿刷新恢复、浏览器下载、四种主题、焦点循环和紧凑布局。证据见 [模板验证](verification/v0.2-templates-verification.json)，截图保存在 `test-results/templates-*.png`。生产构建仍保留既有大 chunk 提示，App 测试有一个非阻断的 React act 提示。原生 Tauri 首次另存和 WebView 草稿重启仍需桌面实机验收。下一步进入安全 HTML 导出与系统打印。
