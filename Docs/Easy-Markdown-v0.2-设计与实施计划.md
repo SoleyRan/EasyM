@@ -39,4 +39,14 @@ v0.1 仍有真实 IME、macOS/Linux 原生 GUI、发行签名和许可复核等�
 
 第 1 步验证：`pnpm typecheck`、`pnpm test`（16 文件、93 测试，包含 5 项搜索契约）、`pnpm build`、`pnpm verify:workers`、`EASYM_TEST_BROWSER=msedge pnpm verify:browser`、`EASYM_TEST_BROWSER=msedge pnpm verify:writing`、`EASYM_TEST_BROWSER=msedge pnpm verify:search` 全部通过。搜索证据见 [v0.2 搜索验证](verification/v0.2-search-verification.json)。构建仍有原有大 chunk 提示，App 测试仍有非阻断的 React act 提示；真实输入法尚待原生验收。
 
-新增 `@codemirror/search@6.5.11`（MIT），锁文件、Windows 第三方清单与 SBOM 已同步，407 个依赖版本的完整许可文本缺项为 0。Playwright Chromium 未安装时，Chromium 回归命令会报告运行时缺失；本机使用 Edge 完成回归。第 2 步即时渲染尚未开始。
+新增 `@codemirror/search@6.5.11`（MIT），锁文件、Windows 第三方清单与 SBOM 已同步，407 个依赖版本的完整许可文本缺项为 0。Playwright Chromium 未安装时，Chromium 回归命令会报告运行时缺失；本机使用 Edge 完成回归。
+
+## 第 2 步：即时渲染（实现完成）
+
+即时渲染使用同一个 CodeMirror 实例和撤销栈，Markdown 源文始终保留。源码、分屏、即时渲染三种视图切换不会重建编辑器；普通标题、段落、行内强调、链接、列表和引用隐藏语法标记并保留原文选区，鼠标拖选时暂时冻结排版，释放后再显示活动源码范围。代码块、GFM 表格、独立图片和分隔线使用经过同一安全渲染器处理的块部件，点击或“源码”按钮可回到准确源范围；本地图片通过已授权资源生成对象 URL，远程图片不请求网络，图片单击选择、双击继续使用现有图片编辑事务。
+
+即时渲染状态与文档 `Text` 身份绑定，正文修改立即清除旧块；过期 Worker 结果不会投递到当前标签。组合输入期间暂停展示并禁止视图/格式提交。正文超过 1 Mi 字符或单行超过 20,000 字符时降级为源码，缩短后自动恢复；单个块超过 100 KiB 不替换。前端 GFM 语法支持和预览渲染保持一致，未知 HTML、front matter、图片引用和未支持语法保持原样。
+
+第 2 步验证：`pnpm typecheck`、`pnpm test`（18 文件、100 测试）、`pnpm build`、`pnpm verify:workers`、`pnpm verify:browser`、`pnpm verify:writing`、`pnpm verify:search`、`pnpm verify:performance` 以及 `EASYM_TEST_BROWSER=msedge pnpm verify:live` 全部通过。即时渲染证据见 [v0.2 即时渲染验证](verification/v0.2-live-preview-verification.json)，包含真实鼠标正反向选区、中文/emoji/软换行、格式切换和撤销、图片编辑、搜索替换、主题、未知语法安全性及大小限制。浏览器脚本另对组合事件做合成保护检查；真实 Windows IME 仍需原生验收。构建保留既有大 chunk 提示，App 测试保留非阻断 React act 提示。本机源码模式 5 MiB 文本/100 KiB 单行输入 p95 分别为 16.2/27.4 ms，未代替原生延迟验收。
+
+本步骤没有原生 Rust 修改，未重复执行 Rust 测试或生成新的 Windows 安装包。默认仍是源码；独立行内图片保持源码形式，列表/引用等嵌套结构中的代码与表格暂保留语法，未扩展为可视表格单元格编辑器。下一步进入工作区搜索与文件树/大纲键盘操作。

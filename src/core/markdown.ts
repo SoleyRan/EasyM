@@ -10,6 +10,7 @@ import type { Root, Nodes } from 'mdast'
 import type { Root as HtmlRoot, Element } from 'hast'
 import { createLowlight, common } from 'lowlight'
 import powershell from 'highlight.js/lib/languages/powershell'
+import { MAX_LIVE_BLOCK, MAX_LIVE_DOCUMENT } from './live-preview'
 
 const highlighter = createLowlight({ ...common, powershell })
 function highlightCode() {
@@ -25,10 +26,12 @@ function highlightCode() {
 }
 
 export interface ImageReference { from: number; to: number; url: string; alt: string }
+export interface PreviewBlock { from: number; to: number; type: string; html: string }
 export interface ParsedDocument {
   html: string
   headings: Array<{ level: number; title: string; offset: number }>
   images: ImageReference[]
+  blocks?: PreviewBlock[]
 }
 
 const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml'])
@@ -64,7 +67,19 @@ export function parseDocument(text: string): ParsedDocument {
     }
   })
   const output = renderer.runSync(tree)
-  return { html: String(renderer.stringify(output)), headings, images }
+  const blocks: PreviewBlock[] = []
+  const elements = new Map(output.children.filter((node): node is Element => node.type === 'element').map(node => {
+    const inner = node.children.find((child): child is Element => child.type === 'element' && child.properties.dataSourceFrom !== undefined)
+    return [Number(node.properties.dataSourceFrom ?? inner?.properties.dataSourceFrom), node]
+  }))
+  for (const child of text.length <= MAX_LIVE_DOCUMENT ? tree.children : []) {
+    const from = child.position?.start.offset, to = child.position?.end.offset
+    if (from === undefined || to === undefined || to - from > MAX_LIVE_BLOCK) continue
+    const element = elements.get(from)
+    const type = child.type === 'paragraph' && child.children.length === 1 && /^(image|imageReference)$/.test(child.children[0].type) ? 'image' : child.type
+    if (element && /^(code|table|image|thematicBreak)$/.test(type)) blocks.push({ from, to, type, html: String(renderer.stringify({ type: 'root', children: [element] })) })
+  }
+  return { html: String(renderer.stringify(output)), headings, images, blocks }
 }
 
 export const renderMarkdown = (text: string): string => parseDocument(text).html

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { emptyFormats, type Format } from '../core/formatting'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from '../core/codec'
 import { parseDocument } from '../core/markdown'
@@ -15,8 +15,9 @@ import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage
 import type { OpenedFile } from '../platform/storage'
 import { readClipboardImageFiles } from '../platform/clipboard'
 import { ResizableSidebar } from './ResizableSidebar'
+import { MAX_LIVE_DOCUMENT } from '../core/live-preview'
 
-type ViewMode = 'source' | 'split'
+type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
 const initialText = '# 欢迎使用 EasyM\n\n本地优先的 Markdown 编辑器。\n\n## 开始写作\n\n点击左上角 EM 菜单打开文件或创建新文档。使用「分屏」查看预览，点击「大纲」跳转到标题。\n\n- 使用工具栏或快捷键修改当前选区，可点击「格式工具栏」隐藏或显示按钮\n- 粘贴、拖入或选择 PNG/JPEG 图片\n- 双击预览图片，编辑当前图片的副本\n\n> 本地文件在停止输入后自动保存；新建文档自动保留草稿，首次请通过 EM 菜单另存为。'
 
@@ -214,8 +215,9 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       await clearDraft().catch((err) => setError(errorMessage(err)))
       setRevision(result.revision); setSnapshot(decodeFile(bytes)); if (result.warning) setError(errorMessage(result.warning))
     },
-    applied: () => { setView('split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
+    applied: () => { setView(current => current === 'live' ? 'live' : 'split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
   })
+  const liveImageContext = useMemo(() => ({ resources: images.resources, fileId }), [images.resources, fileId])
   const disabled = busy || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
   const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
   useEffect(() => {
@@ -452,6 +454,17 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     if (disabled || editor.current?.composing()) return
     editor.current?.format(kind, codeLanguage)
   }
+  function chooseView(next: ViewMode) { if (!editor.current?.composing()) setView(next) }
+  async function renderImage(resource: string): Promise<string | null> {
+    const blob = images.resources.assets[resource]
+    if (blob) return URL.createObjectURL(blob)
+    if (!desktop || !fileId || /^([a-z][a-z\d+.-]*:|[\\/])/i.test(resource)) return null
+    return readImage(fileId, resource)
+  }
+  function editRenderedImage(offset: number) {
+    const reference = parsed.images.find(item => item.from === offset)
+    if (reference && parsedText.current === text && !disabled) void images.edit(reference)
+  }
 
   function chooseCodeLanguage(language: string) {
     setCodeLanguage(language)
@@ -492,13 +505,13 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.1.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
-        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => setView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => setView('split')}>分屏</button><button disabled title="尚未通过中文输入与光标验证">即时渲染 · 待验证</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button disabled={disabled} onClick={() => editor.current?.openSearch()}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
+        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button disabled={disabled} onClick={() => editor.current?.openSearch()}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
         {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} aria-pressed={formats[kind]} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
+          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
             if (reading) return
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
@@ -511,7 +524,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
             if (!reading && parsedText.current === text && node?.dataset.sourceFrom) jumpTo(Number(node.dataset.sourceFrom))
           }} dangerouslySetInnerHTML={{ __html: parsed.html }} />}
         </div>
-        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
+        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{view === 'live' && (text.length > MAX_LIVE_DOCUMENT || highlightLimited) && <span title="即时渲染暂限 1 Mi 字符且单行不超过 20,000 字符；源码和分屏仍可用"> · 即时渲染已降级为源码</span>}{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
       </main>
       {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline">{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>

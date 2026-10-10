@@ -3,7 +3,7 @@ import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap, undo, redo } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
-import { markdown } from '@codemirror/lang-markdown'
+import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { tags } from '@lezer/highlight'
@@ -15,6 +15,8 @@ import { largeLines } from './large-lines'
 import { formatState, toggleFormat, type Format, type FormatState } from '../core/formatting'
 import { search, openSearchPanel, closeSearchPanel, findNext, findPrevious } from '@codemirror/search'
 import { createSearchPanel } from './search-panel'
+import { liveRendering, setLiveEnabled, setLiveBlocks } from './live-decoration'
+import type { ParsedDocument } from '../core/markdown'
 
 export interface EditorHandle {
   selection(): Selection
@@ -51,28 +53,30 @@ function fencedCode(editor: EditorView): FencedBlock | null {
   return { from: node.from, to: node.to, language }
 }
 
-interface Props { initialText: string; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
+interface Props { initialText: string; live?: boolean; parsed?: ParsedDocument; previewText?: string; imageContext?: unknown; onRenderImage?(resource: string): Promise<string | null>; onEditImage?(offset: number): void; onChange(text: string): void; onSave(): void; onCommand?(kind: string): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialText, live = false, parsed, previewText, imageContext, onRenderImage = async () => null, onEditImage = () => undefined, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
-  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch })
-  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }
+  const composition = useRef(false)
+  const isComposing = (editor: EditorView) => composition.current || editor.compositionStarted
+  const callbacks = useRef({ onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage })
+  callbacks.current = { onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage }
   useImperativeHandle(ref, () => ({
     selection: () => view.current?.state.selection.main ?? { anchor: 0, head: 0 },
-    composing: () => view.current?.composing ?? false,
-    openSearch: () => { if (view.current && !view.current.composing) openSearchPanel(view.current) },
+    composing: () => view.current ? isComposing(view.current) : false,
+    openSearch: () => { if (view.current && !isComposing(view.current)) openSearchPanel(view.current) },
     fencedCode: () => view.current ? fencedCode(view.current) : null,
     format: (kind, language) => {
       const editor = view.current
-      if (!editor || editor.composing) return
+      if (!editor || isComposing(editor)) return
       const result = toggleFormat(0, editor.state.doc, editor.state.selection.main, syntaxTree(editor.state), kind, language)
       editor.dispatch({ changes: result.patches, selection: result.selection, userEvent: 'input.toolbar', annotations: isolateHistory.of('full') })
       editor.focus()
     },
     patch: (patches, selection) => {
       const editor = view.current
-      if (!editor || editor.composing) return false
+      if (!editor || isComposing(editor)) return false
       editor.dispatch({ changes: patches, selection, userEvent: 'input.toolbar', annotations: isolateHistory.of('full') })
       editor.focus()
       return true
@@ -84,8 +88,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
       editor.dispatch({ selection: { anchor: pos }, effects: EditorView.scrollIntoView(pos, { y: 'start', yMargin: 8 }) })
       editor.focus()
     },
-    undo: () => { if (view.current && !view.current.composing) undo(view.current) },
-    redo: () => { if (view.current && !view.current.composing) redo(view.current) },
+    undo: () => { if (view.current && !isComposing(view.current)) undo(view.current) },
+    redo: () => { if (view.current && !isComposing(view.current)) redo(view.current) },
     scrollToSource: (offset, ratio) => {
       const v = view.current
       if (!v) return
@@ -112,7 +116,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
       }
     }
     const language = new Compartment()
-    const support = markdown({ codeLanguages: languages })
+    const support = markdown({ base: markdownLanguage, codeLanguages: languages })
     const limited = EditorState.create({ doc: initialText, extensions: [largeLines] }).field(largeLines) > 0
     const editor = new EditorView({
       parent: host.current!,
@@ -122,20 +126,23 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
           lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
           search({ top: true, literal: true, createPanel: createSearchPanel, scrollToMatch: range => EditorView.scrollIntoView(range, { y: 'start', yMargin: 8 }) }),
           largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
+          liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset) }),
           EditorState.transactionExtender.of((transaction) => {
             const before = transaction.startState.field(largeLines) > 0
             const after = transaction.state.field(largeLines) > 0
             return before === after ? null : { effects: language.reconfigure(after ? [] : support) }
           }),
           keymap.of([
-            { key: 'Mod-f', run: (v) => v.composing ? true : openSearchPanel(v) },
-            { key: 'F3', run: (v) => v.composing ? true : findNext(v), shift: (v) => v.composing ? true : findPrevious(v) },
-            { key: 'Mod-g', run: (v) => v.composing ? true : findNext(v), shift: (v) => v.composing ? true : findPrevious(v) },
+            { key: 'Mod-f', run: (v) => isComposing(v) ? true : openSearchPanel(v) },
+            { key: 'F3', run: (v) => isComposing(v) ? true : findNext(v), shift: (v) => isComposing(v) ? true : findPrevious(v) },
+            { key: 'Mod-g', run: (v) => isComposing(v) ? true : findNext(v), shift: (v) => isComposing(v) ? true : findPrevious(v) },
             { key: 'Escape', run: closeSearchPanel },
-            { key: 'Mod-s', run: (v) => { if (!v.composing) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap,
+            { key: 'Mod-s', run: (v) => { if (!isComposing(v)) callbacks.current.onSave(); return true } }, ...defaultKeymap, ...historyKeymap,
           ]),
-          keymap.of([['Mod-b', 'bold'], ['Mod-i', 'italic'], ['Mod-k', 'link'], ['Mod-Shift-h', 'heading'], ['Mod-Shift-u', 'bullet'], ['Mod-Shift-o', 'ordered'], ['Mod-Shift-t', 'task'], ['Mod-Shift-q', 'quote'], ['Mod-Shift-c', 'code'], ['Mod-Shift-p', 'image']].map(([key, kind]) => ({ key, run: (v: EditorView) => { if (!v.composing) callbacks.current.onCommand(kind); return true } }))),
+          keymap.of([['Mod-b', 'bold'], ['Mod-i', 'italic'], ['Mod-k', 'link'], ['Mod-Shift-h', 'heading'], ['Mod-Shift-u', 'bullet'], ['Mod-Shift-o', 'ordered'], ['Mod-Shift-t', 'task'], ['Mod-Shift-q', 'quote'], ['Mod-Shift-c', 'code'], ['Mod-Shift-p', 'image']].map(([key, kind]) => ({ key, run: (v: EditorView) => { if (!isComposing(v)) callbacks.current.onCommand(kind); return true } }))),
           EditorView.domEventHandlers({
+            compositionstart: () => { composition.current = true; return false },
+            compositionend: () => { queueMicrotask(() => { composition.current = false }); return false },
             scroll: (_event, v) => {
               const scroll = v.scrollDOM
               const height = Math.max(0, scroll.getBoundingClientRect().top - v.documentTop)
@@ -145,7 +152,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
               return false
             },
             paste: (event, v) => {
-              if (v.composing) return false
+              if (isComposing(v)) return false
               const files = supportedImageFiles(event.clipboardData?.files ?? [])
               if (files.length) { event.preventDefault(); callbacks.current.onImages(files); return true }
               // WebView2 may omit CF_HDROP from DOM files. Preserve ordinary text paste.
@@ -156,7 +163,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
             },
             dragover: (event) => { if (!event.dataTransfer?.types.includes(WORKSPACE_IMAGE_TYPE)) return false; event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; return true },
             drop: (event, v) => {
-              if (v.composing) return false
+              if (isComposing(v)) return false
               const image = workspaceImageData(event.dataTransfer?.getData(WORKSPACE_IMAGE_TYPE) ?? '')
               const files = supportedImageFiles(event.dataTransfer?.files ?? [])
               if (!image && !files.length) return false
@@ -185,5 +192,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ initialT
     updateFormats(editor.state)
     return () => { editor.destroy(); view.current = null }
   }, [])
+  useEffect(() => {
+    view.current?.dispatch({ effects: setLiveEnabled.of(live) })
+  }, [live])
+  useEffect(() => {
+    const editor = view.current
+    // Never install ranges from a Worker response for an earlier text revision.
+    if (!editor || !parsed?.blocks || previewText === undefined || editor.state.doc.length > 1024 * 1024 || editor.state.doc.toString() !== previewText) return
+    editor.dispatch({ effects: setLiveBlocks.of({ doc: editor.state.doc, blocks: parsed.blocks, context: imageContext }) })
+  }, [parsed, previewText, imageContext])
   return <div ref={host} className="codemirror-host" />
 })

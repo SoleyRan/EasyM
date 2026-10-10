@@ -23,6 +23,7 @@ jobs:
       - run: pnpm verify:browser
       - run: pnpm verify:writing
       - run: pnpm verify:search
+      - run: pnpm verify:live
       - uses: actions/upload-artifact@v4
         with:
           name: browser-verification
@@ -30,6 +31,7 @@ jobs:
             test-results/browser-verification.json
             test-results/writing-verification.json
             test-results/search-verification.json
+            test-results/live-preview-verification.json
           if-no-files-found: error
 
   desktop:
