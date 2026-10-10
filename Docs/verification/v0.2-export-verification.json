@@ -1,0 +1,24 @@
+{
+  "stage": "v0.2-step-5",
+  "verifiedAt": "2026-10-10T07:40:46.101Z",
+  "browser": "msedge 155.0.4283.45",
+  "passed": true,
+  "pageCount": 12,
+  "checks": [
+    "exact current Markdown exported without mutating source/dirty state",
+    "standalone HTML file rendering with strict CSP",
+    "no scripts, unsafe href or remote resource requests",
+    "missing image placeholders/warnings",
+    "real imported PNG embedded as data URL",
+    "print entry, Ctrl+P, focus cycling and Escape",
+    "system print call exercised via browser stub",
+    "print media hides app and displays only body",
+    "Chinese, headings, bordered tables and code styles",
+    "multi-page A4 PDF generation"
+  ],
+  "pending": [
+    "native Windows HTML save dialog and WebView2 print UI, printer/PDF/cancel",
+    "macOS 11+ WKWebView print panel, asynchronous return, fonts, margins and PDF",
+    "Linux WebKitGTK/GTK print backend, printer/PDF choices and table pagination"
+  ]
+}

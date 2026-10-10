@@ -9,7 +9,8 @@ import { blankSnapshot } from './core/codec'
 import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
 
-const native = vi.hoisted(() => ({ requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
+const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
+vi.mock('./platform/export', async () => ({ parseForExport: async (text: string) => (await import('./core/markdown')).parseDocument(text), saveHtml: native.exportHtml, printDocument: native.print }))
 vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen, searchWorkspace: native.search, cancelWorkspaceSearch: native.cancelSearch }))
 vi.mock('./platform/window', () => ({ listenForClose: async (request: () => void) => { native.requestClose.mockImplementation(request); return () => undefined }, closeWindow: native.close, minimizeWindow: native.minimize, toggleMaximizeWindow: native.maximize, dragWindow: native.drag, setFullscreen: native.fullscreen, windowState: native.state, listenWindowState: async (changed: () => void) => { native.stateListener.mockImplementation(changed); return () => undefined } }))
 vi.mock('./platform/storage', () => ({ desktop: true, releaseDocument: vi.fn(), openDocument: native.open, reloadDocument: native.reload, saveDocument: native.save, materializeResources: async (_id: unknown, resources: unknown) => resources, readImage: vi.fn(), readImageBlob: vi.fn() }))
@@ -37,6 +38,7 @@ beforeEach(async () => {
   native.search.mockReset(); native.cancelSearch.mockReset(); native.cancelSearch.mockResolvedValue(undefined); native.jump.mockReset()
   native.minimize.mockReset(); native.minimize.mockResolvedValue(undefined); native.maximize.mockReset(); native.maximize.mockResolvedValue(undefined); native.drag.mockReset(); native.drag.mockResolvedValue(undefined); native.fullscreen.mockReset(); native.fullscreen.mockResolvedValue(undefined); native.state.mockReset(); native.state.mockResolvedValue({ maximized: false, fullscreen: false }); native.stateListener.mockReset()
   native.composing = false
+  native.exportHtml.mockReset(); native.exportHtml.mockResolvedValue(true); native.print.mockReset(); native.print.mockResolvedValue(undefined)
   localStorage.clear()
   for (const key of await drafts.keys()) await drafts.clear(key)
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
@@ -45,7 +47,7 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function settle() { await act(async () => { await drafts.load(); await new Promise<void>((resolve) => setTimeout(resolve, 10)) }) }
 async function mount() { await act(async () => root.render(createElement(App))); await settle() }
 async function click(label: string) {
-  if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
+  if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本', '导出 HTML', '打印文档'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
   const button = Array.from(container.querySelectorAll('button')).filter((button) => !button.closest('[hidden]')).find((button) => button.textContent === label || button.getAttribute('aria-label') === label || button.querySelector('span:last-child')?.textContent === label)
   if (!button) throw new Error(`Missing button ${label}`)
   await act(async () => button.click())
@@ -57,6 +59,52 @@ async function edit(text: string) {
   await act(async () => { setter.call(editor, text); editor.dispatchEvent(new Event('input', { bubbles: true })); editor.dispatchEvent(new Event('change', { bubbles: true })) })
 }
 async function requestClose() { await act(async () => native.requestClose()) }
+
+it('exports current source without saving or clearing dirty drafts, including cancellation and failure', async () => {
+  await mount(); await edit('# 新正文\n\n**bold**'); await click('导出 HTML')
+  expect(native.exportHtml).toHaveBeenCalledWith('未命名.html', expect.stringContaining('<strong>bold</strong>'))
+  expect(native.save).not.toHaveBeenCalled()
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+  expect(container.querySelector('textarea')?.value).toBe('# 新正文\n\n**bold**')
+  native.exportHtml.mockResolvedValueOnce(false); await click('导出 HTML')
+  expect(container.textContent).toContain('HTML 导出已取消')
+  native.exportHtml.mockRejectedValueOnce(new Error('disk full')); await click('导出 HTML')
+  expect(container.textContent).toContain('disk full')
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+  await requestClose(); await click('保留草稿并退出')
+  expect((await drafts.load())?.text).toBe('# 新正文\n\n**bold**')
+})
+
+it('prepares a dedicated print root, protects editing, reports missing images and returns with Escape', async () => {
+  await mount(); await edit('# 打印中文\n\n![remote](https://example.test/a.png)'); await click('打印文档')
+  expect(container.querySelector('.print-dialog')?.textContent).toContain('有 1 项图片未加载')
+  expect(document.querySelector('#easym-print-root h1')?.textContent).toBe('打印中文')
+  expect(container.querySelector('.app-shell')?.hasAttribute('inert')).toBe(true)
+  await click('打开系统打印')
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)) })
+  expect(native.print).toHaveBeenCalledOnce()
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(document.querySelector('#easym-print-root')).toBeNull()
+  expect(container.querySelector('textarea')?.value).toContain('# 打印中文')
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('rejects output during composition and protects a running export from save and close actions', async () => {
+  await mount(); await edit('retained source'); native.composing = true
+  await click('导出 HTML'); expect(native.exportHtml).not.toHaveBeenCalled()
+  native.composing = false
+  let complete!: (value: boolean) => void
+  native.exportHtml.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
+  // Closing and reopening the menu refreshes disabled state after composition.
+  await click('EM 菜单'); await click('导出 HTML'); await requestClose()
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  expect(native.close).not.toHaveBeenCalled()
+  await act(async () => container.querySelector('textarea')!.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 's', bubbles: true })))
+  expect(native.save).not.toHaveBeenCalled()
+  await act(async () => complete(false)); await settle()
+  expect(container.querySelector('textarea')?.value).toBe('retained source')
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+})
 
 async function workspaceQuery(value: string) {
   const input = container.querySelector('.document-panel:not([hidden]) input[aria-label="搜索工作区"]')!
@@ -307,7 +355,7 @@ it('shows file commands only in the EM menu and dismisses it on Escape', async (
   await mount()
   expect(container.querySelector('[role=menu]')).toBeNull()
   await click('EM 菜单')
-  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(7)
+  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(9)
   const trigger = container.querySelector<HTMLButtonElement>('.app-menu-trigger')!
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('[role=menu]')).toBeNull()

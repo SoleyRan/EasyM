@@ -61,10 +61,30 @@ v0.1 仍有真实 IME、macOS/Linux 原生 GUI、发行签名和许可复核等�
 
 第 3 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（19 个文件、106 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers` 和 `cargo test --manifest-path src-tauri/Cargo.toml --locked --offline`（19 项 Rust 测试）通过。Edge 的 `verify:browser`、`verify:search` 和新增 `verify:workspace` 通过。工作区生产界面使用确定性 IPC fixture 验证，真实文件系统行为由 Rust 测试覆盖；原生 WebView 的完整目录搜索仍待实机验收。证据见 [工作区验证](verification/v0.2-workspace-verification.json)，桌面/紧凑窗口截图保存在 `test-results/workspace-*.png`。生产构建仍保留既有大 chunk 提示。下一步进入内置模板。
 
-## 第 4 步：内置模板（实现完成，未提交）
+## 第 4 步：内置模板（实现完成）
 
 EM 菜单新增“从模板新建”，提供空白文档、会议纪要和项目说明三种模板。模板在独立新标签中生成，当前标签、撤销栈和工作区状态保持不变；模板对话框支持模板选择、标题和日期输入、Markdown 内容预览、Esc 取消、焦点循环和紧凑窗口布局。文件名只使用安全字符并限制长度，空标题回退为“未命名.md”。
 
 模板变量只支持 `{{title}}` 和 `{{date}}`，使用一次性的字面文本替换，不执行 Markdown、HTML、脚本或模板表达式。生成正文继续通过已有源码编辑器、预览安全管线、自动草稿和另存为流程处理；空白模板保持干净，关闭不弹保存询问；有内容模板作为未保存草稿，刷新后可恢复，首次另存传入空磁盘身份并清除草稿。
 
+本步骤已提交：`5b325c9 feat(templates): add built-in document templates`。
+
 第 4 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（20 个文件、112 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers` 和 `EASYM_TEST_BROWSER=msedge pnpm.cmd verify:templates` 通过。模板 Edge 回归覆盖三种模板、中文/emoji/美元符号/嵌套占位符、脚本文本不执行、独立标签、空白文档关闭、草稿刷新恢复、浏览器下载、四种主题、焦点循环和紧凑布局。证据见 [模板验证](verification/v0.2-templates-verification.json)，截图保存在 `test-results/templates-*.png`。生产构建仍保留既有大 chunk 提示，App 测试有一个非阻断的 React act 提示。原生 Tauri 首次另存和 WebView 草稿重启仍需桌面实机验收。下一步进入安全 HTML 导出与系统打印。
+
+## 第 5 步：HTML 与系统打印（实现完成，待原生实机验收）
+
+EM 菜单新增“导出 HTML”和“打印文档”，Ctrl/Cmd+P 也可打开打印预览。导出始终基于当前 Markdown 源文重新解析，不使用可能滞后的预览 Worker 结果，也不调用 Markdown 保存流程，因此不会改变文件身份、脏状态、撤销栈或草稿。HTML 是单文件静态文档，带严格的 `default-src 'none'` CSP 和内联排版/打印样式；继续复用安全 Markdown 渲染器，清理原始 HTML、危险链接和脚本。导出与打印准备期间阻止编辑、另存和关闭，失败或取消后保留当前文档。
+
+本地 PNG/JPEG 通过已有授权的图片读取接口或草稿资源加载，转换为 `data:` URL 内联；资源读取按路径去重，总图片受 128 MiB 限制，单图仍受 20 MiB、图片头和尺寸校验限制，最终 HTML 上限 192 MiB。远程、绝对路径、越界路径、缺失或无法识别的图片不会请求网络，改为可见文字占位并提示缺图。桌面 HTML 导出使用独立保存对话框和临时文件原子写入，不加入 Markdown 文件会话，也不允许覆盖打开的文档或写入 Markdown 扩展名；浏览器模式下载 HTML。
+
+打印先展示独立预览，等待图片解码、字体与布局准备后调用系统打印；预览保留到用户点击“返回编辑”或按 Esc。打印媒体只显示导出正文，隐藏编辑器、EM 菜单和侧栏，使用白底、表格重复表头、标题避免页末孤立、图片/表格行尽量不拆分和长代码换行规则。样式与当前编辑器主题独立；打印图片解码失败时提示并保留正文。
+
+| 平台 | 系统入口及差异 | 本步验收状态 |
+| --- | --- | --- |
+| Windows | Tauri/WebView2 调用 `window.print()`；纸张、打印机、页眉页脚与 PDF 由 WebView2/系统 UI 设置 | Rust 编译/测试和 Edge 静态 HTML、打印媒体、PDF 分页已通过；原生保存对话框/打印机 UI 待实机验证 |
+| macOS | Tauri/WKWebView 系统打印面板；当前 Wry 要求 macOS 11+ 打印 API，面板异步返回 | 待实机验证默认边距、字体替换、PDF 和取消行为 |
+| Linux | Tauri/WebKitGTK/GTK PrintOperation 打印对话框，依赖系统打印后端 | 待实机验证打印机/PDF 选项、表头与分页 |
+
+第 5 步验证：`pnpm.cmd typecheck`、`pnpm.cmd test`（22 个文件、120 项测试）、`pnpm.cmd build`、`pnpm.cmd verify:workers`、`cargo test --manifest-path src-tauri/Cargo.toml --locked --offline`（21 项 Rust 测试）、`EASYM_TEST_BROWSER=msedge pnpm.cmd verify:browser` 和 `EASYM_TEST_BROWSER=msedge pnpm.cmd verify:export` 通过。Edge 回归实际下载并打开独立 HTML，检查中文、代码高亮、表格边框、缺图占位、PNG 内联、无脚本/危险链接/网络请求、脏状态保持、Ctrl+P、Esc、打印媒体和 12 页 A4 PDF；浏览器打印调用使用 stub，不声称自动操作了原生系统打印面板。证据见 [HTML 与打印验证](verification/v0.2-export-verification.json)，截图和 PDF 保存在 `test-results/`。
+
+本步没有新增依赖、版本号调整或安装包。下一步进入第 6 步：回归汇总、许可复核和 Windows 开发包，原生三平台打印与旧版验收缺口继续明确保留。

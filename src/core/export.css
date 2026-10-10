@@ -1,0 +1,27 @@
+.export-document { color: #202124; background: #fff; color-scheme: light; font: 16px/1.75 -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif; overflow-wrap: anywhere; letter-spacing: 0; }
+.export-document h1 { font-size: 30px; }
+.export-document h2 { font-size: 24px; }
+.export-document h3 { font-size: 20px; }
+.export-document h4, .export-document h5, .export-document h6 { font-size: 16px; }
+.export-document h1, .export-document h2, .export-document h3, .export-document h4, .export-document h5, .export-document h6 { line-height: 1.35; margin: 1.4em 0 .6em; break-after: avoid; }
+.export-document p { margin: .7em 0; orphans: 3; widows: 3; }
+.export-document a { color: #135aa1; text-decoration: underline; }
+.export-document blockquote { margin: 1em 0; border-left: 3px solid #858585; padding: 0 1em; color: #555; }
+.export-document pre { background: #f4f4f4; color: #202124; padding: 14px; border: 1px solid #bbb; white-space: pre-wrap; overflow-wrap: anywhere; }
+.export-document code { font: 13px/1.6 Consolas, 'SFMono-Regular', monospace; background: #f4f4f4; }
+.export-document pre code { background: transparent; }
+.export-document .hljs-keyword, .export-document .hljs-selector-tag { color: #8642a1; }
+.export-document .hljs-string, .export-document .hljs-attr { color: #12663e; }
+.export-document .hljs-number, .export-document .hljs-literal { color: #9b3d00; }
+.export-document .hljs-comment { color: #626262; }
+.export-document table { border-collapse: collapse; width: 100%; table-layout: fixed; margin: 1em 0; }
+.export-document th, .export-document td { border: 1px solid #888; padding: 7px 10px; vertical-align: top; }
+.export-document th { background: #f2f2f2; }
+.export-document thead { display: table-header-group; }
+.export-document tr { break-inside: avoid; }
+.export-document img { display: inline-block; max-width: 100%; height: auto; max-height: 240mm; object-fit: contain; break-inside: avoid; }
+.export-document .missing-image { color: #7b331b; border: 1px dashed #999; padding: 4px 8px; }
+.export-document hr { border: 0; border-top: 1px solid #aaa; }
+.export-document input[type=checkbox] { accent-color: #333; }
+@page { size: auto; margin: 18mm; }
+@media print { .export-document { font-size: 11pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; } }

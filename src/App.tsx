@@ -189,6 +189,8 @@ export default function App() {
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>导出 HTML</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>打印文档</button>
           <div className="menu-divider" role="separator" />
           <div className="style-menu">
             <button className="style-menu-trigger" role="menuitem" aria-label="Style · 配色主题" aria-haspopup="menu" aria-expanded={styleMenuOpen} aria-controls="style-menu" onClick={() => setStyleMenuOpen(!styleMenuOpen)}>Style · 配色主题 <span aria-hidden="true">›</span></button>

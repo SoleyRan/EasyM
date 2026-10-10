@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { emptyFormats, type Format } from '../core/formatting'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from '../core/codec'
 import type { NewDocument } from '../core/templates'
 import { parseDocument } from '../core/markdown'
 import { Editor, type EditorHandle, type SourceScroll } from './Editor'
 import { codeBlockCommand } from '../core/code-block'
-import { desktop, openDocument, saveDocument, readImage, reloadDocument, materializeResources } from '../platform/storage'
+import { desktop, openDocument, saveDocument, readImage, readImageBlob, reloadDocument, materializeResources } from '../platform/storage'
+import { createExport } from '../core/export'
+import { parseForExport, saveHtml } from '../platform/export'
+import { PrintDialog } from './PrintDialog'
+import type { ExportDocument } from '../core/export'
 import { drafts, type Draft } from '../platform/drafts'
 import { ImagePanel } from './ImagePanel'
 import { useImages } from './useImages'
@@ -51,7 +55,7 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload'
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'print'
 export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
@@ -72,6 +76,8 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [epoch, setEpoch] = useState(0)
   const [dirty, setDirty] = useState(!file && !!seed?.text)
   const [busy, setBusy] = useState(false)
+  const [printable, setPrintable] = useState<ExportDocument | null>(null)
+  const exporting = useRef(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
   const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
@@ -209,7 +215,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
   }
   const images = useImages({
-    text, fileId, blocked: reading || busy || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
+    text, fileId, blocked: reading || busy || !!printable || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
     selection: () => editor.current?.selection() ?? { anchor: text.length, head: text.length },
     patch: (from, to, insert) => editor.current?.patch([{ from, to, insert }]) ?? false,
     error: setError,
@@ -226,23 +232,60 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     applied: () => { setView(current => current === 'live' ? 'live' : 'split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
   })
   const liveImageContext = useMemo(() => ({ resources: images.resources, fileId }), [images.resources, fileId])
-  const disabled = busy || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
-  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
+  const disabled = busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
+  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
   useEffect(() => {
-    onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
-      canEdit: () => !disabled && !saving.current && !editor.current?.composing(),
+    onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
+      canEdit: () => !disabled && !exporting.current && !saving.current && !editor.current?.composing(),
       run: (action) => {
-        if (disabled || saving.current || editor.current?.composing()) return
+        if (disabled || exporting.current || saving.current || editor.current?.composing()) return
         if (action === 'new') onNew()
         else if (action === 'open') void open()
         else if (action === 'workspace') void chooseWorkspace()
         else if (action === 'reload') void reloadExternal()
+        else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
         else void save(true)
       },
       retain: async () => { if (!pendingDraft && !draftUnavailable && (dirty || images.session)) { window.clearTimeout(draftTimer.current); await enqueueDraft() } },
       discard: async () => { discarded.current = true; await clearDraft() },
       resume: () => { discarded.current = false; flushDraft.current() }, save: () => save(),
     })
+  })
+  async function exportDocument(action: 'exportHtml' | 'print') {
+    if (disabled || exporting.current || saving.current || editor.current?.composing()) return
+    exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
+    try {
+      // Parse the exact current source; the debounced preview may still be stale.
+      const parsed = await parseForExport(text)
+      const output = await createExport(parsed, name, async path => {
+        const asset = images.resources.assets[path]
+        if (asset) return asset
+        if (!desktop || !fileId) throw new Error('resource_missing')
+        return readImageBlob(fileId, path)
+      })
+      if (action === 'print') { setPrintable(output); setStatus('打印预览已准备好') }
+      else {
+        const saved = await saveHtml(output.name, output.html)
+        setStatus(saved ? 'HTML 已导出' : 'HTML 导出已取消')
+        if (saved && output.warnings.length) setError(`HTML 已导出，但有 ${output.warnings.length} 项图片未加载。${output.warnings.slice(0, 3).join('；')}`)
+      }
+    } catch (error) { setError(errorMessage(error)); setStatus('文档输出未完成') }
+    finally { exporting.current = false; setBusy(false) }
+  }
+  const closePrint = useCallback(() => {
+    setPrintable(null); setStatus('准备就绪')
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus())
+  }, [])
+  useEffect(() => {
+    if (!active) return
+    const print = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        if (!disabled && !suspended) void exportDocument('print')
+      }
+    }
+    window.addEventListener('keydown', print, true)
+    return () => window.removeEventListener('keydown', print, true)
   })
   useEffect(() => {
     if (!file) return
@@ -429,7 +472,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }
 
   async function save(saveAs = false, automatic = false): Promise<boolean> {
-    if (saving.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
+    if (saving.current || busy || printable || exporting.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
     saving.current = true
     if (automatic) setAutoSaving(true); else setBusy(true)
     setError(''); setStatus(automatic ? '正在自动保存…' : '正在保存…')
@@ -540,7 +583,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
   const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
-  return <div className={`app-shell ${reading ? 'reading-document' : ''}`}>
+  return <><div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={busy || !!printable}>
     <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => { void images.importFiles(Array.from(event.target.files ?? [])); event.target.value = '' }} />
     {images.session && <ImagePanel key={images.session.instance.instanceId} image={images.session} onBusy={(value) => { panelApplying.current = value }} onCancel={() => { images.cancel(); if (!dirty) void clearDraft().catch((err) => setError(errorMessage(err))) }} onChange={images.update} onApply={images.apply} />}
     <div className="workspace">
@@ -586,5 +629,5 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       </main>
       {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline" aria-label="文档大纲" onKeyDown={event => navigateButtons(event, '.outline-item')}>{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>
+  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}</>
 }
