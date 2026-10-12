@@ -1,22 +1,30 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { emptyFormats, type Format } from '../core/formatting'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from '../core/codec'
+import type { NewDocument } from '../core/templates'
 import { parseDocument } from '../core/markdown'
 import { Editor, type EditorHandle, type SourceScroll } from './Editor'
 import { codeBlockCommand } from '../core/code-block'
-import { desktop, openDocument, saveDocument, readImage, reloadDocument, materializeResources } from '../platform/storage'
+import { desktop, openDocument, saveDocument, readImage, readImageBlob, reloadDocument, materializeResources } from '../platform/storage'
+import { createExport } from '../core/export'
+import { parseForExport, saveHtml } from '../platform/export'
+import { PrintDialog } from './PrintDialog'
+import type { ExportDocument } from '../core/export'
 import { drafts, type Draft } from '../platform/drafts'
 import { ImagePanel } from './ImagePanel'
 import { useImages } from './useImages'
 import { emptyResources } from '../platform/images'
 import { usePreview } from './usePreview'
 import { WorkspaceTree } from './WorkspaceTree'
-import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, type Workspace, type WorkspaceImage } from '../platform/workspace'
+import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, searchWorkspace, cancelWorkspaceSearch, type Workspace, type WorkspaceImage, type WorkspaceSearchReport, type WorkspaceLocation } from '../platform/workspace'
 import type { OpenedFile } from '../platform/storage'
 import { readClipboardImageFiles } from '../platform/clipboard'
 import { ResizableSidebar } from './ResizableSidebar'
+import { MAX_LIVE_DOCUMENT } from '../core/live-preview'
+import { navigateButtons } from './navigation'
+import { useContextMenu, type ContextAction } from './ContextMenu'
 
-type ViewMode = 'source' | 'split'
+type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
 const initialText = '# 欢迎使用 EasyM\n\n本地优先的 Markdown 编辑器。\n\n## 开始写作\n\n点击左上角 EM 菜单打开文件或创建新文档。使用「分屏」查看预览，点击「大纲」跳转到标题。\n\n- 使用工具栏或快捷键修改当前选区，可点击「格式工具栏」隐藏或显示按钮\n- 粘贴、拖入或选择 PNG/JPEG 图片\n- 双击预览图片，编辑当前图片的副本\n\n> 本地文件在停止输入后自动保存；新建文档自动保留草稿，首次请通过 EM 菜单另存为。'
 
@@ -48,30 +56,33 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload'
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'print'
 export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
-  id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null
+  id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void
-  onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null): void
+  onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null, location?: WorkspaceLocation): void
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
 }
-export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, path, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+  const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
-  const [text, setText] = useState(file ? initial.text : blank ? '' : initialText)
+  const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
   const [view, setView] = useState<ViewMode>('source')
-  const [name, setName] = useState(file?.name ?? '未命名.md')
+  const [name, setName] = useState(file?.name ?? seed?.name ?? '未命名.md')
   const [fileId, setFileId] = useState<string | null>(file?.id ?? null)
   const [revision, setRevision] = useState<string | null>(file?.revision ?? null)
   const [snapshot, setSnapshot] = useState<FileSnapshot>(initial)
   const [epoch, setEpoch] = useState(0)
-  const [dirty, setDirty] = useState(false)
+  const [dirty, setDirty] = useState(!file && !!seed?.text)
   const [busy, setBusy] = useState(false)
+  const [printable, setPrintable] = useState<ExportDocument | null>(null)
+  const exporting = useRef(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
-  const [status, setStatus] = useState(file ? '文件已打开' : '准备就绪')
+  const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
   const [draftStatus, setDraftStatus] = useState('')
   const [error, setError] = useState('')
   const [pendingDraft, setPendingDraft] = useState<Draft | null>(null)
@@ -83,6 +94,11 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [highlightLimited, setHighlightLimited] = useState(false)
   const [workspacePath, setWorkspacePath] = useState<string | null>(path ?? null)
   const [treeRevision, setTreeRevision] = useState(0)
+  const [workspaceQuery, setWorkspaceQuery] = useState('')
+  const [workspaceReport, setWorkspaceReport] = useState<WorkspaceSearchReport | null>(null)
+  const [workspaceSearching, setWorkspaceSearching] = useState(false)
+  const workspaceSearchRequest = useRef<string | null>(null)
+  const navigatedLocation = useRef<string | null>(null)
   const editor = useRef<EditorHandle>(null)
   const preview = useRef<HTMLElement>(null)
   const sourceScroll = useRef<SourceScroll>({ offset: 0, fraction: 0, ratio: 0 })
@@ -167,7 +183,8 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }
   function jumpTo(offset: number) {
     if (reading) {
-      const node = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? []).find((element) => Number(element.dataset.sourceFrom) === offset)
+      const nodes = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? [])
+      const node = nodes.filter((element) => Number(element.dataset.sourceFrom) <= offset).at(-1) ?? nodes[0]
       node?.scrollIntoView({ block: 'start' })
       return
     }
@@ -175,6 +192,11 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     expectedPreview.current = null
     editor.current?.jump(offset)
     // Also sync when the heading is already visible and CodeMirror does not scroll.
+    syncPreview({ offset, fraction: 0, ratio: text.length ? offset / text.length : 0 }, true)
+  }
+  function searchMatch(offset: number) {
+    scrollOwner.current = 'source'
+    expectedPreview.current = null
     syncPreview({ offset, fraction: 0, ratio: text.length ? offset / text.length : 0 }, true)
   }
   useEffect(() => {
@@ -195,7 +217,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
   }
   const images = useImages({
-    text, fileId, blocked: reading || busy || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
+    text, fileId, blocked: reading || busy || !!printable || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
     selection: () => editor.current?.selection() ?? { anchor: text.length, head: text.length },
     patch: (from, to, insert) => editor.current?.patch([{ from, to, insert }]) ?? false,
     error: setError,
@@ -209,25 +231,63 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       await clearDraft().catch((err) => setError(errorMessage(err)))
       setRevision(result.revision); setSnapshot(decodeFile(bytes)); if (result.warning) setError(errorMessage(result.warning))
     },
-    applied: () => { setView('split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
+    applied: () => { setView(current => current === 'live' ? 'live' : 'split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
   })
-  const disabled = busy || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
-  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
+  const liveImageContext = useMemo(() => ({ resources: images.resources, fileId }), [images.resources, fileId])
+  const disabled = busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
+  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
   useEffect(() => {
-    onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
-      canEdit: () => !disabled && !saving.current && !editor.current?.composing(),
+    onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
+      canEdit: () => !disabled && !exporting.current && !saving.current && !editor.current?.composing(),
       run: (action) => {
-        if (disabled || saving.current || editor.current?.composing()) return
+        if (disabled || exporting.current || saving.current || editor.current?.composing()) return
         if (action === 'new') onNew()
         else if (action === 'open') void open()
         else if (action === 'workspace') void chooseWorkspace()
         else if (action === 'reload') void reloadExternal()
+        else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
         else void save(true)
       },
       retain: async () => { if (!pendingDraft && !draftUnavailable && (dirty || images.session)) { window.clearTimeout(draftTimer.current); await enqueueDraft() } },
       discard: async () => { discarded.current = true; await clearDraft() },
       resume: () => { discarded.current = false; flushDraft.current() }, save: () => save(),
     })
+  })
+  async function exportDocument(action: 'exportHtml' | 'print') {
+    if (disabled || exporting.current || saving.current || editor.current?.composing()) return
+    exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
+    try {
+      // Parse the exact current source; the debounced preview may still be stale.
+      const parsed = await parseForExport(text)
+      const output = await createExport(parsed, name, async path => {
+        const asset = images.resources.assets[path]
+        if (asset) return asset
+        if (!desktop || !fileId) throw new Error('resource_missing')
+        return readImageBlob(fileId, path)
+      })
+      if (action === 'print') { setPrintable(output); setStatus('打印预览已准备好') }
+      else {
+        const saved = await saveHtml(output.name, output.html)
+        setStatus(saved ? 'HTML 已导出' : 'HTML 导出已取消')
+        if (saved && output.warnings.length) setError(`HTML 已导出，但有 ${output.warnings.length} 项图片未加载。${output.warnings.slice(0, 3).join('；')}`)
+      }
+    } catch (error) { setError(errorMessage(error)); setStatus('文档输出未完成') }
+    finally { exporting.current = false; setBusy(false) }
+  }
+  const closePrint = useCallback(() => {
+    setPrintable(null); setStatus('准备就绪')
+    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus())
+  }, [])
+  useEffect(() => {
+    if (!active) return
+    const print = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+        event.preventDefault()
+        if (!disabled && !suspended) void exportDocument('print')
+      }
+    }
+    window.addEventListener('keydown', print, true)
+    return () => window.removeEventListener('keydown', print, true)
   })
   useEffect(() => {
     if (!file) return
@@ -363,14 +423,15 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     return !dirty || window.confirm('当前正文未写入文件。继续将替换当前编辑内容；请先保存或下载副本。')
   }
 
-  async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null) {
+  async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null, location?: WorkspaceLocation) {
     if (disabled || saving.current || editor.current?.composing()) return
     setBusy(true)
     try {
       const file = await read()
       if (!file) return
+      if (location && file.revision !== location.revision) { setError('文件已变化，请重新搜索后再定位。'); return }
       decodeFile(file.bytes)
-      onOpen(file, path, workspace)
+      onOpen(file, path, workspace, location)
     } catch (err) { setError(errorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -413,7 +474,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }
 
   async function save(saveAs = false, automatic = false): Promise<boolean> {
-    if (saving.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
+    if (saving.current || busy || printable || exporting.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
     saving.current = true
     if (automatic) setAutoSaving(true); else setBusy(true)
     setError(''); setStatus(automatic ? '正在自动保存…' : '正在保存…')
@@ -447,6 +508,56 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     if (disabled || editor.current?.composing()) return
     editor.current?.format(kind, codeLanguage)
   }
+  function chooseView(next: ViewMode) { if (!editor.current?.composing()) setView(next) }
+  async function searchCurrentWorkspace() {
+    if (!workspace || disabled || !workspaceQuery.trim()) return
+    cancelSearch()
+    const requestId = crypto.randomUUID()
+    workspaceSearchRequest.current = requestId
+    setWorkspaceSearching(true); setWorkspaceReport(null)
+    try {
+      const report = await searchWorkspace(workspace.id, workspaceQuery.trim(), requestId)
+      if (requestId === workspaceSearchRequest.current && !report.cancelled) setWorkspaceReport(report)
+    } catch (err) { if (requestId === workspaceSearchRequest.current) setError(errorMessage(err)) }
+    finally { if (requestId === workspaceSearchRequest.current) { workspaceSearchRequest.current = null; setWorkspaceSearching(false) } }
+  }
+  function cancelSearch() {
+    const requestId = workspaceSearchRequest.current
+    workspaceSearchRequest.current = null
+    if (requestId) void cancelWorkspaceSearch(requestId).catch(() => undefined)
+    setWorkspaceSearching(false)
+  }
+  useEffect(() => {
+    setWorkspaceSearching(false)
+    return () => {
+      const requestId = workspaceSearchRequest.current
+      workspaceSearchRequest.current = null
+      if (requestId) void cancelWorkspaceSearch(requestId).catch(() => undefined)
+    }
+  }, [workspace?.id, active])
+  useEffect(() => { setWorkspaceReport(null) }, [workspace?.id])
+  useEffect(() => {
+    if (!location || !active || !draftReady || pendingDraft || location.token === navigatedLocation.current || (reading && parsedText.current !== text)) return
+    navigatedLocation.current = location.token
+    if (revision !== location.revision || text !== snapshot.originalText) { setError('当前文件或本地编辑已变化，请保存并重新搜索后再定位。'); return }
+    let offset = 0
+    for (let line = 1; line < location.line; line++) {
+      const next = text.indexOf('\n', offset)
+      if (next < 0) { setError('匹配行已不存在，请重新搜索。'); return }
+      offset = next + 1
+    }
+    jumpTo(offset)
+  }, [location, active, draftReady, pendingDraft, revision, text, snapshot, reading, parsed.html])
+  async function renderImage(resource: string): Promise<string | null> {
+    const blob = images.resources.assets[resource]
+    if (blob) return URL.createObjectURL(blob)
+    if (!desktop || !fileId || /^([a-z][a-z\d+.-]*:|[\\/])/i.test(resource)) return null
+    return readImage(fileId, resource)
+  }
+  function editRenderedImage(offset: number) {
+    const reference = parsed.images.find(item => item.from === offset)
+    if (reference && parsedText.current === text && !disabled) void images.edit(reference)
+  }
 
   function chooseCodeLanguage(language: string) {
     setCodeLanguage(language)
@@ -474,27 +585,51 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
   const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
-  return <div className={`app-shell ${reading ? 'reading-document' : ''}`}>
+  return <><div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={busy || !!printable}>
     <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => { void images.importFiles(Array.from(event.target.files ?? [])); event.target.value = '' }} />
     {images.session && <ImagePanel key={images.session.instance.instanceId} image={images.session} onBusy={(value) => { panelApplying.current = value }} onCancel={() => { images.cancel(); if (!dirty) void clearDraft().catch((err) => setError(errorMessage(err))) }} onChange={images.update} onApply={images.apply} />}
     <div className="workspace">
       {showFiles && <ResizableSidebar side="left">
         <div className="sidebar-heading"><h2>文档</h2><button className="icon-button" aria-label="收起文件栏" onClick={() => onShowFiles(false)}>‹</button></div>
         {workspace && <button className="quick-row" disabled={disabled} onClick={() => void chooseWorkspace(true)}>⟳ <span>刷新文件树</span></button>}
+        {workspace && <form className="workspace-search" role="search" aria-label="工作区搜索" onSubmit={(event) => { event.preventDefault(); void searchCurrentWorkspace() }}>
+          <input aria-label="搜索工作区" value={workspaceQuery} placeholder="搜索 Markdown" maxLength={4096} onChange={(event) => { cancelSearch(); setWorkspaceQuery(event.target.value); setWorkspaceReport(null) }} />
+          <button type="submit" disabled={disabled || !workspaceQuery.trim()}>搜索</button>
+          {workspaceSearching && <button type="button" onClick={cancelSearch}>取消</button>}
+        </form>}
+        {workspaceSearching && <div role="status" className="tree-empty">正在搜索…</div>}
+        {workspace && workspaceReport && <div className="workspace-search-results" aria-label="工作区搜索结果" onKeyDown={event => navigateButtons(event, '.workspace-search-result')}>
+          <div className="tree-empty" role="status">{workspaceReport.results.length} 条匹配 · 扫描 {workspaceReport.scanned} 个文件{workspaceReport.skipped > 0 && ` · 跳过 ${workspaceReport.skipped} 项`}{workspaceReport.limited && ' · 已达搜索上限，结果不完整'}</div>
+          {workspaceReport.results.length ? workspaceReport.results.map((result, index) => <button key={`${result.path}:${result.line}:${index}`} className="workspace-search-result" title={`${result.path}:${result.line}`} onClick={() => void open(() => openWorkspaceDocument(workspace.id, result.path), result.path, { token: crypto.randomUUID(), line: result.line, revision: result.revision })}><strong>{result.path}</strong><span>第 {result.line} 行 · {result.preview || '空行'}</span></button>) : <div className="tree-empty">没有匹配结果</div>}
+        </div>}
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
-        {workspace && <WorkspaceTree key={treeRevision} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
+        {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
-        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.1.0-dev</span></div>
+        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.2.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
-        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => setView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => setView('split')}>分屏</button><button disabled title="尚未通过中文输入与光标验证">即时渲染 · 待验证</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
+        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button disabled={disabled} onClick={() => editor.current?.openSearch()}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
         {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} aria-pressed={formats[kind]} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
-          {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
+          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
+          {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onContextMenu={event => {
+            const selected = window.getSelection()
+            const selectedText = selected?.rangeCount && event.currentTarget.contains(selected.getRangeAt(0).commonAncestorContainer) ? selected.toString() : ''
+            const image = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
+            const reference = image && parsed.images.find(item => item.from === Number(image.dataset.sourceFrom))
+            const actions: ContextAction[] = [
+              { label: '复制', disabled: !selectedText, run: () => navigator.clipboard.writeText(selectedText) },
+              { label: '全选预览', run: () => { window.getSelection()?.selectAllChildren(preview.current!) } },
+            ]
+            if (reference && !reading) actions.unshift({ label: '编辑图片副本', disabled: disabled || parsedText.current !== text, run: () => { if (!disabled && parsedText.current === text) void images.edit(reference) } })
+            if (image?.alt) actions.push({ label: '复制图片说明', run: () => navigator.clipboard.writeText(image.alt) })
+            const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]')
+            if (link) actions.push({ label: '复制链接地址', run: () => navigator.clipboard.writeText(link.getAttribute('href')!) })
+            contextMenu(event, actions)
+          }} onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
             if (reading) return
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
             const reference = parsed.images.find((item) => item.from === Number(node?.dataset.sourceFrom))
@@ -506,9 +641,12 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
             if (!reading && parsedText.current === text && node?.dataset.sourceFrom) jumpTo(Number(node.dataset.sourceFrom))
           }} dangerouslySetInnerHTML={{ __html: parsed.html }} />}
         </div>
-        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
+        <div className="statusbar" role="status"><span className={`status-dot ${dirty ? 'dirty' : 'saved'}`} />{status}<span className="status-separator" />{snapshot.encoding.toUpperCase()} · {snapshot.lineEnding.toUpperCase()} · {statistics.lines} 行 · <span title="Markdown 源文字符数，不含空白；emoji 按一个 Unicode 字符计数">{statistics.characters} 字</span>{view === 'live' && (text.length > MAX_LIVE_DOCUMENT || highlightLimited) && <span title="即时渲染暂限 1 Mi 字符且单行不超过 20,000 字符；源码和分屏仍可用"> · 即时渲染已降级为源码</span>}{highlightLimited && <span title="存在超过 20,000 字符的单行；缩短后自动恢复源码高亮，预览仍完整显示。"> · 超长行：源码高亮已暂停</span>}<span className="status-spacer" />{draftStatus}</div>
       </main>
-      {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline">{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
+      {showOutline && <ResizableSidebar side="right"><div className="sidebar-heading"><h2>文档大纲</h2><button className="icon-button" aria-label="收起大纲" onClick={() => setShowOutline(false)}>›</button></div><nav className="outline" aria-label="文档大纲" onKeyDown={event => navigateButtons(event, '.outline-item')}>{parsed.headings.map((heading) => <button key={heading.offset} className={`outline-item level-${heading.level}`} title={heading.title} onContextMenu={event => contextMenu(event, [
+        { label: '跳转到标题', disabled: disabled && !reading, run: () => jumpTo(heading.offset) },
+        { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
+      ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>
+  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}</>
 }

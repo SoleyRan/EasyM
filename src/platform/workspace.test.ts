@@ -1,9 +1,18 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
-import { listWorkspace, openWorkspaceDocument, readWorkspaceImage, workspaceImageData } from './workspace'
+import { listWorkspace, openWorkspaceDocument, readWorkspaceImage, workspaceImageData, searchWorkspace, cancelWorkspaceSearch } from './workspace'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
 beforeEach(() => vi.mocked(invoke).mockReset())
+
+it('passes search authorization and request identity and preserves partial report metadata', async () => {
+  const report = { results: [{ path: '中文.md', line: 2, preview: 'needle', revision: 'hash' }], scanned: 3, skipped: 1, limited: true, cancelled: false }
+  vi.mocked(invoke).mockResolvedValue(report)
+  expect(await searchWorkspace('workspace', 'needle', 'request')).toEqual(report)
+  expect(invoke).toHaveBeenCalledWith('search_workspace', { id: 'workspace', query: 'needle', requestId: 'request' })
+  await cancelWorkspaceSearch('request')
+  expect(invoke).toHaveBeenLastCalledWith('cancel_workspace_search', { requestId: 'request' })
+})
 
 it('uses opaque workspace authorization and preserves document bytes', async () => {
   vi.mocked(invoke).mockResolvedValue({ id: 'file', name: '中文.md', bytes: [239, 187, 191, 65, 13, 10], revision: 'hash' })

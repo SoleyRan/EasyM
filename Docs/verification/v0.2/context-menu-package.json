@@ -1,0 +1,95 @@
+{
+  "packagedAt": "2026-10-10T08:47:34.2793896Z",
+  "version": "0.2.0",
+  "sourceCommit": "aa6bb2eb04c8ebb7dafb0e50ae5cf28bf67f9346",
+  "sourceDirty": true,
+  "change": "Application context menus and protected batch tab closing",
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/easym.exe",
+      "bytes": 10524160,
+      "sha256": "6b5118727a90d484f2d42480708b4c5802dabff898964e9ca27a943f74621190"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe",
+      "bytes": 3053700,
+      "sha256": "20bfdbfc5024d016f6119f72b50b823c99071a30dbb925c21483af41f354643c"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/portable/EasyM-0.2.0-windows-x64-dev.zip",
+      "bytes": 4275543,
+      "sha256": "de90357ac88f90b2033fb89ad3b2c15c9f5bc87fe9a8535736e8925c2b8ec174"
+    },
+    {
+      "path": "dist/index.html",
+      "bytes": 482,
+      "sha256": "c68aea03545eba52b7e1d60e1d079482f8c229923a8fac81287a3e926e1c2ab4"
+    },
+    {
+      "path": "src/App.tsx",
+      "bytes": 20896,
+      "sha256": "8a4c63d647dcf2b49582741009ed97d0cf7c4e0864795121f5bd8d53aa5cbf4d"
+    },
+    {
+      "path": "src/editor/ContextMenu.tsx",
+      "bytes": 7097,
+      "sha256": "81b40564267ba1ee981dc61a52fafe8ec3a7fe296d32f1e94c891dd9552cbb0a"
+    },
+    {
+      "path": "src/editor/CloseDialog.tsx",
+      "bytes": 2520,
+      "sha256": "3116f3ac810309f1034408b0633311a86d77fe315cb940d8ff4f6d6e76734909"
+    },
+    {
+      "path": "src/editor/DocumentEditor.tsx",
+      "bytes": 48078,
+      "sha256": "6474ce7bf3a69f2e9ec4e640540e8a49608bf87026e6ab2455078212305df5a7"
+    },
+    {
+      "path": "src/editor/Editor.tsx",
+      "bytes": 16224,
+      "sha256": "c07e1c254152ea48fc46b5da398cf9c65d98ad7dd83becaa954881bd942b49a1"
+    },
+    {
+      "path": "src/editor/WorkspaceTree.tsx",
+      "bytes": 3351,
+      "sha256": "b9c78df48d3204a6c00f6ed9bcd018cd36d1d6ef85b23d250dcfbf7ddf1ed3bb"
+    },
+    {
+      "path": "src/editor/layout.css",
+      "bytes": 4156,
+      "sha256": "b84c2ea0bc7efccfa6ddeec0069c4047f85e0386c827471678d3fa2c4b36e06f"
+    },
+    {
+      "path": "src/editor/themes.css",
+      "bytes": 16953,
+      "sha256": "fd71764f64e4bee441a4cd594f36da9934bc547916b0634086bafc93dce880c9"
+    }
+  ],
+  "nativeStartup": {
+    "verifiedAt": "2026-10-10T08:46:58.8648641Z",
+    "version": "0.2.0",
+    "executableSha256": "6b5118727a90d484f2d42480708b4c5802dabff898964e9ca27a943f74621190",
+    "isolatedProfile": true,
+    "launched": true,
+    "gracefulClose": true,
+    "passed": true,
+    "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+  },
+  "contextMenuVerification": {
+    "verifiedAt": "2026-10-10T08:45:39.039Z",
+    "passed": true,
+    "browser": "155.0.4283.45",
+    "checks": [
+      "default menus suppressed on controls/status",
+      "editor copy/cut/paste undo and format toggle",
+      "delayed/denied clipboard retains source",
+      "search input edit/composition guard",
+      "3 views and 4 themes, viewport fit and keyboard navigation",
+      "preview links/selection, outline and workspace paths",
+      "background tab batch close, cancel and discard, last-tab blank replacement"
+    ],
+    "clipboard": "isolated fixture; OS clipboard untouched",
+    "workspace": "deterministic IPC fixture"
+  }
+}

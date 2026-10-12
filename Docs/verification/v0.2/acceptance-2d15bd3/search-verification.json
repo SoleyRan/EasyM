@@ -1,0 +1,19 @@
+{
+  "stage": "v0.2-step-1",
+  "verifiedAt": "2026-10-10T09:36:21.925Z",
+  "browser": "155.0.4283.45",
+  "passed": true,
+  "cpuThrottlingRate": 1,
+  "checks": [
+    "Chinese and emoji source offsets",
+    "literal query and replacement",
+    "case and whole word",
+    "forward/reverse wraparound",
+    "single/all replacement undo",
+    "Ctrl+F/Enter/Shift+Enter/Escape",
+    "search input composition guard (synthetic events)",
+    "independent tab queries",
+    "bounded and superseded worker counts",
+    "split source and preview navigation"
+  ]
+}

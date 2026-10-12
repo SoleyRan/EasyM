@@ -12,7 +12,7 @@
     "component": {
       "type": "application",
       "name": "EasyM",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "licenses": [
         {
           "license": {
@@ -3413,6 +3413,18 @@
       "name": "@codemirror/lint",
       "version": "6.9.7",
       "purl": "pkg:npm/%40codemirror/lint@6.9.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40codemirror/search@6.5.11",
+      "name": "@codemirror/search",
+      "version": "6.5.11",
+      "purl": "pkg:npm/%40codemirror/search@6.5.11",
       "licenses": [
         {
           "expression": "MIT"

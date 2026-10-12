@@ -9,8 +9,9 @@ import { blankSnapshot } from './core/codec'
 import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
 
-const native = vi.hoisted(() => ({ requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
-vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen }))
+const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
+vi.mock('./platform/export', async () => ({ parseForExport: async (text: string) => (await import('./core/markdown')).parseDocument(text), saveHtml: native.exportHtml, printDocument: native.print }))
+vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen, searchWorkspace: native.search, cancelWorkspaceSearch: native.cancelSearch }))
 vi.mock('./platform/window', () => ({ listenForClose: async (request: () => void) => { native.requestClose.mockImplementation(request); return () => undefined }, closeWindow: native.close, minimizeWindow: native.minimize, toggleMaximizeWindow: native.maximize, dragWindow: native.drag, setFullscreen: native.fullscreen, windowState: native.state, listenWindowState: async (changed: () => void) => { native.stateListener.mockImplementation(changed); return () => undefined } }))
 vi.mock('./platform/storage', () => ({ desktop: true, releaseDocument: vi.fn(), openDocument: native.open, reloadDocument: native.reload, saveDocument: native.save, materializeResources: async (_id: unknown, resources: unknown) => resources, readImage: vi.fn(), readImageBlob: vi.fn() }))
 vi.mock('./editor/usePreview', () => ({ usePreview: (text: string) => ({ parsed: { html: '', headings: [], images: [] }, parsedText: { current: text } }) }))
@@ -20,7 +21,7 @@ vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props
   useImperativeHandle(ref, () => ({
     selection: () => ({ anchor: 0, head: 0 }), composing: () => native.composing,
     patch: (patches: TextPatch[]) => { const next = applyPatches(body, patches); setBody(next); props.onChange(next); return true },
-    jump: () => undefined, undo: () => undefined, redo: () => undefined,
+    jump: native.jump, undo: () => undefined, redo: () => undefined,
   }))
   return createElement('textarea', { 'aria-label': 'Markdown 源码编辑器', value: body, onKeyDown: (event: { key: string; ctrlKey: boolean }) => { if (event.ctrlKey && event.key === 's') props.onSave() }, onChange: (event: { target: { value: string } }) => { setBody(event.target.value); props.onChange(event.target.value) } })
 }) }))
@@ -34,8 +35,10 @@ beforeEach(async () => {
   vi.stubGlobal('Blob', CloneableBlob)
   native.requestClose.mockReset(); native.close.mockReset(); native.close.mockResolvedValue(undefined); native.save.mockReset(); native.open.mockReset(); native.reload.mockReset()
   native.workspace.mockReset(); native.workspaceOpen.mockReset()
+  native.search.mockReset(); native.cancelSearch.mockReset(); native.cancelSearch.mockResolvedValue(undefined); native.jump.mockReset()
   native.minimize.mockReset(); native.minimize.mockResolvedValue(undefined); native.maximize.mockReset(); native.maximize.mockResolvedValue(undefined); native.drag.mockReset(); native.drag.mockResolvedValue(undefined); native.fullscreen.mockReset(); native.fullscreen.mockResolvedValue(undefined); native.state.mockReset(); native.state.mockResolvedValue({ maximized: false, fullscreen: false }); native.stateListener.mockReset()
   native.composing = false
+  native.exportHtml.mockReset(); native.exportHtml.mockResolvedValue(true); native.print.mockReset(); native.print.mockResolvedValue(undefined)
   localStorage.clear()
   for (const key of await drafts.keys()) await drafts.clear(key)
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
@@ -44,7 +47,7 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function settle() { await act(async () => { await drafts.load(); await new Promise<void>((resolve) => setTimeout(resolve, 10)) }) }
 async function mount() { await act(async () => root.render(createElement(App))); await settle() }
 async function click(label: string) {
-  if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
+  if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本', '导出 HTML', '打印文档'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
   const button = Array.from(container.querySelectorAll('button')).filter((button) => !button.closest('[hidden]')).find((button) => button.textContent === label || button.getAttribute('aria-label') === label || button.querySelector('span:last-child')?.textContent === label)
   if (!button) throw new Error(`Missing button ${label}`)
   await act(async () => button.click())
@@ -56,6 +59,178 @@ async function edit(text: string) {
   await act(async () => { setter.call(editor, text); editor.dispatchEvent(new Event('input', { bubbles: true })); editor.dispatchEvent(new Event('change', { bubbles: true })) })
 }
 async function requestClose() { await act(async () => native.requestClose()) }
+
+async function tabContext(index: number) {
+  const tab = container.querySelectorAll('[role=tab]')[index]
+  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 30, clientY: 20 })
+  await act(async () => tab.dispatchEvent(event)); await settle()
+  expect(event.defaultPrevented).toBe(true)
+}
+
+it('closes the right-clicked background tab without changing other dirty documents', async () => {
+  await mount(); await click('新建标签'); await edit('keep active body')
+  await tabContext(0); await click('关闭当前')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('keep active body')
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  expect(native.close).not.toHaveBeenCalled()
+})
+
+it('closes other tabs relative to the clicked tab and keeps its edits intact', async () => {
+  await mount(); await edit('keep clicked body'); await click('新建标签'); await click('新建标签')
+  await tabContext(0); await click('关闭所有其他')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('keep clicked body')
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  await tabContext(0)
+  expect([...container.querySelectorAll<HTMLButtonElement>('.context-menu button')].find(button => button.textContent === '关闭所有其他')?.disabled).toBe(true)
+})
+
+it('protects all targeted tabs on cancel and closes all without exiting the app on discard', async () => {
+  await mount(); await edit('first body'); await click('新建标签'); await edit('second body')
+  await tabContext(0); await click('关闭所有'); await click('返回编辑')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect([...container.querySelectorAll<HTMLTextAreaElement>('textarea')].map(input => input.value)).toEqual(['first body', 'second body'])
+  await tabContext(1); await click('关闭所有'); await click('不保存关闭')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('')
+  expect(await drafts.keys()).toEqual([])
+  expect(native.close).not.toHaveBeenCalled()
+})
+
+it('retains only the closing tabs as drafts and preserves the excluded tab', async () => {
+  await mount(); await edit('retain first'); await click('新建标签'); await edit('retain second'); await click('新建标签')
+  await tabContext(2); await click('关闭所有其他'); await click('保留草稿并关闭')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(container.querySelector('textarea')?.value).toBe('')
+  const bodies = await Promise.all((await drafts.keys()).map(async key => (await drafts.load(key))?.text))
+  expect(bodies.sort()).toEqual(['retain first', 'retain second'])
+})
+
+it('keeps every target tab open when a batch save is cancelled after an earlier save succeeds', async () => {
+  await mount(); await edit('first saved'); await click('新建标签'); await edit('second cancelled')
+  native.save.mockResolvedValueOnce({ id: 'saved-first', name: 'first.md', revision: 'r1', destination: 'disk' }).mockResolvedValueOnce(null)
+  await tabContext(0); await click('关闭所有'); await click('保存并关闭')
+  expect(native.save).toHaveBeenCalledTimes(2)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(container.querySelector('.close-dialog')).not.toBeNull()
+  expect(container.querySelectorAll<HTMLTextAreaElement>('textarea')[1].value).toBe('second cancelled')
+  await click('返回编辑')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(container.querySelectorAll('[role=tab]')[1].textContent).toContain('*')
+})
+
+it('exports current source without saving or clearing dirty drafts, including cancellation and failure', async () => {
+  await mount(); await edit('# 新正文\n\n**bold**'); await click('导出 HTML')
+  expect(native.exportHtml).toHaveBeenCalledWith('未命名.html', expect.stringContaining('<strong>bold</strong>'))
+  expect(native.save).not.toHaveBeenCalled()
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+  expect(container.querySelector('textarea')?.value).toBe('# 新正文\n\n**bold**')
+  native.exportHtml.mockResolvedValueOnce(false); await click('导出 HTML')
+  expect(container.textContent).toContain('HTML 导出已取消')
+  native.exportHtml.mockRejectedValueOnce(new Error('disk full')); await click('导出 HTML')
+  expect(container.textContent).toContain('disk full')
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+  await requestClose(); await click('保留草稿并退出')
+  expect((await drafts.load())?.text).toBe('# 新正文\n\n**bold**')
+})
+
+it('prepares a dedicated print root, protects editing, reports missing images and returns with Escape', async () => {
+  await mount(); await edit('# 打印中文\n\n![remote](https://example.test/a.png)'); await click('打印文档')
+  expect(container.querySelector('.print-dialog')?.textContent).toContain('有 1 项图片未加载')
+  expect(document.querySelector('#easym-print-root h1')?.textContent).toBe('打印中文')
+  expect(container.querySelector('.app-shell')?.hasAttribute('inert')).toBe(true)
+  await click('打开系统打印')
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 80)) })
+  expect(native.print).toHaveBeenCalledOnce()
+  await act(async () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(document.querySelector('#easym-print-root')).toBeNull()
+  expect(container.querySelector('textarea')?.value).toContain('# 打印中文')
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('rejects output during composition and protects a running export from save and close actions', async () => {
+  await mount(); await edit('retained source'); native.composing = true
+  await click('导出 HTML'); expect(native.exportHtml).not.toHaveBeenCalled()
+  native.composing = false
+  let complete!: (value: boolean) => void
+  native.exportHtml.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
+  // Closing and reopening the menu refreshes disabled state after composition.
+  await click('EM 菜单'); await click('导出 HTML'); await requestClose()
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  expect(native.close).not.toHaveBeenCalled()
+  await act(async () => container.querySelector('textarea')!.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 's', bubbles: true })))
+  expect(native.save).not.toHaveBeenCalled()
+  await act(async () => complete(false)); await settle()
+  expect(container.querySelector('textarea')?.value).toBe('retained source')
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+})
+
+async function workspaceQuery(value: string) {
+  const input = container.querySelector('.document-panel:not([hidden]) input[aria-label="搜索工作区"]')!
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+}
+
+const searchReport = (path: string, revision = 'hash') => ({ results: [{ path, line: 2, preview: '中文 needle', revision }], scanned: 1, skipped: 0, limited: false, cancelled: false })
+async function searchResult() {
+  const button = container.querySelector<HTMLButtonElement>('.document-panel:not([hidden]) .workspace-search-result')!
+  await act(async () => button.click()); await settle()
+}
+
+it('cancels obsolete workspace searches and ignores late results and failures', async () => {
+  native.workspace.mockResolvedValue({ id: 'workspace', name: 'notes', entries: [] })
+  let resolveOld!: (value: unknown) => void
+  native.search.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
+  native.search.mockResolvedValueOnce(searchReport('new.md'))
+  await mount(); await click('打开工作区'); await workspaceQuery('old'); await click('搜索')
+  const requestId = native.search.mock.calls[0][2]
+  await workspaceQuery('new')
+  expect(native.cancelSearch).toHaveBeenCalledWith(requestId)
+  await click('搜索')
+  await act(async () => resolveOld(searchReport('old.md'))); await settle()
+  const panel = container.querySelector('.document-panel:not([hidden])')!
+  expect(panel.querySelector('.workspace-search-results')?.textContent).toContain('new.md')
+  expect(panel.querySelector('.workspace-search-results')?.textContent).not.toContain('old.md')
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('opens search results at the source line, reuses tabs, and rejects stale disk and dirty local versions', async () => {
+  native.workspace.mockResolvedValue({ id: 'workspace', name: 'notes', entries: [] })
+  native.search.mockResolvedValue(searchReport('中文.md'))
+  native.workspaceOpen.mockResolvedValue({ id: 'file', name: '中文.md', bytes: new TextEncoder().encode('# title\r\n中文 needle'), revision: 'hash' })
+  await mount(); await click('打开工作区'); await workspaceQuery('needle'); await click('搜索')
+  await searchResult()
+  expect(native.jump).toHaveBeenCalledWith(8)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  await click('未命名.md'); native.jump.mockClear(); await searchResult()
+  expect(native.jump).toHaveBeenCalledWith(8)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  await edit('unsaved local'); await click('未命名.md'); native.jump.mockClear(); await searchResult()
+  expect(container.querySelector('.document-panel:not([hidden]) [role=alert]')?.textContent).toContain('本地编辑已变化')
+  expect(native.jump).not.toHaveBeenCalled()
+  await click('未命名.md')
+  native.workspaceOpen.mockResolvedValue({ id: 'file', name: '中文.md', bytes: new TextEncoder().encode('changed'), revision: 'new' })
+  await searchResult()
+  expect(container.querySelector('.document-panel:not([hidden]) [role=alert]')?.textContent).toContain('文件已变化')
+  expect(container.querySelector('.document-panel:not([hidden]) textarea')?.textContent).not.toContain('changed')
+})
+
+it('exposes workspace search limits and cancels a running search on demand', async () => {
+  native.workspace.mockResolvedValue({ id: 'workspace', name: 'notes', entries: [] })
+  native.search.mockResolvedValueOnce({ ...searchReport('note.md'), skipped: 2, limited: true })
+  await mount(); await click('打开工作区'); await workspaceQuery('needle'); await click('搜索')
+  expect(container.textContent).toContain('跳过 2 项')
+  expect(container.textContent).toContain('结果不完整')
+  let resolve!: (value: unknown) => void
+  native.search.mockImplementationOnce(() => new Promise(done => { resolve = done }))
+  await click('搜索'); await click('取消')
+  expect(native.cancelSearch).toHaveBeenCalledWith(native.search.mock.calls[1][2])
+  await act(async () => resolve(searchReport('cancelled.md'))); await settle()
+  expect(container.textContent).not.toContain('cancelled.md')
+})
 
 it('closes an unchanged document and keeps an undisposed recovery draft', async () => {
   await mount(); await requestClose()
@@ -240,11 +415,70 @@ it('shows file commands only in the EM menu and dismisses it on Escape', async (
   await mount()
   expect(container.querySelector('[role=menu]')).toBeNull()
   await click('EM 菜单')
-  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(6)
+  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(9)
   const trigger = container.querySelector<HTMLButtonElement>('.app-menu-trigger')!
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('[role=menu]')).toBeNull()
   expect(document.activeElement).toBe(trigger)
+})
+
+it('creates a template in a new tab without replacing the current document', async () => {
+  await mount(); await edit('current document')
+  await click('EM 菜单'); await click('从模板新建')
+  expect(container.querySelector('[role=dialog]')).not.toBeNull()
+  const templateSelect = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  await act(async () => { templateSelect.value = 'meeting'; templateSelect.dispatchEvent(new Event('change', { bubbles: true })) }); await settle()
+  const title = container.querySelector<HTMLInputElement>('.template-dialog input')!
+  await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(title, '季度评审'); title.dispatchEvent(new Event('input', { bubbles: true })) })
+  await click('创建文档')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toContain('# 季度评审')
+  await click('未命名.md *')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('current document')
+})
+
+it('keeps a non-empty template as a recoverable draft and closes blank templates cleanly', async () => {
+  await mount(); await click('EM 菜单'); await click('从模板新建')
+  const templateSelect = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  await act(async () => { templateSelect.value = 'project'; templateSelect.dispatchEvent(new Event('change', { bubbles: true })) }); await settle(); await click('创建文档')
+  await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
+  expect(await drafts.keys()).toHaveLength(1)
+  await requestClose(); expect(container.querySelector('.close-dialog')).not.toBeNull()
+  await click('保留草稿并退出'); expect(native.close).toHaveBeenCalledOnce()
+  await act(async () => root.unmount()); root = createRoot(container); await mount()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('[role=tab]')[1].click()); await settle()
+  await click('恢复草稿')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toContain('# 项目说明')
+  await click('EM 菜单'); await click('从模板新建'); await click('创建文档')
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('.tab-close')[2].click()); await settle()
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('first saves a template with no disk identity and clears its draft', async () => {
+  await mount(); await click('EM 菜单'); await click('从模板新建')
+  const select = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  await act(async () => { select.value = 'meeting'; select.dispatchEvent(new Event('change', { bubbles: true })) }); await settle(); await click('创建文档')
+  await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
+  native.save.mockResolvedValue({ id: 'created', name: '会议纪要.md', revision: 'hash', destination: 'disk' })
+  await click('另存为 / 冲突副本')
+  expect(native.save.mock.calls[0][0]).toEqual({ id: null, name: '会议纪要.md', revision: null })
+  expect(new TextDecoder().decode(native.save.mock.calls[0][1])).toContain('# 会议纪要')
+  expect(native.save.mock.calls[0][2]).toBe(true)
+  expect(await drafts.keys()).toEqual([])
+})
+
+it('cancels the template dialog on Escape and returns focus to EM without adding tabs', async () => {
+  await mount(); await click('EM 菜单'); await click('从模板新建')
+  const select = container.querySelector<HTMLSelectElement>('.template-dialog select')!
+  expect(document.activeElement).toBe(select)
+  await act(async () => select.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))); await settle()
+  expect(container.querySelector('.template-dialog')).toBeNull()
+  expect(document.activeElement).toBe(container.querySelector('.app-menu-trigger'))
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  expect(await drafts.keys()).toEqual([])
 })
 async function waitAuto(ms = 1300) { await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, ms)) }); await settle() }
 async function openLocal(bytes = new TextEncoder().encode('disk')) {

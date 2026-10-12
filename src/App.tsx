@@ -1,26 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import DocumentEditor, { type DocumentHandle, type DocumentSummary, type FileAction } from './editor/DocumentEditor'
 import { CloseDialog } from './editor/CloseDialog'
+import { TemplateDialog } from './editor/TemplateDialog'
+import type { NewDocument } from './core/templates'
 import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
 import { drafts } from './platform/drafts'
 import { releaseDocument, type OpenedFile } from './platform/storage'
-import type { Workspace } from './platform/workspace'
+import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
+import { ContextMenuProvider, useContextMenu } from './editor/ContextMenu'
 
-interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; path?: string | null }
+interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }
 type Theme = keyof typeof themes
 
 export default function App() {
+  return <ContextMenuProvider><Application /></ContextMenuProvider>
+}
+
+function Application() {
+  const contextMenu = useContextMenu()
   const [tabs, setTabs] = useState<Tab[]>([first])
   const [active, setActive] = useState(first.id)
   const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
   const handles = useRef(new Map<string, DocumentHandle>())
-  const [closing, setClosing] = useState<string | 'window' | null>(null)
+  const [closing, setClosing] = useState<string[] | 'window' | null>(null)
   const [closeBusy, setCloseBusy] = useState(false)
+  const closeOperation = useRef(false)
   const [error, setError] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [templateOpen, setTemplateOpen] = useState(false)
+  const restoreTemplateFocus = useRef(false)
   const [styleMenuOpen, setStyleMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [showFiles, setShowFiles] = useState(false)
@@ -84,6 +95,12 @@ export default function App() {
     if (styleMenuOpen) menu.current?.querySelector<HTMLButtonElement>('[role=menuitemradio][aria-checked=true]')?.focus()
   }, [styleMenuOpen])
   useEffect(() => {
+    if (!templateOpen && restoreTemplateFocus.current) {
+      restoreTemplateFocus.current = false
+      menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
+    }
+  }, [templateOpen])
+  useEffect(() => {
     document.getElementById(`tab-${active}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
   }, [active])
   useEffect(() => {
@@ -93,33 +110,39 @@ export default function App() {
     }).catch((err) => setError(String(err)))
     return () => { alive = false }
   }, [])
-  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null) => {
+  const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null, location?: WorkspaceLocation, seed?: NewDocument) => {
     if (nextWorkspace) setWorkspace(nextWorkspace)
     if (file?.id) {
       const existing = tabs.find((tab) => handles.current.get(tab.id)?.summary.fileId === file.id)
-      if (existing) { setActive(existing.id); return }
+      if (existing) { setTabs(previous => previous.map(tab => tab.id === existing.id ? { ...tab, location } : tab)); setActive(existing.id); return }
     }
     const id = crypto.randomUUID()
-    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, path }])
+    setTabs((previous) => [...previous, { id, draftKey: `document:${id}`, file, blank: !file, seed, path, location }])
     setActive(id)
   }
-  const targetHandles = () => closing === 'window' ? tabs.map((tab) => handles.current.get(tab.id)).filter((handle): handle is DocumentHandle => !!handle) : closing ? [handles.current.get(closing)].filter((handle): handle is DocumentHandle => !!handle) : []
-  const remove = async (id: string, keepDraft: boolean) => {
-    const tab = tabs.find((tab) => tab.id === id)
-    if (!keepDraft && tab) await drafts.clear(tab.draftKey)
-    await releaseDocument(handles.current.get(id)?.summary.fileId ?? null)
-    handles.current.delete(id)
-    const remaining = tabs.filter((tab) => tab.id !== id)
-    if (remaining.length) { setTabs(remaining); if (active === id) setActive(remaining.at(-1)!.id) }
+  const targetHandles = () => (closing === 'window' ? tabs.map(tab => tab.id) : closing ?? []).map(id => handles.current.get(id)).filter((handle): handle is DocumentHandle => !!handle)
+  const remove = async (ids: string[], keepDraft: boolean) => {
+    for (const id of ids) {
+      const tab = tabs.find((tab) => tab.id === id)
+      if (!keepDraft && tab) await drafts.clear(tab.draftKey)
+      await releaseDocument(handles.current.get(id)?.summary.fileId ?? null)
+    }
+    ids.forEach(id => handles.current.delete(id))
+    const remaining = tabs.filter((tab) => !ids.includes(tab.id))
+    if (remaining.length) { setTabs(remaining); if (ids.includes(active)) setActive(remaining.at(-1)!.id) }
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
-  const requestClose = (id: string | 'window') => {
-    const targets = id === 'window' ? [...handles.current.values()] : [handles.current.get(id)].filter((h): h is DocumentHandle => !!h)
-    if (closeBusy || targets.length !== (id === 'window' ? tabs.length : 1) || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
+  const requestClose = (id: string | string[] | 'window') => {
+    if (templateOpen) { cancelTemplate(); return }
+    const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
+    if (!ids.length) return
+    const targets = ids.map(target => handles.current.get(target)).filter((h): h is DocumentHandle => !!h)
+    if (closing || closeBusy || closeOperation.current || targets.length !== ids.length || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
     setError('')
-    if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id); return }
-    if (id === 'window') void closeWindow().catch((err) => setError(String(err)))
-    else void remove(id, false).catch((err) => setError(String(err)))
+    setMenuOpen(false)
+    if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id === 'window' ? 'window' : ids); return }
+    closeOperation.current = true; setCloseBusy(true)
+    void (id === 'window' ? closeWindow() : remove(ids, false)).catch((err) => setError(String(err))).finally(() => { closeOperation.current = false; setCloseBusy(false) })
   }
   const closeRequest = useRef(() => undefined as void); closeRequest.current = () => requestClose('window')
   useEffect(() => {
@@ -128,8 +151,8 @@ export default function App() {
     return () => { disposed = true; stop?.() }
   }, [])
   async function finish(action: 'save' | 'retain' | 'discard') {
-    if (!closing || closeBusy) return
-    setCloseBusy(true); setError('')
+    if (!closing || closeBusy || closeOperation.current) return
+    closeOperation.current = true; setCloseBusy(true); setError('')
     try {
       for (const handle of targetHandles()) {
         if (action === 'save' && handle.summary.dirty) { if (!await handle.save()) { setError(`${handle.summary.name} 保存未完成。返回编辑后查看该标签的提示；恢复中的草稿需先恢复再保存。`); return } }
@@ -140,15 +163,19 @@ export default function App() {
       else await remove(closing, action !== 'save')
       setClosing(null)
     } catch (err) { if (action === 'discard') targetHandles().forEach((handle) => handle.resume()); setError(String(err)) }
-    finally { setCloseBusy(false) }
+    finally { closeOperation.current = false; setCloseBusy(false) }
   }
-  const blocked = closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  function cancelTemplate() {
+    restoreTemplateFocus.current = true
+    setTemplateOpen(false)
+  }
+  const blocked = templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
   const fileAction = (action: FileAction) => {
     setMenuOpen(false)
     handles.current.get(active)?.run(action)
   }
   return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme}>
-    <div className="document-strip" hidden={reading}>
+    <div className="document-strip" hidden={reading} inert={templateOpen}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
         const inStyleMenu = !!(event.target as HTMLElement).closest('#style-menu')
         if ((inStyleMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && styleMenuOpen)) {
@@ -168,11 +195,14 @@ export default function App() {
         <button className="app-menu-trigger brand-mark" aria-label="EM 菜单" title="EasyM · 文件菜单" aria-haspopup="menu" aria-expanded={menuOpen} aria-controls="file-menu" disabled={closeBusy || !!closing} onClick={() => setMenuOpen(!menuOpen)}>EM</button>
         {menuOpen && <div className="file-menu" id="file-menu" role="menu" aria-label="文件菜单">
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('new')}>新建文档</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => { setMenuOpen(false); setTemplateOpen(true) }}>从模板新建</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('open')}>打开文件</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('workspace')}>打开工作区</button>
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>导出 HTML</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>打印文档</button>
           <div className="menu-divider" role="separator" />
           <div className="style-menu">
             <button className="style-menu-trigger" role="menuitem" aria-label="Style · 配色主题" aria-haspopup="menu" aria-expanded={styleMenuOpen} aria-controls="style-menu" onClick={() => setStyleMenuOpen(!styleMenuOpen)}>Style · 配色主题 <span aria-hidden="true">›</span></button>
@@ -189,7 +219,19 @@ export default function App() {
         if (list.scrollWidth <= list.clientWidth || event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
         list.scrollLeft += event.deltaY * (event.deltaMode === 1 ? 20 : event.deltaMode === 2 ? list.clientWidth : 1)
       }}>
-        {tabs.map((tab) => <div className={`document-tab ${tab.id === active ? 'active' : ''}`} key={tab.id}>
+        {tabs.map((tab) => <div className={`document-tab ${tab.id === active ? 'active' : ''}`} key={tab.id} onContextMenu={event => {
+          setMenuOpen(false)
+          const canClose = (ids: string[]) => ids.length > 0 && !closing && !closeBusy && !closeOperation.current && !templateOpen && ids.every(id => {
+            const handle = handles.current.get(id)
+            return !!handle && !handle.summary.busy && handle.canLeave()
+          })
+          const all = tabs.map(item => item.id), others = all.filter(id => id !== tab.id)
+          contextMenu(event, [
+            { label: '关闭当前', disabled: !canClose([tab.id]), run: () => requestClose(tab.id) },
+            { label: '关闭所有', disabled: !canClose(all), run: () => requestClose(all) },
+            { label: '关闭所有其他', disabled: !canClose(others), run: () => requestClose(others) },
+          ])
+        }}>
           <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={blocked} onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canLeave()) return
             event.preventDefault()
@@ -209,9 +251,13 @@ export default function App() {
       </div>}
     </div>
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} path={tab.path} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen}>
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
     </section>)}
-    {closing && <CloseDialog scope={closing === 'window' ? 'window' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
+    {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
+      if (!handles.current.get(active)?.canEdit()) return
+      setTemplateOpen(false); add(undefined, null, null, undefined, seed)
+    }} />}
+    {closing && <CloseDialog scope={closing === 'window' ? 'window' : closing.length > 1 ? 'tabs' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
   </div>
 }

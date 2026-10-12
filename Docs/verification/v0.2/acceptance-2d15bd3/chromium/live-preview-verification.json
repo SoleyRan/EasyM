@@ -1,0 +1,17 @@
+{
+  "verifiedAt": "2026-10-10T09:44:10.076Z",
+  "browser": "156.0.8078.4",
+  "passed": true,
+  "checks": [
+    "headings/inline formatting, language highlighting, tables, remote images blocked",
+    "active heading and code source reveal; exact source roundtrip",
+    "forward/reverse native mouse selection across hidden markers; format state/toggle; shared editor and undo across three views",
+    "Chinese/emoji cross-line and soft-wrap pointer selections apply only selected text",
+    "table click and keyboard entry expose source; live search reveals hidden code and replaces with undo",
+    "synthetic composition pauses presentation and guards mode changes (native IME still requires desktop testing)",
+    "local image blob resource, correct double-click edit, cancel/apply and source reveal; live view retained",
+    "front matter, unknown syntax and raw HTML preserve source without execution",
+    "oversized documents and long lines degrade explicitly to source; shortening restores rendering",
+    "four theme table/code styles; tab view and text independence"
+  ]
+}

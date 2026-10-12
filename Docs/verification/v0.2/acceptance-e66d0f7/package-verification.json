@@ -1,0 +1,26 @@
+{
+  "recordedAt": "2026-10-12T02:19:14.6616179Z",
+  "version": "0.2.0",
+  "sourceCommit": "e66d0f7372fe81f724adc06a401e0ac656ed2cd8",
+  "releaseBuildPassed": true,
+  "nsisBundlePassed": true,
+  "portableEntries": 219,
+  "nativeStartupPassed": true,
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/easym.exe",
+      "bytes": 10524160,
+      "sha256": "ff3526a9c57a4a87dfa5c515e0ae09bbaf1b4d24f5e9ad724c3e93f94d2cedd2"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe",
+      "bytes": 3055508,
+      "sha256": "1ebaf8e313040818b020ad6a6e4a2f751fe199002574be8f0e536e5693279ac1"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/portable/EasyM-0.2.0-windows-x64-dev.zip",
+      "bytes": 4275539,
+      "sha256": "acadac5ae30bc229313054b642e1865bf18c9a34b114b7ced6afb82fd9548a68"
+    }
+  ]
+}

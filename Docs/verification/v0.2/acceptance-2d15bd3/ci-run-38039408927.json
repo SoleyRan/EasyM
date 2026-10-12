@@ -1,0 +1,51 @@
+{
+  "recordedAt": "2026-10-10T09:40:33.858Z",
+  "sourceCommit": "2d15bd39acc181e8423d98a9b4ac62f3eaedb6c8",
+  "runUrl": "https://github.com/SoleyRan/EasyM/actions/runs/38039408927",
+  "jobs": [
+    {
+      "jobId": 114176484954,
+      "name": "frontend",
+      "conclusion": "failure",
+      "passed": [
+        "typecheck",
+        "125 frontend tests",
+        "production build",
+        "workers",
+        "browser",
+        "writing"
+      ],
+      "failure": "scripts/verify-search.mjs:80: expected 0 / 1 项, got 0 / 0 项. Draft-loading inert editor race reproduced locally with 6x CPU throttling.",
+      "fix": "Wait for active .content-grid without inert before filling source fixtures; local full regression and slow search passed. Fix not yet committed or pushed."
+    },
+    {
+      "jobId": 114176485049,
+      "name": "windows",
+      "conclusion": "success",
+      "rustTests": 21,
+      "releaseBuild": "passed",
+      "missingLicenseTexts": 0,
+      "installer": {
+        "installed": true,
+        "launched": true,
+        "uninstalled": true
+      }
+    },
+    {
+      "jobId": 114176485021,
+      "name": "linux",
+      "conclusion": "success",
+      "rustTests": 22,
+      "releaseBuild": "passed",
+      "missingLicenseTexts": 0
+    },
+    {
+      "jobId": 114176485116,
+      "name": "macos",
+      "conclusion": "success",
+      "rustTests": 22,
+      "releaseBuild": "passed",
+      "missingLicenseTexts": 12
+    }
+  ]
+}

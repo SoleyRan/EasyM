@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { productionWorkers } from './production-workers.mjs'
@@ -94,7 +95,7 @@ try {
 
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const bodyText = () => editor.evaluate((element) => [...element.querySelectorAll('.cm-line')].map((line) => line.textContent).join('\n'))
-  await editor.fill('# 中文测试 😀\n\n未保存正文')
+  await fillSource(page, '# 中文测试 😀\n\n未保存正文')
   await page.getByRole('heading', { name: '中文测试 😀' }).waitFor()
   const before = await bodyText()
   const upload = async () => {

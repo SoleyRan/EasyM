@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-interface Props { scope?: 'window' | 'tab'; busy: boolean; pendingImage: boolean; error: string; onSave(): void; onRetain(): void; onDiscard(): void; onCancel(): void }
+interface Props { scope?: 'window' | 'tab' | 'tabs'; busy: boolean; pendingImage: boolean; error: string; onSave(): void; onRetain(): void; onDiscard(): void; onCancel(): void }
 
 export function CloseDialog({ scope = 'window', busy, pendingImage, error, onSave, onRetain, onDiscard, onCancel }: Props) {
   const dialog = useRef<HTMLDivElement>(null)
@@ -16,13 +16,13 @@ export function CloseDialog({ scope = 'window', busy, pendingImage, error, onSav
   }}>
     <div ref={dialog} className="close-dialog" role="dialog" aria-modal="true" aria-labelledby="close-title">
       <h2 id="close-title">关闭前保留修改</h2>
-      <p>{pendingImage ? '图片修改尚未应用。可以保留正文和图片草稿，下次继续；不保存将丢弃这些修改和恢复草稿。' : scope === 'tab' ? '此文档尚未保存。可以保存文件、保留恢复草稿，或不保存并丢弃此文档的修改和草稿。' : '打开的文档尚有未保存修改。可以保存所有修改、保留每个文档的恢复草稿，或不保存并丢弃修改和草稿。'}</p>
+      <p>{pendingImage ? '图片修改尚未应用。可以保留正文和图片草稿，下次继续；不保存将丢弃这些修改和恢复草稿。' : scope === 'tab' ? '此文档尚未保存。可以保存文件、保留恢复草稿，或不保存并丢弃此文档的修改和草稿。' : scope === 'tabs' ? '将关闭的文档尚有未保存修改。可以保存这些文档、保留它们的恢复草稿，或不保存并丢弃这些文档的修改和草稿。' : '打开的文档尚有未保存修改。可以保存所有修改、保留每个文档的恢复草稿，或不保存并丢弃修改和草稿。'}</p>
       {error && <p role="alert" className="image-error">{error}</p>}
       <div className="panel-actions">
         <button disabled={busy} onClick={onCancel}>返回编辑</button>
-        <button className="discard-button" disabled={busy} onClick={onDiscard}>{scope === 'tab' ? '不保存关闭' : '不保存退出'}</button>
-        <button disabled={busy} onClick={onRetain}>{scope === 'tab' ? '保留草稿并关闭' : '保留草稿并退出'}</button>
-        <button className="apply-button" disabled={busy || pendingImage} onClick={onSave}>{scope === 'tab' ? '保存并关闭' : '保存并退出'}</button>
+        <button className="discard-button" disabled={busy} onClick={onDiscard}>{scope === 'window' ? '不保存退出' : '不保存关闭'}</button>
+        <button disabled={busy} onClick={onRetain}>{scope === 'window' ? '保留草稿并退出' : '保留草稿并关闭'}</button>
+        <button className="apply-button" disabled={busy || pendingImage} onClick={onSave}>{scope === 'window' ? '保存并退出' : '保存并关闭'}</button>
       </div>
     </div>
   </div>

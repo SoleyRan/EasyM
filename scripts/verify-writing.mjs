@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
@@ -38,7 +39,7 @@ try {
   await page.getByRole('toolbar').waitFor()
   const selectionChecks = await verifySelection(page, selectTheme)
   await page.getByRole('button', { name: '分屏', exact: true }).click()
-  await editor.fill('```javascript\nconst x = 1;\n```\n\n行内 `code`')
+  await fillSource(page, '```javascript\nconst x = 1;\n```\n\n行内 `code`')
   await page.locator('.preview pre code.language-javascript').waitFor()
   await page.locator('.preview .hljs-keyword').waitFor()
   const javascriptHtml = await page.locator('.preview pre code').innerHTML()
@@ -62,7 +63,7 @@ try {
   await page.waitForFunction(() => document.querySelector('.preview pre code')?.className === '')
   assert.equal(await body(), '```\nconst x = 1;\n```\n\n行内 `code`')
 
-  await editor.fill('print("hello")')
+  await fillSource(page, 'print("hello")')
   await editor.press('Control+a')
   await language.selectOption('python')
   await page.getByRole('button', { name: '代码块', exact: true }).click()
@@ -72,7 +73,7 @@ try {
   assert.equal(await body(), 'print("hello")')
 
   const longText = Array.from({ length: 80 }, (_, i) => `## Section ${i}\n\n${'中文 Markdown 段落 '.repeat(12)}\n\n\`\`\`python\nprint(${i})\n\`\`\``).join('\n\n')
-  await editor.fill(longText)
+  await fillSource(page, longText)
   await page.getByRole('heading', { name: 'Section 79', exact: true }).waitFor()
   const source = page.locator('.cm-scroller')
   const preview = page.locator('.preview')
@@ -190,7 +191,7 @@ try {
   await fileAction('新建文档')
   assert.equal(await body(), '')
   assert.equal(await page.getByRole('tab').count(), 2)
-  await editor.fill('second note'); await page.waitForTimeout(600); await editor.press('End'); await editor.press('!')
+  await fillSource(page, 'second note'); await page.waitForTimeout(600); await editor.press('End'); await editor.press('!')
   await page.getByRole('tab').first().click()
   await preview.waitFor({ state: 'visible' })
   await page.waitForFunction(() => document.querySelector('.document-panel:not([hidden]) .preview').scrollTop > 1000)
@@ -266,7 +267,7 @@ try {
   await page.screenshot({ path: 'test-results/em-menu-tabs.png' })
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
-  await editor.fill('discard this browser draft'); await page.waitForTimeout(900)
+  await fillSource(page, 'discard this browser draft'); await page.waitForTimeout(900)
   const tabsBeforeClose = await page.getByRole('tab').count()
   await page.locator('.document-tab.active .tab-close').click()
   await page.getByRole('button', { name: '不保存关闭', exact: true }).click()
