@@ -4,7 +4,9 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前为 `feature/v0.2` 的 0.2.0 开发候选，6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
+当前在 `feature/v0.3` 开始办公增强阶段，已完成核心 Windows 实机验收并冻结 [v0.3 设计与实施计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)，下一步实现 DOCX 导出。应用与现有包仍为 0.2.0，DOCX、持久历史和批量图片尚未接入；新增实机结果见 [第一步记录](Docs/Easy-Markdown-v0.3-第一步-实机验收.md)。
+
+v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
 
 已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
 
