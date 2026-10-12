@@ -9,6 +9,9 @@ import { desktop, openDocument, saveDocument, readImage, readImageBlob, reloadDo
 import { createExport } from '../core/export'
 import { parseForExport, saveHtml } from '../platform/export'
 import { PrintDialog } from './PrintDialog'
+import { DocxDialog, type DocxPhase } from './DocxDialog'
+import type { PreparedDocx } from '../core/docx-model'
+import type { DocxOptions } from '../core/docx-options'
 import type { ExportDocument } from '../core/export'
 import { drafts, type Draft } from '../platform/drafts'
 import { ImagePanel } from './ImagePanel'
@@ -56,8 +59,8 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'print'
-export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print'
+export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
@@ -65,8 +68,9 @@ interface Props {
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void
   onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null, location?: WorkspaceLocation): void
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
+  onReadOther?: () => void
 }
-export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport, onReadOther }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -80,6 +84,11 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [busy, setBusy] = useState(false)
   const [printable, setPrintable] = useState<ExportDocument | null>(null)
   const exporting = useRef(false)
+  const docxTask = useRef<AbortController | null>(null)
+  const docxPhase = useRef<DocxPhase>('preflight')
+  const activeRef = useRef(active)
+  activeRef.current = active
+  const [docx, setDocx] = useState<{ prepared: PreparedDocx | null; source: string; phase: DocxPhase } | null>(null)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
   const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
@@ -238,6 +247,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
   useEffect(() => {
     onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
+      canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
       canEdit: () => !disabled && !exporting.current && !saving.current && !editor.current?.composing(),
       run: (action) => {
         if (disabled || exporting.current || saving.current || editor.current?.composing()) return
@@ -245,6 +255,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         else if (action === 'open') void open()
         else if (action === 'workspace') void chooseWorkspace()
         else if (action === 'reload') void reloadExternal()
+        else if (action === 'exportDocx') void exportDocxDocument()
         else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
         else void save(true)
       },
@@ -253,6 +264,58 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       resume: () => { discarded.current = false; flushDraft.current() }, save: () => save(),
     })
   })
+  useEffect(() => () => { docxTask.current?.abort(); docxTask.current = null }, [])
+  function finishDocx(controller: AbortController, message: string, offset?: number) {
+    if (docxTask.current !== controller) return
+    controller.abort(); docxTask.current = null; exporting.current = false
+    setDocx(null); setBusy(false); setStatus(message)
+    requestAnimationFrame(() => {
+      if (!activeRef.current) return
+      if (offset !== undefined) jumpTo(offset)
+      else document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
+    })
+  }
+  function cancelDocx(offset?: number) {
+    const controller = docxTask.current
+    if (controller && docxPhase.current !== 'saving') finishDocx(controller, 'DOCX 导出已取消', offset)
+  }
+  async function exportDocxDocument() {
+    if (!active || suspended || disabled || exporting.current || saving.current || autoSaving || images.applying || panelApplying.current || editor.current?.composing()) return
+    const controller = new AbortController()
+    docxTask.current = controller; exporting.current = true
+    docxPhase.current = 'preflight'
+    setBusy(true); setError(''); setStatus('正在预检 DOCX…')
+    setDocx({ prepared: null, source: text, phase: 'preflight' })
+    try {
+      // Load the large inline export Worker only when this command is used.
+      const { preflightDocx } = await import('../platform/docx')
+      if (docxTask.current !== controller) return
+      const prepared = await preflightDocx({ text, name, id: fileId, resources: images.resources }, controller.signal)
+      if (docxTask.current === controller) { docxPhase.current = 'ready'; setDocx({ prepared, source: text, phase: 'ready' }); setStatus('DOCX 预检完成') }
+    } catch (err) {
+      if (docxTask.current === controller) { setError(errorMessage(err)); finishDocx(controller, 'DOCX 导出未完成，请重试') }
+    }
+  }
+  async function generateDocx(options: DocxOptions) {
+    const controller = docxTask.current
+    if (!controller || !docx?.prepared || docxPhase.current !== 'ready') return
+    // Set the phase synchronously in the task guard to prevent double submit.
+    const prepared = docx.prepared
+    docxPhase.current = 'generating'
+    setDocx({ ...docx, phase: 'generating' })
+    try {
+      const { renderDocx, saveDocx } = await import('../platform/docx')
+      if (docxTask.current !== controller) return
+      const bytes = await renderDocx(prepared, options, controller.signal)
+      if (docxTask.current !== controller) return
+      docxPhase.current = 'saving'; setDocx({ ...docx, phase: 'saving' })
+      const saved = await saveDocx(prepared.model.name, bytes, controller.signal)
+      const warnings = Math.max(0, prepared.model.warnings.total - 1)
+      finishDocx(controller, saved ? `DOCX 已导出${warnings ? `，有 ${warnings} 项降级提示` : ''}` : 'DOCX 导出已取消')
+    } catch (err) {
+      if (docxTask.current === controller) { setError(errorMessage(err)); finishDocx(controller, 'DOCX 导出未完成，请重试') }
+    }
+  }
   async function exportDocument(action: 'exportHtml' | 'print') {
     if (disabled || exporting.current || saving.current || editor.current?.composing()) return
     exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
@@ -648,5 +711,5 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}</>
+  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}</>
 }

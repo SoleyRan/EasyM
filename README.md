@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前在 `feature/v0.3` 开始办公增强阶段，已完成核心 Windows 实机验收、[设计冻结](Docs/Easy-Markdown-v0.3-设计与实施计划.md)、[DOCX 模型/预检（3A）](Docs/Easy-Markdown-v0.3-第三步A-模型与预检.md)和 [DOCX 生成/后台任务/安全保存底层（3B）](Docs/Easy-Markdown-v0.3-第三步B-生成与保存.md)，下一步接入导出菜单、预检界面和办公软件验收（3C）。应用与现有包仍为 0.2.0，DOCX、持久历史和批量图片尚未接入界面；新增实机结果见 [第一步记录](Docs/Easy-Markdown-v0.3-第一步-实机验收.md)。
+当前在 `feature/v0.3` 开发办公增强，已完成核心 Windows 实机验收、[设计冻结](Docs/Easy-Markdown-v0.3-设计与实施计划.md)、[DOCX 模型/预检（3A）](Docs/Easy-Markdown-v0.3-第三步A-模型与预检.md)、[DOCX 生成/安全保存底层（3B）](Docs/Easy-Markdown-v0.3-第三步B-生成与保存.md)与 [菜单/预检界面和 Word 验证（3C）](Docs/Easy-Markdown-v0.3-第三步C-预检界面与验收.md)。DOCX 已接入界面；WPS/LibreOffice、原生另存对话框及其他平台仍待实机。下一步是持久历史的存储底层，批量图片尚未实现。应用与历史安装包仍为 0.2.0，本步未生成新包；新增实机结果见 [第一步记录](Docs/Easy-Markdown-v0.3-第一步-实机验收.md)。
 
 v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
 
@@ -23,6 +23,7 @@ v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即�
 - 文档内查找/替换入口，支持中文/Unicode 查询、结果计数、循环定位和可撤销替换；
 - EM 菜单内置空白、会议纪要和项目说明模板，支持变量字面替换、独立新标签、草稿恢复和首次另存；
 - EM 菜单导出单文件静态 HTML，内联已授权本地 PNG/JPEG，远程/缺失图片提示占位；打印预览、Ctrl/Cmd+P 和系统打印入口，输出不改变 Markdown 或草稿；
+- EM 菜单导出可编辑 DOCX，支持纸张/办公样式、预检定位、缺图占位确认和后台取消；导出包含未保存编辑，保留草稿与撤销，准备/生成期间可阅读其他标签；
 - 格式工具栏应用/取消切换、选区按下/混合状态，以及主题适配的鼠标选区高亮；
 - 已命名本地文档停止输入 1.2 秒后自动保存，草稿与未应用图片操作恢复；
 - PNG/JPEG 导入、后台处理、裁剪/旋转/翻转/尺寸/Alt、取消和应用；
@@ -52,6 +53,7 @@ pnpm build
 pnpm verify:workers
 pnpm verify:docx-library
 pnpm verify:docx
+pnpm verify:docx-ui
 pnpm exec playwright install chromium
 pnpm verify:browser
 pnpm verify:writing
@@ -64,6 +66,8 @@ pnpm verify:performance
 ```
 
 构建后可用 `pnpm verify:regression` 串行执行全部功能回归，添加 `--performance` 同时测量性能。CI 使用统一入口，性能数据在本机单独记录；各项命令仍可独立运行。`pnpm verify:search --slow` 和 `pnpm verify:templates --slow` 使用 6 倍 CPU 降速验证初始化及标签标题更新竞态；正文 fixture 等待草稿初始化后的可用编辑区。依赖清单生成后运行 `node scripts/verify-notices.mjs`，核验 SBOM 版本、许可文件字节哈希、链接大小写和补充文本来源。
+
+Windows 已安装 Microsoft Word 时，可在 `verify:docx-ui` 后运行 `./scripts/verify-docx-word.ps1`，以独立隐藏实例验证测试产物的打开、分页、编辑保存和再打开。DOCX UI/Word 报告位于 `test-results/`；详见 3C 记录，自动结构检查不能代替各办公软件的实际排版验收。
 
 安装 Rust、系统 WebView 和 Tauri 依赖后，可以运行：
 

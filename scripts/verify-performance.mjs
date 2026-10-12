@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { cpus, totalmem, platform, release } from 'node:os'
 import { chromium } from 'playwright'
 import { serveProduction } from './serve-production.mjs'
-import { productionWorkers } from './production-workers.mjs'
+import { productionWorkers, workerKind } from './production-workers.mjs'
 
 // Local baseline only. Event-to-next-frame measures UI latency, not physical screen/input latency.
 const server = await serveProduction()
@@ -105,7 +105,7 @@ try {
     return images.length === 100 && images.every((image) => image.complete && image.naturalWidth === 800 && image.naturalHeight === 600)
   })
   report.cases.push({ name: '100 local 800×600 images', restoreAndDecodeMs: Date.now() - imagesStart, imageCount: 100, allDecoded: true })
-  const workerSource = (await productionWorkers()).find((source) => source.includes('createImageBitmap'))
+  const workerSource = (await productionWorkers()).find((source) => workerKind(source) === 'image')
   const boundaries = await page.evaluate(async (source) => {
     const canvas = new OffscreenCanvas(800, 600), ctx = canvas.getContext('2d')
     ctx.fillRect(0, 0, 800, 600)

@@ -202,6 +202,7 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>导出 HTML</button>
+          <button role="menuitem" title={blocked ? '请先完成保存、图片编辑或草稿恢复' : '导出当前正文（含未保存编辑）；请先完成输入法组合输入'} disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>导出 DOCX</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>打印文档</button>
           <div className="menu-divider" role="separator" />
           <div className="style-menu">
@@ -232,13 +233,13 @@ function Application() {
             { label: '关闭所有其他', disabled: !canClose(others), run: () => requestClose(others) },
           ])
         }}>
-          <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={blocked} onKeyDown={(event) => {
-            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canLeave()) return
+          <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={templateOpen || closeBusy || !!closing || !handles.current.get(active)?.canSwitch()} onKeyDown={(event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canSwitch()) return
             event.preventDefault()
             const index = tabs.findIndex((item) => item.id === tab.id)
             const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
             setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus()
-          }} onClick={() => { if (handles.current.get(active)?.canLeave()) setActive(tab.id) }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
+          }} onClick={() => { if (handles.current.get(active)?.canSwitch()) setActive(tab.id) }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
           <button className="tab-close" aria-label={`关闭 ${summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}`} disabled={blocked} onClick={() => requestClose(tab.id)}>×</button>
         </div>)}
         <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { if (handles.current.get(active)?.canLeave()) add() }}>＋</button>
@@ -252,7 +253,11 @@ function Application() {
     </div>
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
     {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} />
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} onReadOther={tabs.length > 1 ? () => {
+        const next = tabs.find(item => item.id !== tab.id)!
+        setActive(next.id)
+        requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
+      } : undefined} />
     </section>)}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
       if (!handles.current.get(active)?.canEdit()) return
