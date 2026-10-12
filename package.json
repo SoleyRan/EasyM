@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "verify:workers": "node scripts/verify-workers.mjs",
     "verify:docx-library": "node scripts/verify-docx-library.mjs",
+    "verify:docx": "node scripts/verify-docx.mjs",
     "verify:browser": "node scripts/verify-browser.mjs",
     "verify:performance": "node scripts/verify-performance.mjs",
     "verify:writing": "node scripts/verify-writing.mjs",

@@ -258,6 +258,7 @@ License texts copied from installed package sources are linked below. Declared l
 | cargo | zerotrie | 0.2.5 | Unicode-3.0 | [LICENSE](licenses/f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2-LICENSE.txt) |
 | cargo | zerovec-derive | 0.11.6 | Unicode-3.0 | [LICENSE](licenses/f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2-LICENSE.txt) |
 | cargo | zerovec | 0.11.8 | Unicode-3.0 | [LICENSE](licenses/f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2-LICENSE.txt) |
+| cargo | zip | 6.0.0 | MIT | [LICENSE](licenses/04dc52136d82400b11df5f474949863a70a5d05d2278dec45b99c479494450a6-LICENSE.txt) |
 | cargo | zlib-rs | 0.6.8 | Zlib | [LICENSE](licenses/e72111c52b7d96ebe25348dee19f0744f444d3c95ae6b1ecb6ccaecc5bce05ba-LICENSE.txt) |
 | cargo | zmij | 1.0.23 | MIT | [LICENSE-MIT](licenses/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3-LICENSE-MIT.txt) |
 | cargo | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib | [LICENSE-APACHE](licenses/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4-LICENSE-APACHE.txt), [LICENSE-MIT](licenses/d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745-LICENSE-MIT.txt), [LICENSE-ZLIB](licenses/d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c-LICENSE-ZLIB.txt) |
@@ -436,7 +437,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | xml | 1.0.1 | MIT | [LICENSE](licenses/d2b3e2f62078f282f21a8c5119a44cc7313fe6aa4a22094c8ad93f4b577b7901-LICENSE.txt) |
 | npm | zwitch | 2.0.4 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 
-Inventory: 429 dependency versions.
+Inventory: 430 dependency versions.
 
 ## Missing license texts
 

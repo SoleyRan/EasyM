@@ -31,6 +31,7 @@ jobs:
           path: |
             test-results/browser-verification.json
             test-results/docx-library-verification.json
+            test-results/docx-verification.json
             test-results/writing-verification.json
             test-results/search-verification.json
             test-results/search-slow-verification.json

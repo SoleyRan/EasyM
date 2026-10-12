@@ -1,0 +1,168 @@
+{
+  "step": "3B",
+  "verifiedAt": "2026-10-12",
+  "baseCommit": "fc05a86",
+  "status": "passed",
+  "generator": {
+    "module": "src/core/docx.ts",
+    "supportedBlocks": [
+      "paragraph",
+      "heading",
+      "quote",
+      "list",
+      "code",
+      "raw",
+      "table",
+      "separator"
+    ],
+    "pages": [
+      "a4",
+      "letter"
+    ],
+    "styles": [
+      "default",
+      "compact"
+    ]
+  },
+  "platform": {
+    "worker": "src/platform/docx-worker.ts",
+    "api": "src/platform/docx.ts",
+    "parseAndGenerateTimeoutMs": 60000,
+    "resourceTimeoutMs": 15000,
+    "outputLimitBytes": 201326592
+  },
+  "native": {
+    "command": "export_docx",
+    "zip": "6.0.0",
+    "quickXml": "0.42.0",
+    "sameFile": "1.0.6",
+    "requiredEntriesChecked": true,
+    "crcXmlMacroOleAndExternalImageChecks": true,
+    "atomicSaveAndRevisionRaceChecks": true
+  },
+  "results": {
+    "frontendUnitTests": 146,
+    "rustTests": 27,
+    "docxBrowserChecks": 10,
+    "workersStartedAndTerminated": 16,
+    "regressionChecks": 11,
+    "strictWindowsLicenseMissing": 0,
+    "typecheck": true,
+    "build": true,
+    "diffCheck": true,
+    "sourceAndModelUnchanged": true,
+    "browserDownloadVerified": true,
+    "remoteRequests": 0
+  },
+  "knownLimits": [
+    "3C still needs menu/preflight UI integration and editor/dirty/undo protection checks.",
+    "Word, WPS and LibreOffice layout and native dialog behavior remain manual acceptance work.",
+    "Existing-target final revision check and atomic replacement retain a very small external race window; this is not an OS file-lock guarantee."
+  ],
+  "sourceSha256": {
+    "src/core/docx.ts": "115c171eb23c1f8f7c57ea81c4c094ad249c9f6d301796d131fa3f00d6332edc",
+    "src/core/docx-model.ts": "6167be84c5a02f33505618df6b34ff6c743f80c21cf61987f57fd9d1cb458ac8",
+    "src/core/docx-options.ts": "73ecb45a5db3175b27d4b7edae4af281b80dd06fc11e7d2144ba6edd980051ca",
+    "src/platform/docx.ts": "a018d075548db3f91fb59076a315e10ea63c856386a20bd122068916d5fc4139",
+    "src/platform/docx-worker.ts": "2261f40377f5c08c03cc2cbe97e3294d9f1544d4d34ca1f31acda17b09338525",
+    "src-tauri/src/export.rs": "ac982a511194201a65362b4e36370e52006cfa445fe60bd1aeb2e58cce17bb33",
+    "src-tauri/Cargo.lock": "fc039aa1e1033f782c63dcf63a6fc05375bb6bccef61735c9695633b80d3c8b9",
+    "pnpm-lock.yaml": "2bdd266a7dae5d1e2828b921cf4d8cd20cb385626af0534dc501117e2d38876c",
+    "scripts/verify-docx.mjs": "e651bd7b5583730afe91a977f771b918536897a55ab07001952270f6d9f6ffad"
+  },
+  "browserAcceptance": {
+    "verifiedAt": "2026-10-12T08:43:58.213Z",
+    "passed": true,
+    "checks": [
+      "actual platform API and inline Worker under app CSP",
+      "frozen office sample content/editable OOXML/CRC/XML",
+      "display PNG exact bytes and deduplication",
+      "input/model unchanged and workers terminated",
+      "restricted/missing/broken-image default block and explicit placeholders",
+      "hard UTF-8 and dimension quotas",
+      "cancel before/during parse, decode and generate",
+      "parse/generate timeout and termination on every path",
+      "browser download MIME/name/bytes",
+      "no remote requests or active raw HTML"
+    ],
+    "browser": "156.0.8078.4",
+    "generationMs": 464,
+    "outputBytes": 15525,
+    "outputSha256": "c4636d39b1b1489e8ec95a5e68a918f37495cec64c79032a234a909bb4e4b1b4",
+    "workerStats": {
+      "started": 16,
+      "terminated": 16
+    }
+  },
+  "regression": {
+    "version": "0.2.0",
+    "startedAt": "2026-10-12T08:43:49.5Z",
+    "browser": "chromium",
+    "passed": true,
+    "checks": [
+      {
+        "script": "workers",
+        "passed": true,
+        "durationMs": 287
+      },
+      {
+        "script": "docx-library",
+        "passed": true,
+        "durationMs": 7656
+      },
+      {
+        "script": "docx",
+        "passed": true,
+        "durationMs": 12778
+      },
+      {
+        "script": "browser",
+        "passed": true,
+        "durationMs": 6517
+      },
+      {
+        "script": "writing",
+        "passed": true,
+        "durationMs": 69838
+      },
+      {
+        "script": "search",
+        "passed": true,
+        "durationMs": 7685
+      },
+      {
+        "script": "live-preview",
+        "passed": true,
+        "durationMs": 22758
+      },
+      {
+        "script": "workspace",
+        "passed": true,
+        "durationMs": 2590
+      },
+      {
+        "script": "templates",
+        "passed": true,
+        "durationMs": 5953
+      },
+      {
+        "script": "export",
+        "passed": true,
+        "durationMs": 7400
+      },
+      {
+        "script": "context-menu",
+        "passed": true,
+        "durationMs": 8024
+      }
+    ],
+    "distIndexSha256": "813f8467564afce8d9d3f0c1b79c3ef5f617c6e337e63a8a16009a2a90166cbf",
+    "finishedAt": "2026-10-12T08:46:20.993Z"
+  },
+  "unitReport": {
+    "total": 146,
+    "passed": 146,
+    "failed": 0,
+    "success": true
+  }
+}

@@ -193,7 +193,7 @@ function cancelled(signal?: AbortSignal) {
 
 // Resource bytes are separate from the serializable structural model. Invalid
 // resources require an explicit placeholder choice; hard quotas never degrade.
-export async function prepareDocxResources(input: DocxModel, load: (path: string, signal?: AbortSignal) => Promise<Blob>, signal?: AbortSignal): Promise<PreparedDocx> {
+export async function prepareDocxResources(input: DocxModel, load: (path: string, signal?: AbortSignal) => Promise<Blob>, signal?: AbortSignal, decode?: (blob: Blob, signal?: AbortSignal) => Promise<{ width: number; height: number }>): Promise<PreparedDocx> {
   // Rebuild from the current source for a retry, rather than accumulating stale
   // missing-image warnings or returning ready resources without their bytes.
   if (input.images.some(resource => resource.path && resource.status !== 'pending')) throw new Error('请从当前正文重新建立 DOCX 预检。')
@@ -208,7 +208,7 @@ export async function prepareDocxResources(input: DocxModel, load: (path: string
     try { blob = await load(resource.path, signal) }
     catch (error) {
       cancelled(signal)
-      if (error instanceof DocxQuotaError || error instanceof Error && (error.name === 'AbortError' || 'code' in error && error.code === 'quota_exceeded')) throw error
+      if (error instanceof DocxQuotaError || error instanceof Error && (['AbortError', 'TimeoutError'].includes(error.name) || 'code' in error && error.code === 'quota_exceeded')) throw error
       resource.status = 'unavailable'
       warning(model.warnings, { code: 'missing_image', message: '本地图片缺失或无法读取，可选择占位导出。', severity: 'degradable', range: resource.range, resource: resource.path }, true)
       continue
@@ -221,9 +221,13 @@ export async function prepareDocxResources(input: DocxModel, load: (path: string
     cancelled(signal)
     try {
       const inspected = inspectImage(bytes)
-      assets.push({ id: resource.id, bytes, ...inspected })
+      const dimensions = decode ? await decode(new Blob([bytes as BlobPart], { type: inspected.mime }), signal) : inspected
+      cancelled(signal)
+      assets.push({ id: resource.id, bytes, ...inspected, ...dimensions })
       resource.status = 'ready'
     } catch (error) {
+      cancelled(signal)
+      if (error instanceof DocxQuotaError || error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name)) throw error
       if (error instanceof Error && error.message.includes('尺寸超限')) throw new DocxQuotaError(error.message)
       resource.status = 'unavailable'
       warning(model.warnings, { code: 'invalid_image', message: '图片头或尺寸无效，可选择占位导出。', severity: 'degradable', range: resource.range, resource: resource.path }, true)

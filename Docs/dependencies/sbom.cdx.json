@@ -3049,6 +3049,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:cargo/zip@6.0.0",
+      "name": "zip",
+      "version": "6.0.0",
+      "purl": "pkg:cargo/zip@6.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:cargo/zlib-rs@0.6.8",
       "name": "zlib-rs",
       "version": "0.6.8",
