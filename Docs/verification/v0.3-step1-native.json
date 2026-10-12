@@ -1,0 +1,45 @@
+{
+  "verifiedAt": "2026-10-12",
+  "branch": "feature/v0.3",
+  "sourceCommit": "02c82a8c2a270678800b441a1b905575155c26e3",
+  "platform": "Windows Release / WebView2",
+  "applicationVersion": "0.2.0",
+  "executable": {
+    "path": "src-tauri/target/release/easym.exe",
+    "sha256": "ff3526a9c57a4a87dfa5c515e0ae09bbaf1b4d24f5e9ad724c3e93f94d2cedd2"
+  },
+  "isolatedProfile": true,
+  "checks": {
+    "openChineseSpacePath": true,
+    "imagePreview": true,
+    "splitSourcePreview": true,
+    "unicodeEmojiEdit": true,
+    "autosave": true,
+    "restartReopen": true,
+    "nativeHtmlExport": true,
+    "printPreview": true,
+    "pdfSaveAndCancel": false,
+    "realImeComposition": false
+  },
+  "fixture": {
+    "markdown": "test-results/v03-step1/中文 工作区/原生 验收.md",
+    "markdownSha256": "ecff746ff34ab5506836c5c47f33b06fe8689af5f4a1654b03eb7bd56e67fce3",
+    "html": "test-results/v03-step1/中文 工作区/原生 验收.html",
+    "htmlSha256": "1c7f44385878ea4d3fb160ef55f879c842f94326032f801178e8f4ab69e6011f",
+    "imageSha256": "2b9f6aa880321a0d689f078e05a363fb8aa1cae0e5553fea72626664f28b783d",
+    "htmlBytes": 6629,
+    "htmlHasEmbeddedPng": true,
+    "htmlHasCsp": true,
+    "htmlHasScript": false
+  },
+  "sessions": {
+    "openEditSave": { "exitCode": 0, "closedNormally": true },
+    "restartAndExport": { "exitCode": 0, "closedNormally": true },
+    "print": { "exitCode": -1, "closedNormally": false, "cleanup": "Stopped only the test-owned EasyM process after the nested system dialog could not be reliably targeted." }
+  },
+  "notes": [
+    "The standalone fixture has no .easym/images.json; the app showed the expected recoverability warning while preserving readable Markdown and the current image.",
+    "The native print preview, WebView print panel, and PDF save dialog opened; actual PDF save/cancel was not marked passed because the nested system dialog could not be reliably targeted by the automation helper.",
+    "type_text verifies Unicode input only and does not constitute real IME composition acceptance."
+  ]
+}
