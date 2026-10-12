@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前为 `feature/v0.2` 的 0.2.0 开发候选，6 步实现与本机自动化收尾已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与待验收项见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。原生三平台关键路径和本轮远程 CI 尚未完成，当前不是正式发行版。
+当前为 `feature/v0.2` 的 0.2.0 开发候选，6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
 
 已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
 
@@ -33,7 +33,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 - 桌面工作区目录选择、延迟加载文件树和树内图片拖入；
 - Windows 复制图片文件后粘贴的原生兼容路径，以及失焦时刷新草稿。
 
-浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP。2026-10-10 的 v0.2 已通过 TypeScript 检查、120 项前端测试、21 项 Windows Rust 测试、生产 Worker 和 Edge 全量回归，以及 Windows Release 编译、原生窗口启动/正常关闭检查。本机 5 MiB 文本和 100 KiB 单行输入 p95 分别为 15.8/16.0 ms。超长行超过 20,000 字符时暂停源码高亮，缩短后自动恢复，正文和预览保持完整。v0.1 的原生另存、自动保存、阅读/Esc、草稿重启和三平台 CI 是历史证据，不能替代本轮验收；完整 Windows 图片/真实输入法、macOS/Linux GUI 和发行复核仍待完成。设计冻结见 [v0.1 设计](Docs/Easy-Markdown-v0.1-设计冻结.md)，旧版实现记录见 [v0.1 实现说明](Docs/Easy-Markdown-v0.1-实现说明.md)。
+浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP。最终验收已通过 TypeScript 检查、125 项前端测试、21 项 Windows Rust 测试、生产构建、统一生产回归、慢速初始化回归、Windows Release/安装/启动/卸载以及原生窗口启动/正常关闭检查。本机 5 MiB 文本和 100 KiB 单行输入 p95 为 17.8/26.8 ms。超长行超过 20,000 字符时暂停源码高亮，缩短后自动恢复，正文和预览保持完整。完整 Windows 图片/真实输入法、原生打印对话框、macOS/Linux GUI 和发行复核仍待完成。设计冻结见 [v0.1 设计](Docs/Easy-Markdown-v0.1-设计冻结.md)，旧版实现记录见 [v0.1 实现说明](Docs/Easy-Markdown-v0.1-实现说明.md)。
 
 本地文件在停止输入 1.2 秒后自动写回；新建或恢复文档先自动保留草稿，首次从 EM 菜单另存为。外部冲突、写入失败或混合换行转换会暂停自动写回并提示，Ctrl/Cmd+S 可手动保存。文件树展开后打开文档仍保持显示，“格式工具栏”按钮可隐藏/显示格式按钮并记住选择；预览表格在四种主题下均有边框。即时渲染在超出 1 Mi 字符或 20,000 字符单行时明确降级为源码。
 
@@ -72,9 +72,9 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
-Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.2.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 `samples/体验指南.md`，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)，校验值见 [v0.2 构建记录](Docs/verification/v0.2/windows-build.json)。
+Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.2.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 `samples/体验指南.md`，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)，最新校验值见 [v0.2 打包记录](Docs/verification/v0.2/acceptance-e66d0f7/package-verification.json)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/启动/卸载已通过提交 `2d15bd3` 的 Windows CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs Docs/verification/v0.2` 记录证据。
+Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/启动/卸载已通过最终 Windows CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs Docs/verification/v0.2` 记录证据。
 
 ## 许可
 
