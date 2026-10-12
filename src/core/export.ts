@@ -1,20 +1,12 @@
 import type { ParsedDocument } from './markdown'
 import { inspectImage, MAX_ASSET_BYTES, MAX_IMAGE_BYTES } from './images'
 import exportStyles from './export.css?inline'
+import { localImagePath } from './export-resource'
+export { localImagePath } from './export-resource'
 
 export const MAX_EXPORT_BYTES = 192 * 1024 * 1024
 export interface ExportDocument { html: string; body: string; warnings: string[]; name: string }
 export { exportStyles }
-
-export function localImagePath(url: string): string | null {
-  try {
-    const path = decodeURIComponent(url)
-    if (!path || /[\\:\x00-\x1f?#]/.test(path) || path.startsWith('/')) return null
-    const parts = path.split('/').filter(part => part !== '.')
-    if (parts.some(part => !part || part === '..')) return null
-    return parts.join('/')
-  } catch { return null }
-}
 
 async function inlineImage(blob: Blob): Promise<string> {
   if (blob.size > MAX_IMAGE_BYTES) throw new Error('图片超过 20 MB')

@@ -3745,6 +3745,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40types/node@26.6.4",
+      "name": "@types/node",
+      "version": "26.6.4",
+      "purl": "pkg:npm/%40types/node@26.6.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40types/unist@3.0.3",
       "name": "@types/unist",
       "version": "3.0.3",
@@ -3841,6 +3853,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/core-util-is@1.0.3",
+      "name": "core-util-is",
+      "version": "1.0.3",
+      "purl": "pkg:npm/core-util-is@1.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/crelt@1.0.7",
       "name": "crelt",
       "version": "1.0.7",
@@ -3901,6 +3925,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/docx@9.10.0",
+      "name": "docx",
+      "version": "9.10.0",
+      "purl": "pkg:npm/docx@9.10.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/escape-string-regexp@5.0.0",
       "name": "escape-string-regexp",
       "version": "5.0.0",
@@ -3941,6 +3977,18 @@
       "name": "format",
       "version": "0.2.2",
       "purl": "pkg:npm/format@0.2.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/hash.js@1.1.7",
+      "name": "hash.js",
+      "version": "1.1.7",
+      "purl": "pkg:npm/hash.js@1.1.7",
       "licenses": [
         {
           "expression": "MIT"
@@ -4021,10 +4069,70 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/immediate@3.0.6",
+      "name": "immediate",
+      "version": "3.0.6",
+      "purl": "pkg:npm/immediate@3.0.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/inherits@2.0.4",
+      "name": "inherits",
+      "version": "2.0.4",
+      "purl": "pkg:npm/inherits@2.0.4",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/is-plain-obj@4.1.0",
       "name": "is-plain-obj",
       "version": "4.1.0",
       "purl": "pkg:npm/is-plain-obj@4.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/isarray@1.0.0",
+      "name": "isarray",
+      "version": "1.0.0",
+      "purl": "pkg:npm/isarray@1.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/jszip@3.10.2",
+      "name": "jszip",
+      "version": "3.10.2",
+      "purl": "pkg:npm/jszip@3.10.2",
+      "licenses": [
+        {
+          "expression": "(MIT OR GPL-3.0-or-later)"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lie@3.3.0",
+      "name": "lie",
+      "version": "3.3.0",
+      "purl": "pkg:npm/lie@3.3.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -4585,10 +4693,58 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/minimalistic-assert@1.0.1",
+      "name": "minimalistic-assert",
+      "version": "1.0.1",
+      "purl": "pkg:npm/minimalistic-assert@1.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/ms@2.1.3",
       "name": "ms",
       "version": "2.1.3",
       "purl": "pkg:npm/ms@2.1.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/nanoid@6.0.2",
+      "name": "nanoid",
+      "version": "6.0.2",
+      "purl": "pkg:npm/nanoid@6.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/pako@1.0.11",
+      "name": "pako",
+      "version": "1.0.11",
+      "purl": "pkg:npm/pako@1.0.11",
+      "licenses": [
+        {
+          "expression": "(MIT AND Zlib)"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/process-nextick-args@2.0.1",
+      "name": "process-nextick-args",
+      "version": "2.0.1",
+      "purl": "pkg:npm/process-nextick-args@2.0.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -4625,6 +4781,18 @@
       "name": "react",
       "version": "19.3.0",
       "purl": "pkg:npm/react@19.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/readable-stream@2.3.8",
+      "name": "readable-stream",
+      "version": "2.3.8",
+      "purl": "pkg:npm/readable-stream@2.3.8",
       "licenses": [
         {
           "expression": "MIT"
@@ -4717,6 +4885,30 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/safe-buffer@5.1.2",
+      "name": "safe-buffer",
+      "version": "5.1.2",
+      "purl": "pkg:npm/safe-buffer@5.1.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/sax@1.6.1",
+      "name": "sax",
+      "version": "1.6.1",
+      "purl": "pkg:npm/sax@1.6.1",
+      "licenses": [
+        {
+          "expression": "BlueOak-1.0.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/scheduler@0.28.0",
       "name": "scheduler",
       "version": "0.28.0",
@@ -4729,10 +4921,34 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/setimmediate@1.0.5",
+      "name": "setimmediate",
+      "version": "1.0.5",
+      "purl": "pkg:npm/setimmediate@1.0.5",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/space-separated-tokens@2.0.2",
       "name": "space-separated-tokens",
       "version": "2.0.2",
       "purl": "pkg:npm/space-separated-tokens@2.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/string_decoder@1.1.1",
+      "name": "string_decoder",
+      "version": "1.1.1",
+      "purl": "pkg:npm/string_decoder@1.1.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -4781,6 +4997,18 @@
       "name": "trough",
       "version": "2.2.0",
       "purl": "pkg:npm/trough@2.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/undici-types@8.9.0",
+      "name": "undici-types",
+      "version": "8.9.0",
+      "purl": "pkg:npm/undici-types@8.9.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -4861,6 +5089,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/util-deprecate@1.0.2",
+      "name": "util-deprecate",
+      "version": "1.0.2",
+      "purl": "pkg:npm/util-deprecate@1.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/vfile-message@4.0.3",
       "name": "vfile-message",
       "version": "4.0.3",
@@ -4889,6 +5129,30 @@
       "name": "w3c-keyname",
       "version": "2.2.8",
       "purl": "pkg:npm/w3c-keyname@2.2.8",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/xml-js@1.6.11",
+      "name": "xml-js",
+      "version": "1.6.11",
+      "purl": "pkg:npm/xml-js@1.6.11",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/xml@1.0.1",
+      "name": "xml",
+      "version": "1.0.1",
+      "purl": "pkg:npm/xml@1.0.1",
       "licenses": [
         {
           "expression": "MIT"
