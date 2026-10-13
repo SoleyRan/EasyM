@@ -1,3 +1,5 @@
 # Content-addressed license filenames and provenance use their exact bytes.
 Docs/dependencies/licenses/** -text whitespace=cr-at-eol
+Docs/verification/pdf-engine-licenses/** -text whitespace=cr-at-eol
+scripts/fixtures/pdf-evaluation/package-lock.json text eol=lf
 scripts/external-licenses/*.txt text eol=lf
