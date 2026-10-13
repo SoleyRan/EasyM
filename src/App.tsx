@@ -69,6 +69,8 @@ function Application() {
   const [showToolbar, setShowToolbar] = useState(() => {
     try { return localStorage.getItem('easym-toolbar') !== 'hidden' } catch { return true }
   })
+  const [showSelectionTools, setShowSelectionTools] = useState(() => { try { return localStorage.getItem('easym-selection-tools') !== 'hidden' } catch { return true } })
+  useEffect(() => { try { localStorage.setItem('easym-selection-tools', showSelectionTools ? 'visible' : 'hidden') } catch { setError('无法保存选区工具栏设置，当前会话仍可使用。') } }, [showSelectionTools])
   const menu = useRef<HTMLDivElement>(null)
   const tablist = useRef<HTMLDivElement>(null)
   const [theme, setTheme] = useState<Theme>(() => {
@@ -323,13 +325,13 @@ function Application() {
     <OverlayHost />
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
     {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} onReadOther={tabs.length > 1 ? () => {
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
       } : undefined} />
     </section>)}
-    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
+    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} selectionTools={showSelectionTools} onSelectionTools={setShowSelectionTools} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
       const handle = handles.current.get(active)

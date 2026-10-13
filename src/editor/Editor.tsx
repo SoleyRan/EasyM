@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap, undo, redo, undoDepth, redoDepth, selectAll } from '@codemirror/commands'
@@ -14,7 +14,8 @@ import { commandDefinitions, validateCommandEdit, type CommandContext, type Comm
 import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '../platform/workspace'
 import { nativeClipboardFiles, supportedImageFiles } from '../platform/clipboard'
 import { largeLines } from './large-lines'
-import { formatState, toggleFormat, type Format, type FormatState } from '../core/formatting'
+import { formatState, inlineFormatStatus, toggleFormat, type Format, type FormatState } from '../core/formatting'
+import { SelectionToolbar, selectionActions, type SelectionAnchor } from './ContentTools'
 import { search, openSearchPanel, closeSearchPanel, findNext, findPrevious } from '@codemirror/search'
 import { createSearchPanel } from './search-panel'
 import { liveRendering, setLiveEnabled, setLiveBlocks } from './live-decoration'
@@ -28,6 +29,7 @@ export interface EditorHandle {
   undo(): void
   redo(): void
   composing(): boolean
+  formatStatus(kind: Format): CommandStatus
   fencedCode(): FencedBlock | null
   format(kind: Format, language: string, context: CommandContext): boolean
   applyCommand(result: EditCommandResult, context: CommandContext): boolean
@@ -59,16 +61,24 @@ function fencedCode(editor: EditorView): FencedBlock | null {
   return { from: node.from, to: node.to, language }
 }
 
-interface Props { commandStatus?(id: string): CommandStatus; commandContext?(): CommandContext; blocked?: boolean; initialText: string; live?: boolean; parsed?: ParsedDocument; previewText?: string; imageContext?: unknown; onRenderImage?(resource: string): Promise<string | null>; onEditImage?(offset: number): void; onEditTable?(offset: number): void; onChange(text: string): void; onSave(): void; onCommand?(kind: string, argument?: unknown, expected?: CommandContext): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
+interface Props { commandStatus?(id: string, expected?: CommandContext): CommandStatus; commandContext?(): CommandContext; selectionTools?: boolean; blocked?: boolean; initialText: string; live?: boolean; parsed?: ParsedDocument; previewText?: string; imageContext?: unknown; onRenderImage?(resource: string): Promise<string | null>; onEditImage?(offset: number): void; onEditTable?(offset: number): void; onEditLanguage?(offset: number): void; onChange(text: string): void; onSave(): void; onCommand?(kind: string, argument?: unknown, expected?: CommandContext): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandStatus, commandContext, blocked = false, initialText, live = false, parsed, previewText, imageContext, onRenderImage = async () => null, onEditImage = () => undefined, onEditTable = () => undefined, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandStatus, commandContext, selectionTools = true, blocked = false, initialText, live = false, parsed, previewText, imageContext, onRenderImage = async () => null, onEditImage = () => undefined, onEditTable = () => undefined, onEditLanguage = () => undefined, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
   const contextMenu = useContextMenu()
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const composition = useRef(false)
+  const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor | null>(null)
+  const selectionEnabled = useRef(selectionTools && !blocked); selectionEnabled.current = selectionTools && !blocked
   const isComposing = (editor: EditorView) => composition.current || editor.compositionStarted
-  const callbacks = useRef({ commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable })
-  callbacks.current = { commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable }
+  const callbacks = useRef({ commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable, onEditLanguage })
+  callbacks.current = { commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable, onEditLanguage }
+  const formatStatus = (kind: Format): CommandStatus => {
+    const editor = view.current
+    if (!editor) return { enabled: false }
+    const state = editor.state, checked = formatState(state.doc, state.selection.main, syntaxTree(state))[kind]
+    return selectionActions.some(([value]) => value === kind) ? { ...inlineFormatStatus(state.doc, state.selection.main, syntaxTree(state), kind as 'bold' | 'italic' | 'strike' | 'inlineCode' | 'link'), checked } : { enabled: true, checked }
+  }
   const readOnly = useRef(new Compartment())
   const applyCommand = (result: EditCommandResult, context: CommandContext) => {
     const editor = view.current
@@ -85,6 +95,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
   useImperativeHandle(ref, () => ({
     selection: () => view.current?.state.selection.main ?? { anchor: 0, head: 0 },
     composing: () => view.current ? isComposing(view.current) : false,
+    formatStatus,
     openSearch: () => { if (view.current && !isComposing(view.current)) openSearchPanel(view.current) },
     fencedCode: () => view.current ? fencedCode(view.current) : null,
     focus: () => view.current?.focus(),
@@ -93,6 +104,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
     format: (kind, language, context) => {
       const editor = view.current
       if (!editor || isComposing(editor)) return false
+      if (!formatStatus(kind).enabled) return false
       return applyCommand(toggleFormat(context.textRevision, editor.state.doc, editor.state.selection.main, syntaxTree(editor.state), kind, language), context)
     },
     patch: (patches, selection) => {
@@ -131,13 +143,23 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
   }), [])
 
   useEffect(() => {
-    let previousFormats: FormatState | undefined
+    let timer = 0, dragging = false
+    const hideSelection = () => { clearTimeout(timer); setSelectionAnchor(null) }
+    const showSelection = () => {
+      hideSelection()
+      timer = window.setTimeout(() => {
+        const editor = view.current, context = callbacks.current.commandContext?.()
+        if (!editor || !selectionEnabled.current || dragging || !editor.hasFocus || isComposing(editor) || !context || !context.active || context.reading || context.lockReason || editor.state.selection.main.empty || !selectionActions.some(([kind]) => formatStatus(kind).enabled)) return
+        const rect = editor.coordsAtPos(editor.state.selection.main.head), bounds = editor.scrollDOM.getBoundingClientRect()
+        if (!rect || rect.top < bounds.top || rect.bottom > bounds.bottom) return
+        setSelectionAnchor({ rect: new DOMRect(rect.left, rect.top, Math.max(1, rect.right - rect.left), rect.bottom - rect.top), context: { ...context, selection: { anchor: context.selection.anchor, head: context.selection.head } } })
+      }, 160)
+    }
+    const release = () => { if (dragging) { dragging = false; showSelection() } }
+    const begin = () => { dragging = true; hideSelection() }
     const updateFormats = (state: EditorState) => {
       const formats = formatState(state.doc, state.selection.main, syntaxTree(state))
-      if (!previousFormats || Object.keys(formats).some(key => formats[key as Format] !== previousFormats![key as Format])) {
-        previousFormats = formats
-        callbacks.current.onFormats?.(formats)
-      }
+      callbacks.current.onFormats?.(formats)
     }
     const language = new Compartment()
     const support = markdown({ base: markdownLanguage, codeLanguages: languages })
@@ -150,13 +172,14 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
           readOnly.current.of(EditorState.readOnly.of(blocked)), lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
           search({ top: true, literal: true, createPanel: createSearchPanel, scrollToMatch: range => EditorView.scrollIntoView(range, { y: 'start', yMargin: 8 }) }),
           largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
-          liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset), editTable: offset => callbacks.current.onEditTable(offset) }),
+          liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset), editTable: offset => callbacks.current.onEditTable(offset), editLanguage: offset => callbacks.current.onEditLanguage(offset) }),
           EditorState.transactionExtender.of((transaction) => {
             const before = transaction.startState.field(largeLines) > 0
             const after = transaction.state.field(largeLines) > 0
             return before === after ? null : { effects: language.reconfigure(after ? [] : support) }
           }),
           keymap.of([
+            { key: 'Alt-F10', run: () => { document.querySelector<HTMLButtonElement>('.selection-toolbar button:not(:disabled)')?.focus(); return true } },
             { key: 'Mod-f', run: (v) => { if (!isComposing(v)) callbacks.current.onCommand('edit.search'); return true } },
             { key: 'F3', run: (v) => isComposing(v) ? true : findNext(v), shift: (v) => isComposing(v) ? true : findPrevious(v) },
             { key: 'Mod-g', run: (v) => isComposing(v) ? true : findNext(v), shift: (v) => isComposing(v) ? true : findPrevious(v) },
@@ -167,9 +190,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
           ]),
           keymap.of(commandDefinitions.filter(command => command.shortcut && (command.id.startsWith('format.') || command.id === 'insert.image')).map(command => ({ key: command.shortcut!.replaceAll('+', '-').replace(/([A-Z])$/, letter => letter.toLowerCase()), run: (v: EditorView) => { if (!isComposing(v)) callbacks.current.onCommand(command.id); return true } }))),
           EditorView.domEventHandlers({
-            compositionstart: () => { composition.current = true; return false },
+            pointerdown: () => { begin(); return false },
+            blur: event => { if (!(event.relatedTarget instanceof HTMLElement && event.relatedTarget.closest('.selection-toolbar'))) hideSelection(); return false },
+            compositionstart: () => { composition.current = true; hideSelection(); return false },
             compositionend: () => { queueMicrotask(() => { composition.current = false }); return false },
             scroll: (_event, v) => {
+              hideSelection()
               const scroll = v.scrollDOM
               const height = Math.max(0, scroll.getBoundingClientRect().top - v.documentTop)
               const line = v.lineBlockAtHeight(height)
@@ -203,6 +229,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
           }),
           EditorView.contentAttributes.of({ 'aria-label': 'Markdown 源码编辑器', spellcheck: 'false' }),
           EditorView.updateListener.of((update) => {
+            if (update.docChanged) hideSelection()
+            if (update.selectionSet && (!update.docChanged || update.transactions.some(transaction => transaction.isUserEvent('input.toolbar')))) showSelection()
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
             if (update.docChanged) callbacks.current.onHighlightLimited?.(update.state.field(largeLines) > 0)
             if (update.selectionSet || update.docChanged) callbacks.current.onCodeLanguage?.(fencedCode(update.view)?.language ?? null)
@@ -213,12 +241,15 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
       }),
     })
     view.current = editor
+    window.addEventListener('pointerup', release); window.addEventListener('blur', hideSelection); window.addEventListener('resize', hideSelection)
+    const resizeObserver = new ResizeObserver(hideSelection); resizeObserver.observe(editor.dom)
     callbacks.current.onHighlightLimited?.(limited)
     callbacks.current.onCodeLanguage?.(fencedCode(editor)?.language ?? null)
     updateFormats(editor.state)
-    return () => { editor.destroy(); view.current = null }
+    return () => { clearTimeout(timer); window.removeEventListener('pointerup', release); window.removeEventListener('blur', hideSelection); window.removeEventListener('resize', hideSelection); resizeObserver.disconnect(); editor.destroy(); view.current = null }
   }, [])
   useEffect(() => { view.current?.dispatch({ effects: readOnly.current.reconfigure(EditorState.readOnly.of(blocked)) }) }, [blocked])
+  useEffect(() => { if (!selectionTools || blocked) setSelectionAnchor(null) }, [selectionTools, blocked])
   useEffect(() => {
     view.current?.dispatch({ effects: setLiveEnabled.of(live) })
   }, [live])
@@ -228,7 +259,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
     if (!editor || !parsed?.blocks || previewText === undefined || editor.state.doc.length > 1024 * 1024 || editor.state.doc.toString() !== previewText) return
     editor.dispatch({ effects: setLiveBlocks.of({ doc: editor.state.doc, blocks: parsed.blocks, context: imageContext }) })
   }, [parsed, previewText, imageContext])
-  return <div ref={host} className="codemirror-host" onContextMenu={event => {
+  return <><div ref={host} className="codemirror-host" onContextMenu={event => {
     const editor = view.current
     if (!editor || !(event.target as HTMLElement).closest('.cm-content, .cm-scroller, .cm-gutters')) return
     if (isComposing(editor)) { event.preventDefault(); event.stopPropagation(); return }
@@ -249,16 +280,19 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
     contextMenu(event, [
       { label: '撤销', disabled: !status('edit.undo').enabled, run: () => invoke('edit.undo') },
       { label: '重做', disabled: !status('edit.redo').enabled, run: () => invoke('edit.redo') },
-      { label: '剪切', disabled: !selected || !status('format.bold').enabled, run: async () => { await navigator.clipboard.writeText(selected); replace('') } },
+      { label: '剪切', disabled: !selected || !status('insert.image').enabled, run: async () => { await navigator.clipboard.writeText(selected); replace('') } },
       { label: '复制', disabled: !selected, run: () => navigator.clipboard.writeText(selected) },
-      { label: '粘贴文本', disabled: !status('format.bold').enabled, run: async () => replace(await navigator.clipboard.readText()) },
+      { label: '粘贴文本', disabled: !status('insert.image').enabled, run: async () => replace(await navigator.clipboard.readText()) },
       { label: '全选', disabled: state.doc.length === 0, run: () => { selectAll(editor); editor.focus() } },
       { label: '加粗', disabled: !status('format.bold').enabled, checked: status('format.bold').checked ?? formats.bold, run: () => invoke('format.bold') },
       { label: '斜体', disabled: !status('format.italic').enabled, checked: status('format.italic').checked ?? formats.italic, run: () => invoke('format.italic') },
+      ...(['strike', 'inlineCode', 'link'] as const).map(kind => ({ label: { strike: '删除线', inlineCode: '行内代码', link: '链接' }[kind], disabled: !status('format.' + kind).enabled, checked: status('format.' + kind).checked, run: () => invoke('format.' + kind) })),
+      { label: '转换为', disabled: !status('paragraph.convert').enabled, run: () => invoke('paragraph.convert') },
+      { label: '选择代码语言', disabled: !status('content.language').enabled, run: () => invoke('content.language') },
       { label: '插入表格', disabled: !status('insert.table').enabled, run: () => invoke('insert.table') },
       { label: '编辑表格', disabled: !status('table.edit').enabled, run: () => invoke('table.edit') },
       { label: '插入图片', disabled: !status('insert.image').enabled, run: () => invoke('insert.image') },
       { label: '查找 / 替换', disabled: !status('edit.search').enabled, run: () => invoke('edit.search') },
     ])
-  }} />
+  }} />{selectionAnchor && <SelectionToolbar anchor={selectionAnchor} status={(id, context) => callbacks.current.commandStatus?.(id, context) ?? { enabled: true }} execute={(id, argument, context) => callbacks.current.onCommand(id, argument, context)} dismiss={() => setSelectionAnchor(null)} />}</>
 })

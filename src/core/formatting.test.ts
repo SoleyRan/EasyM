@@ -85,8 +85,6 @@ describe('format toggles and selection state', () => {
   it('cancels links while retaining the label, nested formatting and definitions', () => {
     expect(toggle('[**hello**](https://example.com)', { anchor: 3, head: 8 }, 'link').text).toBe('**hello**')
     expect(toggle('[hello][id]\n\n[id]: /target', { anchor: 1, head: 6 }, 'link').text).toBe('hello\n\n[id]: /target')
-    const applied = toggle('hello', { anchor: 0, head: 5 }, 'link')
-    expect(state(applied.text, applied.selection).link).toBe(true)
-    expect(toggle(applied.text, applied.selection, 'link').text).toBe('hello')
+    expect(() => toggle('hello', { anchor: 0, head: 5 }, 'link')).toThrow('链接工具')
   })
 })

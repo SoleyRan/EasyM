@@ -278,3 +278,20 @@
 .preview-table-actions { display: flex; gap: 6px; padding: 5px 0; }
 .preview-table-actions button { font-size: 12px; color: var(--accent); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; }
 .toolbar button[aria-label="插入表格"], .toolbar button[aria-label="编辑表格"] { width: auto; min-width: 66px; white-space: nowrap; }
+.selection-toolbar { display: flex; gap: 3px; padding: 5px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); box-shadow: 0 4px 18px #0002; z-index: 30; }
+.selection-toolbar button { min-width: 30px; min-height: 30px; border-radius: 5px; }
+.selection-toolbar button[aria-pressed="true"], .language-options button[aria-pressed="true"] { background: var(--hover); color: var(--accent); }
+.selection-toolbar button[aria-pressed="mixed"] { background: var(--hover); border-bottom: 2px dashed var(--accent); }
+.content-tool-dialog { width: min(540px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.content-tool-dialog label { display: grid; gap: 6px; margin: 12px 0; }
+.content-tool-dialog input, .content-tool-dialog select { width: 100%; padding: 8px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 5px; }
+.language-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; max-height: 280px; overflow: auto; margin: 12px 0; }
+.language-options button { padding: 8px; text-align: left; min-width: 0; }
+.language-options small { display: block; color: var(--muted); }
+.preview-language-button, .live-language-button { font-size: 12px; color: var(--muted); background: var(--surface); padding: 3px 8px; border: 1px solid var(--border); border-radius: 4px; }
+.live-language-button { position: absolute; right: 65px; top: 6px; }
+
+.toolbar { overflow-x: auto; }
+.toolbar > * { flex-shrink: 0; }
+.toolbar button[aria-label="转换为"] { width: auto; min-width: 64px; white-space: nowrap; }
+.toolbar-hint { white-space: nowrap; }

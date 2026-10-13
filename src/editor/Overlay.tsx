@@ -59,9 +59,9 @@ export function useModalOverlay(element: RefObject<HTMLElement | null>) {
   }, [context?.manager, element])
 }
 
-export function PositionedOverlay({ children, anchor, side = 'below', className, id, label, lease, element: externalElement, onKeyDown }: {
+export function PositionedOverlay({ children, anchor, side = 'below', className, id, label, lease, element: externalElement, onKeyDown, role = 'menu', onMouseDown }: {
   children: ReactNode; anchor(): DOMRect | null; side?: 'below' | 'right'; className: string; id?: string; label: string;
-  lease: RefObject<OverlayLease | null>; element?: RefObject<HTMLDivElement | null>; onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>
+  lease: RefObject<OverlayLease | null>; element?: RefObject<HTMLDivElement | null>; onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>; role?: 'menu' | 'toolbar'; onMouseDown?: React.MouseEventHandler<HTMLDivElement>
 }) {
   const { host } = useOverlays()
   const ownElement = useRef<HTMLDivElement>(null), element = externalElement ?? ownElement
@@ -95,5 +95,5 @@ export function PositionedOverlay({ children, anchor, side = 'below', className,
     document.addEventListener('pointermove', measure)
     return () => { disposed = true; cancelAnimationFrame(frame); observer?.disconnect(); document.removeEventListener('scroll', measure, true); window.removeEventListener('resize', measure); document.removeEventListener('pointermove', measure) }
   }, [element, lease, side, host])
-  return <OverlayPortal><div ref={element} className={className} id={id} role="menu" aria-label={label} style={{ position: 'fixed', visibility: 'hidden' } as CSSProperties} onKeyDown={onKeyDown}>{children}</div></OverlayPortal>
+  return <OverlayPortal><div ref={element} className={className} id={id} role={role} aria-label={label} style={{ position: 'fixed', visibility: 'hidden' } as CSSProperties} onKeyDown={onKeyDown} onMouseDown={onMouseDown}>{children}</div></OverlayPortal>
 }

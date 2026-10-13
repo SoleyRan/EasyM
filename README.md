@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前在 `feature/v0.4`，已冻结 [v0.4 设计与实施计划](Docs/Easy-Markdown-v0.4-设计与实施计划.md)。第一步统一命令与浮层已提交为 `ae3e216`，见 [第一步记录](Docs/Easy-Markdown-v0.4-第一步-命令与浮层.md)；第二步可视化表格已实现，见 [第二步记录](Docs/Easy-Markdown-v0.4-第二步-可视化表格编辑.md)。下一步为选区与内容就地工具，之后依次完成快捷插入/命令面板/快速打开、排版设置与回归交付。仅借鉴 MarkText 的交互设计，独立实现，不引入其代码或资源；产品版本暂时保持 0.3.0。
+当前在 `feature/v0.4`，已冻结 [v0.4 设计与实施计划](Docs/Easy-Markdown-v0.4-设计与实施计划.md)。第一步统一命令与浮层已提交为 `ae3e216`，见 [第一步记录](Docs/Easy-Markdown-v0.4-第一步-命令与浮层.md)；第二步可视化表格已提交为 `0da2cdc`，见 [第二步记录](Docs/Easy-Markdown-v0.4-第二步-可视化表格编辑.md)。第三步选区与内容就地工具已实现，见 [第三步记录](Docs/Easy-Markdown-v0.4-第三步-选区与内容工具.md)。下一步为快捷插入/命令面板/快速打开，之后完成排版设置与回归交付。仅借鉴 MarkText 的交互设计，独立实现，不引入其代码或资源；产品版本暂时保持 0.3.0。
 
 v0.3 已合并到 develop，已完成办公增强实现和 [0.3.0 本机验收与开发包交付](Docs/Easy-Markdown-v0.3-验收与交付.md)：DOCX 预检/后台导出、显式启用的持久版本历史与文字/图片差异、恢复/清理、最多 100 实例的安全批图，以及键盘焦点和阅读模式改进。PDF 候选实测评估后保留系统打印，专用引擎延期。173 项前端、50 项 Windows Rust、15 组生产回归、慢速查找/模板、Word 打开编辑再保存与原生窗口启动通过；0.3.0 Windows 安装包/便携包已生成。提交 `efcfe0b` 的 [三平台 CI 第 2 次运行](https://github.com/SoleyRan/EasyM/actions/runs/38367149201/attempts/2) 全部通过，包含 Windows 原生启动、隔离安装/卸载和便携包校验。真实 IME/原生对话框、读屏与跨平台 GUI 等门槛仍待验收，不称为正式发行。范围见 [v0.3 设计计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)。
 
@@ -75,6 +75,7 @@ pnpm verify:export
 pnpm verify:context-menu
 pnpm verify:commands
 pnpm verify:tables
+pnpm verify:content-tools
 pnpm verify:performance
 ```
 

@@ -1,0 +1,144 @@
+{
+  "phase": "v0.4 step 3",
+  "verifiedAt": "2026-10-13T13:43:51.7709282Z",
+  "branch": "feature/v0.4",
+  "parentCommit": "0da2cdce83234fb57c8f9857e32ae4cff071fa64",
+  "implementation": "Uncommitted workspace snapshot; independent implementation",
+  "version": "0.3.0",
+  "passed": true,
+  "checks": {
+    "unitFiles": 39,
+    "unitTests": 218,
+    "contentToolsGroups": 8,
+    "windowsRustTests": 55,
+    "build": true,
+    "diffCheck": true,
+    "releaseMetadata": true,
+    "productionGroups": 18
+  },
+  "distIndexSha256": "dd18eaf1b19ec4dd9f2483be078322915b1dcd9fc725f7cd852b920e2ce2c986",
+  "sourceFiles": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "7d4520195db1fd19c67f5d55df99f1d0223cf9ef2cca42dbcf426cad778e50f1"
+    },
+    {
+      "path": "Docs/Easy-Markdown-v0.4-第三步-选区与内容工具.md",
+      "sha256": "ff31f9cbd8f1e5cd5cfd924aa83b186ccaede35606e8cb8926a0304ada436df1"
+    },
+    {
+      "path": "Docs/Easy-Markdown-v0.4-设计与实施计划.md",
+      "sha256": "6cf770801fecb213b8c1f42eac7d754e6f10f66375b92c909b1b66446c14dfe1"
+    },
+    {
+      "path": "README.md",
+      "sha256": "75ca31d8fd7b2c5ee77a8d9dab12e84fac77d185f1e60b7b18f7165f473f15b2"
+    },
+    {
+      "path": "package.json",
+      "sha256": "5f8e8170f843d1705482a54d15db50d23dd00371495028cc8c593f6d96512942"
+    },
+    {
+      "path": "scripts/verify-content-tools.mjs",
+      "sha256": "3431ab76311a76bcdf0e4134217478127232452c5a7e169d23e67f19c7380eb0"
+    },
+    {
+      "path": "scripts/verify-regression.mjs",
+      "sha256": "f95efd8e06a9a4ea48626892037f496e82296537a90da6fe675db5a0c8aae5d7"
+    },
+    {
+      "path": "scripts/verify-selection.mjs",
+      "sha256": "6f847e2327cce855c4bde2f089dda2a6c94e8b296ac927ca5b47524255b4ba5d"
+    },
+    {
+      "path": "src-tauri/src/lib.rs",
+      "sha256": "88d52a9c4adfbca9d8841ac7118ba285d82e2d68a53d847ba01a09c9686dc8b1"
+    },
+    {
+      "path": "src-tauri/src/links.rs",
+      "sha256": "bb79b3294c3ebe78177778d8c47c3179556e7a842ed105dec20729e417f347ff"
+    },
+    {
+      "path": "src/App.tsx",
+      "sha256": "90f30836a4fd006c96bd5749f68bfe47f79758324ca38fa5666e99586d8ede1d"
+    },
+    {
+      "path": "src/core/code-block.ts",
+      "sha256": "5836ce8005f5713e66fbbadb430e559f1bfd2e25f7821b9c793aa1c122fa9a51"
+    },
+    {
+      "path": "src/core/commands.ts",
+      "sha256": "aa2ebffa3d913074999889a5f084111aaa86e61cf1fe077d7f8f65decbdac9cd"
+    },
+    {
+      "path": "src/core/content-tools.test.ts",
+      "sha256": "4d7ff1f07fdf3b5f6d807c66c111e894172e103167f407701a0b8b7a36bc370b"
+    },
+    {
+      "path": "src/core/content-tools.ts",
+      "sha256": "2643f7d22028028f060bc717b306864f93e7e401e692ece24a9e18d57192a299"
+    },
+    {
+      "path": "src/core/formatting.test.ts",
+      "sha256": "9c3c50f5aacbb55a8500866e7a38348c36a8e3efef39bc39f1aa35338b7eae94"
+    },
+    {
+      "path": "src/core/formatting.ts",
+      "sha256": "bf900bb8569da8a7a874aa5d11ebdcd119291632d47100ca6921ca477455f022"
+    },
+    {
+      "path": "src/core/links.test.ts",
+      "sha256": "205a43681563f7a99e427c7c40c3e074ddb5d32f2c2a0d381fe0d50de8c324ab"
+    },
+    {
+      "path": "src/core/links.ts",
+      "sha256": "6fcc60017acd173df8496ab5e8c1012d16ce39700af50ed59aa0dce11f687f5c"
+    },
+    {
+      "path": "src/core/selection-formatting.test.ts",
+      "sha256": "285d63bf18dbfd1e1044bcd6fb438705aad9742266e34fea138cc29d484a2a75"
+    },
+    {
+      "path": "src/editor/ApplicationDialogs.tsx",
+      "sha256": "c03cb1030370525d8ac38fafa1390c7008ca8f33c19a51341141d070ebd64d00"
+    },
+    {
+      "path": "src/editor/ContentTools.tsx",
+      "sha256": "e501997560d06a35e9e5cf218d223076280c4192b51bc59e10449219e3f1ca84"
+    },
+    {
+      "path": "src/editor/DocumentEditor.tsx",
+      "sha256": "317cd8b884ec22b9271d14f06c8f01bc95bfdf2efca6eb57e7c932a95755f860"
+    },
+    {
+      "path": "src/editor/Editor.tsx",
+      "sha256": "5ebaf1d7f6ce15d8d654aa28c356c823c7bb0f0e145c1417939df28f100cd828"
+    },
+    {
+      "path": "src/editor/Overlay.tsx",
+      "sha256": "e261a4c5a82b5064e0863907b599156b1d3a830d3916ef8535364416fb85ba5d"
+    },
+    {
+      "path": "src/editor/live-decoration.ts",
+      "sha256": "cf67befb3c073637aa6e9fe8bbc361259322bc122e5c71f8a8ef19a5f1e6f50d"
+    },
+    {
+      "path": "src/editor/themes.css",
+      "sha256": "29a157d6c5e0714b1a164b2e78f526276dd1cd51fc45130a6ad08fab9593d4e1"
+    },
+    {
+      "path": "src/platform/links.ts",
+      "sha256": "3f84bae77a9472f3874816bae48d1a3465454ba990e4451c9ef9e2858602ef96"
+    },
+    {
+      "path": "src/platform/workspace.ts",
+      "sha256": "f896a9c5b4dad8b1f88ad40cb0662cfe9a716aeefbbdc3e8880bbe9694d7bb6d"
+    }
+  ],
+  "limitations": [
+    "Real IME candidate interaction remains manual.",
+    "Native URL association launch, native dialogs and macOS/Linux GUI remain unverified.",
+    "No package, push or current-source remote CI run.",
+    "Existing build chunk-size and React act test warnings remain."
+  ]
+}

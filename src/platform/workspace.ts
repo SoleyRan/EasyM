@@ -6,7 +6,7 @@ export interface Workspace { id: string; name: string; entries: WorkspaceEntry[]
 export interface WorkspaceImage { id: string; path: string }
 export interface WorkspaceSearchResult { path: string; line: number; preview: string; revision: string }
 export interface WorkspaceSearchReport { results: WorkspaceSearchResult[]; scanned: number; skipped: number; limited: boolean; cancelled: boolean }
-export interface WorkspaceLocation { token: string; line: number; revision: string }
+export interface WorkspaceLocation { token: string; line: number; revision: string; fragment?: string }
 export const WORKSPACE_IMAGE_TYPE = 'application/x-easym-workspace-image'
 
 export const openWorkspace = () => invoke<Workspace | null>('open_workspace')

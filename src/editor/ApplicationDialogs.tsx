@@ -26,9 +26,9 @@ function ApplicationDialog({ title, onClose, busy = false, children, onKeyDown }
   </div>
 }
 
-export function SettingsDialog({ fileId, theme, onTheme, toolbar, onToolbar, fontSize, onFontSize, onGuide, onClose }: {
+export function SettingsDialog({ fileId, theme, onTheme, toolbar, onToolbar, selectionTools = true, onSelectionTools, fontSize, onFontSize, onGuide, onClose }: {
   fileId: string | null | undefined; theme: Theme; onTheme(value: Theme): void; toolbar: boolean; onToolbar(value: boolean): void;
-  fontSize: number; onFontSize(value: number): void; onGuide(): void; onClose(): void
+  selectionTools?: boolean; onSelectionTools?(value: boolean): void; fontSize: number; onFontSize(value: number): void; onGuide(): void; onClose(): void
 }) {
   const [directory, setDirectory] = useState<HistoryDirectory | null>(null)
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(!!fileId && desktop)
@@ -53,6 +53,7 @@ export function SettingsDialog({ fileId, theme, onTheme, toolbar, onToolbar, fon
     <section><h3>外观与编辑</h3>
       <label className="setting-row">配色主题<select aria-label="设置配色主题" value={theme} onChange={e => onTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key, name]) => <option value={key} key={key}>{name}</option>)}</select></label>
       <label className="setting-row"><span>显示格式工具栏</span><input type="checkbox" checked={toolbar} onChange={e => onToolbar(e.target.checked)} /></label>
+      <label className="setting-row"><span>显示选区浮动工具栏</span><input type="checkbox" checked={selectionTools} onChange={e => onSelectionTools?.(e.target.checked)} /></label>
       <label className="setting-row">编辑字号<select aria-label="编辑字号" value={fontSize} onChange={e => onFontSize(Number(e.target.value))}>{[12, 14, 16, 18, 20, 22, 24].map(size => <option value={size} key={size}>{size} px</option>)}</select></label>
       <p>设置即时生效，并保存在本机。已保存文件停止输入后自动保存；新文档先保留本机草稿，首次请另存为。</p>
     </section>
