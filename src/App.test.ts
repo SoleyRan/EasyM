@@ -559,7 +559,7 @@ it('shows file commands only in the EM menu and dismisses it on Escape', async (
   await mount()
   expect(container.querySelector('[role=menu]')).toBeNull()
   await click('EM 菜单')
-  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(11)
+  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(12)
   const trigger = container.querySelector<HTMLButtonElement>('.app-menu-trigger')!
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('[role=menu]')).toBeNull()

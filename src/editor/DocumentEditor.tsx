@@ -11,6 +11,9 @@ import { parseForExport, saveHtml } from '../platform/export'
 import { PrintDialog } from './PrintDialog'
 import { DocxDialog, type DocxPhase } from './DocxDialog'
 import { HistoryDialog } from './HistoryDialog'
+import { BatchImageDialog } from './BatchImageDialog'
+import { prepareBatch, type BatchOutput } from '../platform/batch-images'
+import type { BatchOptions } from '../core/batch-images'
 import { historyInput, historyOperation, relocateHistoryImages } from '../platform/history'
 import type { ImageMetadata } from '../core/images'
 import type { PreparedDocx } from '../core/docx-model'
@@ -62,7 +65,7 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history'
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
 export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
@@ -93,6 +96,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   activeRef.current = active
   const [docx, setDocx] = useState<{ prepared: PreparedDocx | null; source: string; phase: DocxPhase } | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
   const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
@@ -261,6 +265,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         else if (action === 'reload') void reloadExternal()
         else if (action === 'exportDocx') void exportDocxDocument()
         else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
+        else if (action === 'batchImages') { setBatchOpen(true); setBusy(true) }
         else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
         else void save(true)
       },
@@ -273,6 +278,33 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   function closeHistory() {
     setHistoryOpen(false); setBusy(false)
     window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
+  }
+  function closeBatch() {
+    setBatchOpen(false); setBusy(false)
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
+  }
+  async function applyBatch(outputs: BatchOutput[], options: BatchOptions, operationId: string) {
+    if (!fileId || !revision || saving.current || editor.current?.composing()) throw new Error('当前文档暂不可提交。')
+    if (snapshot.lineEnding === 'mixed') throw new Error('请先确认并保存混合换行，再进行批量处理。')
+    saving.current = true
+    try {
+      const prepared = await prepareBatch(text, images.resources, outputs)
+      const bytes = encodeFile(snapshot, prepared.text)
+      const result = await historyOperation<{ revision: string; warning?: string }>(fileId, { action: 'batchCommit', operationId, expectedRevision: revision,
+        current: await historyInput(encodeFile(snapshot, text), images.resources, revision), next: await historyInput(bytes, prepared.resources, revision), options,
+        items: outputs.map(output => ({ from: output.reference.from, to: output.reference.to, insert: prepared.patches.find(p => p.from === output.reference.from)!.insert, beforePath: output.reference.path,
+          sourcePath: output.instance.sourcePath, displayPath: output.instance.displayPath, beforeHash: output.beforeHash, afterHash: output.afterHash, instanceId: output.instance.instanceId, previous: output.previous ?? null })) })
+      images.setResources(prepared.resources)
+      if (!editor.current?.patch([...prepared.patches].sort((a, b) => a.from - b.from))) {
+        setRevision(result.revision); setAutoSavePaused(true)
+        throw new Error('磁盘批次已保存，编辑器未完成应用；已保留当前编辑，请重新加载外部版本或另存副本。')
+      }
+      setRevision(result.revision); setSnapshot(decodeFile(bytes)); setDirty(false); setAutoSavePaused(false)
+      persistedTextRevision.current = changeRevision.current
+      try { await clearDraft(changeRevision.current) } catch (e) { setError(errorMessage(e)) }
+      if (result.warning) setError(result.warning)
+      setStatus('批量图片与正文已保存，可整批撤销'); setView(current => current === 'live' ? 'live' : 'split')
+    } finally { saving.current = false }
   }
   function historyBytes(): Uint8Array | null {
     try { return encodeFile(snapshot, text) } catch { return null }
@@ -749,5 +781,5 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}{historyOpen && active && <HistoryDialog fileId={fileId} text={text} bytes={historyBytes()} snapshot={snapshot} revision={revision} resources={images.resources} onClose={closeHistory} onRestore={restoreHistory} />}</>
+  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}{historyOpen && active && <HistoryDialog fileId={fileId} text={text} bytes={historyBytes()} snapshot={snapshot} revision={revision} resources={images.resources} onClose={closeHistory} onRestore={restoreHistory} />}{batchOpen && active && <BatchImageDialog text={text} fileId={fileId} resources={images.resources} onClose={closeBatch} onHistory={() => { setBatchOpen(false); setHistoryOpen(true) }} onApply={applyBatch} />}</>
 }

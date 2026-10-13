@@ -51,6 +51,12 @@ struct Snapshot {
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Input { bytes: Vec<u8>, references: Vec<String>, #[serde(default)] unarchived_references: Vec<String>, assets: Vec<Asset>, metadata: Metadata, disk_revision: Option<String> }
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchOptions { max_side: u32, format: String, quality: f64, strip_metadata: bool, background: Option<String> }
+#[derive(Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchItem { from: usize, to: usize, insert: String, before_path: String, source_path: String, display_path: String, before_hash: String, after_hash: String, instance_id: String, previous: Option<Value> }
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum Request {
@@ -67,6 +73,8 @@ pub enum Request {
     Prepare { snapshot_id: String },
     Restore { snapshot_id: String, bytes: Vec<u8>, relocations: BTreeMap<String, String>, current: Input, expected_revision: String, operation_id: String, encoding: String, line_ending: String },
     Copy { snapshot_id: String, body_only: bool },
+    BatchRecord { operation_id: String, status: String, options: BatchOptions },
+    BatchCommit { operation_id: String, expected_revision: String, current: Input, next: Input, options: BatchOptions, items: Vec<BatchItem> },
 }
 
 fn now() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64 }
@@ -139,7 +147,7 @@ fn manifest_read(root: &Path, doc: &str, snap: &str) -> Result<Snapshot, String>
     if value.document_id != doc || value.snapshot_id != snap || value.body_size > MAX_TEXT || !valid_hash(&value.body_hash) || value.resources.len() > 4096 || value.metadata.schema_version != 1 { return Err("history_invalid".into()); }
     if let Some(parent) = &value.parent_snapshot_id { uuid(parent)?; }
     if !["utf-8", "utf-8-bom"].contains(&value.encoding.as_str()) || !["lf", "crlf", "mixed"].contains(&value.line_ending.as_str()) { return Err("history_invalid".into()); }
-    if !["baseline", "manual", "automatic", "pre-save", "pre-restore", "restore", "pre-batch"].contains(&value.reason.as_str()) { return Err("history_invalid".into()); }
+    if !["baseline", "manual", "automatic", "pre-save", "pre-restore", "restore", "pre-batch", "batch"].contains(&value.reason.as_str()) { return Err("history_invalid".into()); }
     let mut paths = BTreeSet::new(); let mut total = 0;
     for item in &value.resources {
         relative(&item.path)?;
@@ -518,13 +526,115 @@ fn copy_snapshot(root: &Path, path: &Path, sessions: &BTreeSet<PathBuf>, snap: &
     Ok(json!({"name":key(&target)?,"warning":warning,"bodyOnly":body_only}))
 }
 
+fn batch_options(options: &BatchOptions) -> Result<(), String> {
+    if !(1..=8192).contains(&options.max_side) || !["keep", "image/png", "image/jpeg"].contains(&options.format.as_str()) || !options.quality.is_finite() || !(0.1..=1.0).contains(&options.quality) || options.background.as_ref().is_some_and(|s| s.len() != 7 || !s.starts_with('#') || !s[1..].bytes().all(|b| b.is_ascii_hexdigit())) { return Err("invalid_data".into()); } Ok(())
+}
+fn batch_log(root: &Path, index: &Index, path: &Path, operation: &str, value: &Value) -> Result<(), String> {
+    uuid(operation)?; let doc = &entry(index, path)?.document_id;
+    let bytes = serde_json::to_vec(value).map_err(|_| "invalid_data")?;
+    if bytes.len() > MAX_JSON as usize { return Err("quota_exceeded".into()); }
+    let relative = format!("{BASE}/documents/{doc}/batch-{operation}.json");
+    let previous = if root.join(&relative).exists() { let old = bounded(root, &relative, MAX_JSON)?; let old_value: Value = serde_json::from_slice(&old).map_err(|_| "history_invalid")?; if old_value["schemaVersion"] != 1 { return Err("history_read_only".into()); } old.len() as u64 } else { 0 };
+    if size(root)?.saturating_sub(previous) + bytes.len() as u64 > index.budget_bytes { return Err("history_quota".into()); }
+    atomic(root, &relative, &bytes, false)
+}
+fn batch_body(current: &[u8], next: &[u8], items: &[BatchItem]) -> Result<(), String> {
+    let original = std::str::from_utf8(current).map_err(|_| "invalid_data")?.trim_start_matches('\u{feff}').replace("\r\n", "\n");
+    let mut body: Vec<u16> = original.encode_utf16().collect(); let mut end = body.len();
+    let mut ordered: Vec<_> = items.iter().collect(); ordered.sort_by_key(|i| std::cmp::Reverse(i.from));
+    for item in ordered {
+        if item.from >= item.to || item.to > end || item.to > body.len() || !item.insert.contains(&format!("]({}", item.display_path)) { return Err("invalid_data".into()); }
+        let old = String::from_utf16(&body[item.from..item.to]).map_err(|_| "invalid_data")?;
+        if !old.starts_with("![") { return Err("invalid_data".into()); }
+        body.splice(item.from..item.to, item.insert.encode_utf16()); end = item.from;
+    }
+    let proposed = std::str::from_utf8(next).map_err(|_| "invalid_data")?.trim_start_matches('\u{feff}').replace("\r\n", "\n");
+    if String::from_utf16(&body).map_err(|_| "invalid_data")? != proposed || text_format(current)?.1 == "mixed" || text_format(next)?.1 == "mixed" || text_format(current)?.0 != text_format(next)?.0 { return Err("invalid_data".into()); } Ok(())
+}
+fn commit_batch(root: &Path, index: &mut Index, path: &Path, operation: &str, expected: &str, current: Input, next: Input, options: BatchOptions, items: Vec<BatchItem>) -> Result<Value, String> {
+    commit_batch_with(root, index, path, operation, expected, current, next, options, items, |_| Ok(()))
+}
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum BatchPhase { Snapshot, Prepared, Body }
+fn commit_batch_with(root: &Path, index: &mut Index, path: &Path, operation: &str, expected: &str, mut current: Input, next: Input, options: BatchOptions, items: Vec<BatchItem>, mut fault: impl FnMut(BatchPhase) -> Result<(), String>) -> Result<Value, String> {
+    uuid(operation)?; batch_options(&options)?; entry(index, path)?;
+    let record_path = format!("{BASE}/documents/{}/batch-{operation}.json", entry(index, path)?.document_id);
+    if root.join(&record_path).exists() {
+        let record: Value = json_read(root, &record_path)?;
+        if record["schemaVersion"] != 1 { return Err("history_read_only".into()); }
+        if record["committed"] == true {
+            if record["proposed"] != transaction::hash(&next.bytes) || check_revision(path, &transaction::hash(&next.bytes)).is_err() { return Err("revision_conflict".into()); }
+            return Ok(json!({"revision":transaction::hash(&next.bytes),"metadata":next.metadata,"preSnapshotId":record["preSnapshotId"],"warning":"批次正文已提交；请刷新版本历史检查后处理。"}));
+        }
+    }
+    if items.is_empty() || items.len() > 100 || next.bytes.len() > MAX_TEXT || next.assets.iter().map(|a| a.bytes.len()).sum::<usize>() > MAX_RESOURCES { return Err("quota_exceeded".into()); }
+    batch_body(&current.bytes, &next.bytes, &items)?;
+    check_revision(path, expected)?;
+    for item in &items {
+        relative(&item.before_path)?;
+        if !valid_hash(item.before_hash.trim_start_matches("sha256:")) || !valid_hash(item.after_hash.trim_start_matches("sha256:")) { return Err("invalid_data".into()); }
+        if let Some(previous) = &item.previous { resources::validate_instance(previous)?; }
+        let source = next.assets.iter().find(|a| a.path == item.source_path).ok_or("resource_missing")?;
+        let display = next.assets.iter().find(|a| a.path == item.display_path).ok_or("resource_missing")?;
+        resources::verify_image(&source.bytes)?; resources::verify_image(&display.bytes)?;
+        if transaction::hash(&source.bytes) != item.before_hash || transaction::hash(&display.bytes) != item.after_hash { return Err("history_corrupt".into()); }
+        let old = match current.assets.iter().find(|a| a.path == item.before_path) { Some(asset) => asset.bytes.clone(), None => bounded(root, &item.before_path, 20 * 1024 * 1024)? };
+        if old != source.bytes { return Err("revision_conflict".into()); }
+        if root.join(&item.before_path).exists() && bounded(root, &item.before_path, 20 * 1024 * 1024)? != source.bytes { return Err("revision_conflict".into()); }
+        let instance = next.metadata.instances.iter().find(|i| i["instanceId"] == item.instance_id && i["sourcePath"] == item.source_path && i["displayPath"] == item.display_path && i["sourceHash"] == item.before_hash).ok_or("invalid_data")?;
+        resources::validate_instance(instance)?;
+    }
+    // Complete memory snapshot is mandatory, even when the body has unsaved edits.
+    current.disk_revision = Some(expected.into());
+    let pre = capture(root, index, path, current, "pre-batch", None)?.ok_or("history_invalid")?;
+    verify_snapshot(root, &get_snapshot(root, index, path, &pre)?, true)?;
+    fault(BatchPhase::Snapshot)?;
+    let proposed = transaction::hash(&next.bytes);
+    let mut record = json!({"schemaVersion":1,"operationId":operation,"status":"prepared","preSnapshotId":pre,"expected":expected,"proposed":proposed,"options":options,"items":items,"committed":false,"historyPending":true,"references":next.references,"unarchivedReferences":next.unarchived_references,"metadata":next.metadata});
+    batch_log(root, index, path, operation, &record)?;
+    fault(BatchPhase::Prepared)?;
+    let warning = match transaction::save(path, Some(expected), &next.bytes, &next.assets, next.metadata.clone(), operation) {
+        Ok(warning) => warning,
+        Err(error) => { record["status"] = json!("failed"); let _ = batch_log(root, index, path, operation, &record); return Err(error); }
+    };
+    if let Err(error) = fault(BatchPhase::Body) { return Ok(json!({"revision":proposed,"metadata":next.metadata,"preSnapshotId":pre,"warning":format!("批次正文已保存，后处理待恢复（{error}）。")})); }
+    record["status"] = json!("committed"); record["committed"] = json!(true);
+    let history_error = capture(root, index, path, Input { bytes: next.bytes, references: next.references, unarchived_references: next.unarchived_references, assets: vec![], metadata: next.metadata.clone(), disk_revision: Some(proposed.clone()) }, "batch", None).err();
+    record["historyPending"] = json!(history_error.is_some());
+    let log_error = batch_log(root, index, path, operation, &record).err();
+    Ok(json!({"revision":proposed,"metadata":next.metadata,"preSnapshotId":pre,"warning":warning.or_else(|| history_error.or(log_error).map(|e|format!("批次正文已保存，历史后处理待检查（{e}）；恢复记录已保留。")))}))
+}
+fn recover_batches(root: &Path, index: &mut Index, path: &Path) -> Result<(), String> {
+    let Ok(doc_entry) = entry(index, path) else { return Ok(()); };
+    let folder = format!("{BASE}/documents/{}", doc_entry.document_id);
+    if !root.join(&folder).exists() { return Ok(()); }
+    for (count, file) in fs::read_dir(safe_existing(root, &folder)?).map_err(|_| "io_failed")?.enumerate() {
+        if count > MAX_ENTRIES { return Err("quota_exceeded".into()); }
+        let name = file.map_err(|_| "io_failed")?.file_name().to_string_lossy().to_string();
+        let Some(operation) = name.strip_prefix("batch-").and_then(|n| n.strip_suffix(".json")) else { continue; }; uuid(operation)?;
+        let mut record: Value = json_read(root, &format!("{folder}/{name}"))?;
+        if record["schemaVersion"] != 1 { return Err("history_read_only".into()); }
+        if (record["status"] == "prepared" || record["historyPending"] == true) && record["proposed"].as_str().is_some_and(|hash| check_revision(path, hash).is_ok()) {
+            let bytes = bounded(root, &key(path)?, MAX_TEXT as u64)?;
+            let proposed = transaction::hash(&bytes); let document = entry(index, path)?.document_id.clone();
+            if !entry(index, path)?.snapshots.iter().any(|id| manifest_read(root, &document, id).is_ok_and(|s| s.reason == "batch" && s.disk_revision.as_deref() == Some(proposed.as_str()))) {
+                capture(root, index, path, Input { disk_revision: Some(proposed), bytes, references: serde_json::from_value(record["references"].clone()).map_err(|_| "history_invalid")?, unarchived_references: serde_json::from_value(record["unarchivedReferences"].clone()).map_err(|_| "history_invalid")?, metadata: serde_json::from_value(record["metadata"].clone()).map_err(|_| "history_invalid")?, assets: vec![] }, "batch", None)?;
+            }
+            record["status"] = json!("recovered"); record["committed"] = json!(true);
+            record["historyPending"] = json!(false);
+            batch_log(root, index, path, operation, &record)?;
+        }
+    }
+    Ok(())
+}
+
 fn execute(path: &Path, sessions: &BTreeSet<PathBuf>, request: Request) -> Result<Value, String> {
     let root = root(path)?; let mut index = index_read(&root)?;
     reconcile(&root, &mut index)?;
     match request {
         Request::Status => {
             let transaction_warning = transaction::recover(path);
-            let recovery = recover_history(&root, &mut index, path).err();
+            let recovery = recover_history(&root, &mut index, path).and_then(|_| recover_batches(&root, &mut index, path)).err();
             let mut value = status(&root, &index, path)?;
             if let Some(error) = recovery { value["warning"] = json!(format!("历史后处理待恢复（{error}）；当前正文未改写。")); }
             else if let Some(warning) = transaction_warning { value["warning"] = json!(warning); }
@@ -602,6 +712,24 @@ fn execute(path: &Path, sessions: &BTreeSet<PathBuf>, request: Request) -> Resul
             let Some(target) = rfd::FileDialog::new().add_filter("Markdown", &["md", "markdown"]).set_file_name(format!("{}-history.md", key(path)?.trim_end_matches(".md"))).save_file() else { return Ok(Value::Null); };
             copy_snapshot(&root, path, sessions, &snap, &target, body_only)
         }
+        Request::BatchRecord { operation_id, status, options } => {
+            uuid(&operation_id)?; batch_options(&options)?;
+            if !["started", "cancelled", "failed"].contains(&status.as_str()) { return Err("invalid_data".into()); }
+            let doc = &entry(&index, path)?.document_id;
+            let relative = format!("{BASE}/documents/{doc}/batch-{operation_id}.json");
+            if root.join(&relative).exists() { let previous: Value = json_read(&root, &relative)?; if previous["status"] == "prepared" || previous["committed"] == true { return Err("revision_conflict".into()); } }
+            batch_log(&root, &index, path, &operation_id, &json!({"schemaVersion":1,"operationId":operation_id,"status":status,"options":options,"committed":false}))?; Ok(Value::Null)
+        }
+        Request::BatchCommit { operation_id, expected_revision, current, next, options, items } => {
+            let result = commit_batch(&root, &mut index, path, &operation_id, &expected_revision, current, next, options.clone(), items);
+            if result.is_err() {
+                let doc = &entry(&index, path)?.document_id; let relative = format!("{BASE}/documents/{doc}/batch-{operation_id}.json");
+                if uuid(&operation_id).is_ok() && root.join(&relative).exists() {
+                    if let Ok(mut record) = json_read::<Value>(&root, &relative) { if record["committed"] != true && record["status"] != "prepared" { record["status"] = json!("failed"); let _ = batch_log(&root, &index, path, &operation_id, &record); } }
+                }
+            }
+            result
+        },
     }
 }
 
@@ -856,5 +984,80 @@ mod tests {
         symlink(external.path(), root.join("linked")).unwrap(); let mut data = input(b"![a](linked/secret)"); data.references = vec!["linked/secret".into()];
         assert_eq!(capture(&root, &mut index, &path, data, "manual", None).err().unwrap(), "permission_denied");
         assert_eq!(fs::read(external.path().join("secret")).unwrap(), b"secret");
+    }
+    fn batch_fixture() -> (tempfile::TempDir, PathBuf, PathBuf, Index, Input, Input, Vec<BatchItem>, BatchOptions) {
+        let body = "\u{feff}😀 ![a](assets/img-old.png)\r\n";
+        let (temp, root, path, index) = setup(body.as_bytes());
+        let image = include_bytes!("../icons/32x32.png").to_vec();
+        let mut current = input(body.as_bytes()); current.references = vec!["assets/img-old.png".into()];
+        current.assets = vec![Asset { path: "assets/img-old.png".into(), bytes: image.clone() }];
+        let insert = "![a](assets/img-new.png)";
+        let item = BatchItem { from: 3, to: 3 + "![a](assets/img-old.png)".encode_utf16().count(), insert: insert.into(), before_path: "assets/img-old.png".into(), source_path: "assets/.originals/img-new-source.png".into(), display_path: "assets/img-new.png".into(), before_hash: transaction::hash(&image), after_hash: transaction::hash(&image), instance_id: "img-new".into(), previous: None };
+        let mut next = input(format!("\u{feff}😀 {insert}\r\n").as_bytes()); next.references = vec![item.display_path.clone()];
+        next.assets = vec![Asset { path: item.source_path.clone(), bytes: image.clone() }, Asset { path: item.display_path.clone(), bytes: image.clone() }];
+        next.metadata.instances = vec![json!({"instanceId":item.instance_id,"sourcePath":item.source_path,"sourceHash":item.before_hash,"displayPath":item.display_path,"recipe":{"version":1,"orientationNormalized":true,"rotateDegrees":0,"flipHorizontal":false,"flipVertical":false,"resize":{"width":32,"height":32},"output":{"mime":"image/png"}},"referenceRevision":1})];
+        let options = BatchOptions { max_side: 100, format: "keep".into(), quality: 0.9, strip_metadata: true, background: None };
+        (temp, root, path, index, current, next, vec![item], options)
+    }
+    #[test]
+    fn batch_commits_unicode_bom_crlf_with_complete_pre_snapshot_and_logs() {
+        let (_temp, root, path, mut index, current, next, items, options) = batch_fixture();
+        let old = current.bytes.clone(); let new = next.bytes.clone(); let source = current.assets[0].bytes.clone(); let operation = uuid::Uuid::new_v4().to_string();
+        let result = commit_batch(&root, &mut index, &path, &operation, &transaction::hash(&old), current, next, options, items).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), new); assert_eq!(result["revision"], transaction::hash(&new));
+        let pre = get_snapshot(&root, &index, &path, result["preSnapshotId"].as_str().unwrap()).unwrap();
+        assert_eq!(pre.reason, "pre-batch"); assert_eq!(verify_snapshot(&root, &pre, true).unwrap(), old);
+        assert_eq!(fs::read(root.join("assets/.originals/img-new-source.png")).unwrap(), source);
+        let record: Value = json_read(&root, &format!("{BASE}/documents/{}/batch-{operation}.json", pre.document_id)).unwrap();
+        assert_eq!(record["status"], "committed"); assert_eq!(record["historyPending"], false);
+        reconcile(&root, &mut index).unwrap(); assert!(entry(&index, &path).unwrap().snapshots.iter().any(|id| manifest_read(&root, &pre.document_id, id).unwrap().reason == "batch"));
+    }
+    #[test]
+    fn batch_stale_revision_corrupt_source_quota_and_incomplete_pre_version_block_body() {
+        for case in 0..4 {
+            let (_temp, root, path, mut index, mut current, next, mut items, options) = batch_fixture(); let old = current.bytes.clone();
+            let expected = if case == 0 { "stale".into() } else { transaction::hash(&old) };
+            if case == 1 { items[0].before_hash = transaction::hash(b"forged"); }
+            if case == 2 { index.budget_bytes = 1; }
+            if case == 3 { current.references.push("assets/img-missing.png".into()); }
+            assert!(commit_batch(&root, &mut index, &path, &uuid::Uuid::new_v4().to_string(), &expected, current, next, options, items).is_err());
+            assert_eq!(fs::read(&path).unwrap(), old); assert!(!root.join("assets/img-new.png").exists());
+        }
+    }
+    #[test]
+    fn batch_rejects_unrelated_body_mutation_and_modified_display_source() {
+        let (_temp, root, path, mut index, current, mut next, items, options) = batch_fixture();
+        next.bytes = b"unrelated".to_vec();
+        assert_eq!(commit_batch(&root, &mut index, &path, &uuid::Uuid::new_v4().to_string(), &transaction::hash(&current.bytes), current.clone(), next, options, items).unwrap_err(), "invalid_data");
+        assert_eq!(fs::read(&path).unwrap(), current.bytes);
+        let (_temp, root, path, mut index, current, next, items, options) = batch_fixture();
+        fs::create_dir(root.join("assets")).unwrap(); fs::write(root.join("assets/img-old.png"), b"external image").unwrap();
+        assert_eq!(commit_batch(&root, &mut index, &path, &uuid::Uuid::new_v4().to_string(), &transaction::hash(&current.bytes), current.clone(), next, options, items).unwrap_err(), "revision_conflict");
+        assert_eq!(fs::read(&path).unwrap(), current.bytes);
+    }
+    #[test]
+    fn interrupted_batch_recovery_checks_disk_and_is_idempotent() {
+        let (_temp, root, path, mut index, current, next, items, options) = batch_fixture(); let op = uuid::Uuid::new_v4().to_string();
+        commit_batch(&root, &mut index, &path, &op, &transaction::hash(&current.bytes), current, next, options, items).unwrap();
+        let doc = entry(&index, &path).unwrap().document_id.clone(); let relative = format!("{BASE}/documents/{doc}/batch-{op}.json");
+        let mut record: Value = json_read(&root, &relative).unwrap(); record["status"] = json!("prepared"); record["historyPending"] = json!(true); record["committed"] = json!(false);
+        atomic(&root, &relative, &serde_json::to_vec(&record).unwrap(), false).unwrap();
+        let committed = fs::read(&path).unwrap(); fs::write(&path, b"external").unwrap(); recover_batches(&root, &mut index, &path).unwrap(); assert_eq!(fs::read(&path).unwrap(), b"external");
+        fs::write(&path, &committed).unwrap(); let count = entry(&index, &path).unwrap().snapshots.len();
+        recover_batches(&root, &mut index, &path).unwrap(); recover_batches(&root, &mut index, &path).unwrap();
+        assert_eq!(entry(&index, &path).unwrap().snapshots.len(), count); assert_eq!(json_read::<Value>(&root, &relative).unwrap()["status"], "recovered");
+    }
+    #[test]
+    fn batch_faults_preserve_body_before_commit_and_recover_after_commit() {
+        for phase in [BatchPhase::Snapshot, BatchPhase::Prepared, BatchPhase::Body] {
+            let (_temp, root, path, mut index, current, next, items, options) = batch_fixture(); let op = uuid::Uuid::new_v4().to_string();
+            let old = current.bytes.clone(); let proposed = next.bytes.clone();
+            let result = commit_batch_with(&root, &mut index, &path, &op, &transaction::hash(&old), current, next, options, items, |reached| if reached == phase { Err("injected".into()) } else { Ok(()) });
+            if phase == BatchPhase::Body {
+                assert!(result.unwrap()["warning"].as_str().unwrap().contains("已保存")); assert_eq!(fs::read(&path).unwrap(), proposed);
+                recover_batches(&root, &mut index, &path).unwrap();
+                let doc = entry(&index, &path).unwrap().document_id.clone(); let record: Value = json_read(&root, &format!("{BASE}/documents/{doc}/batch-{op}.json")).unwrap(); assert_eq!(record["status"], "recovered");
+            } else { assert!(result.is_err()); assert_eq!(fs::read(&path).unwrap(), old); }
+        }
     }
 }

@@ -12,7 +12,7 @@ interface Props {
   onClose(): void
   onRestore(snapshotId: string): Promise<void>
 }
-const reasons: Record<string, string> = { baseline: '启用基线', manual: '手动', automatic: '自动保存', 'pre-save': '首次保存前', 'pre-restore': '恢复前', restore: '恢复结果', 'pre-batch': '批处理前' }
+const reasons: Record<string, string> = { baseline: '启用基线', manual: '手动', automatic: '自动保存', 'pre-save': '首次保存前', 'pre-restore': '恢复前', restore: '恢复结果', 'pre-batch': '批处理前', batch: '批处理结果' }
 const volume = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} MiB`
 export function HistoryDialog(props: Props) {
   const { fileId, text, bytes, revision, resources, snapshot, onClose, onRestore } = props

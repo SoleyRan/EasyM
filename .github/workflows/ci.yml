@@ -37,6 +37,8 @@ jobs:
             test-results/history-verification.json
             test-results/history-diff-performance.json
             test-results/history/*.png
+            test-results/batch-images-verification.json
+            test-results/batch-images/*.png
             test-results/writing-verification.json
             test-results/search-verification.json
             test-results/search-slow-verification.json

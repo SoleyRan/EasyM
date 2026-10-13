@@ -1,11 +1,12 @@
 import { assetPath, MAX_ASSET_BYTES, type ImageInstance, type ImageRecipe } from '../core/images'
 import ImageWorker from './image-worker?worker&inline'
+import type { BatchOptions } from '../core/batch-images'
 
 export interface ImageResult { blob: Blob; width: number; height: number; mime: ImageRecipe['output']['mime'] }
 export interface ImageResources { assets: Record<string, Blob>; instances: ImageInstance[] }
 export const emptyResources = (): ImageResources => ({ assets: {}, instances: [] })
 
-export function processImage(source: Blob, recipe?: ImageRecipe, signal?: AbortSignal): Promise<ImageResult> {
+export function processImage(source: Blob, recipe?: ImageRecipe, signal?: AbortSignal, encoding?: BatchOptions): Promise<ImageResult> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) { reject(new DOMException('已取消图片处理', 'AbortError')); return }
     const worker = new ImageWorker()
@@ -15,7 +16,7 @@ export function processImage(source: Blob, recipe?: ImageRecipe, signal?: AbortS
     signal?.addEventListener('abort', abort, { once: true })
     worker.onmessage = (event: MessageEvent<ImageResult & { error?: string }>) => { finish(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data) }
     worker.onerror = () => { finish(); reject(new Error('后台图片处理不可用，原文保持不变。')) }
-    worker.postMessage({ source, recipe })
+    try { worker.postMessage({ source, recipe, encoding }) } catch { finish(); reject(new Error('图片后台任务未能启动。')) }
   })
 }
 

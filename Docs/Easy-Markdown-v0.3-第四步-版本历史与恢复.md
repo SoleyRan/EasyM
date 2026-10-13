@@ -1,6 +1,6 @@
 # v0.3 第四步：版本历史、差异与恢复
 
-本步承接 `7869da9 feat(docx): add export preflight UI and office acceptance`，一次交付设计第 5 节的持久历史、差异界面、恢复、副本、配额和清理，不再分 A/B/C。功能代码与本机可执行验收已完成；第四步改动尚未提交，没有 push 或生成新安装包。应用版本仍为 0.2.0，第五步批量图片尚未开始。
+本步承接 `7869da9 feat(docx): add export preflight UI and office acceptance`，一次交付设计第 5 节的持久历史、差异界面、恢复、副本、配额和清理，不再分 A/B/C。功能代码与本机可执行验收已完成，已提交为 `3f6c44e feat(history): add persistent snapshots and safe version recovery`，没有 push 或生成新安装包。应用版本仍为 0.2.0；第五步的进度以设计计划和第五步记录为准。本文件和验证 JSON 保留第四步验收时的范围与产物证据。
 
 ## 使用流程
 

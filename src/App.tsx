@@ -41,6 +41,8 @@ function Application() {
   const readingRef = useRef(false)
   const windowOperation = useRef(false)
   const previousFullscreen = useRef(false)
+  const readingFocus = useRef<HTMLElement | null>(null)
+  const restoreReadingFocus = useRef(false)
   const [showToolbar, setShowToolbar] = useState(() => {
     try { return localStorage.getItem('easym-toolbar') !== 'hidden' } catch { return true }
   })
@@ -58,21 +60,29 @@ function Application() {
     windowOperation.current = true; setWindowBusy(true); setMenuOpen(false)
     try {
       if (next) {
+        readingFocus.current = document.activeElement as HTMLElement
         previousFullscreen.current = (await windowState()).fullscreen
         await setFullscreen(true)
       } else await setFullscreen(previousFullscreen.current)
-      readingRef.current = next; setReading(next)
+      readingRef.current = next; restoreReadingFocus.current = true; setReading(next)
     } catch (err) { setError(`切换阅读模式失败：${String(err)}`) }
     finally { windowOperation.current = false; setWindowBusy(false) }
   }
   const exitReading = useRef(() => undefined as void)
+  useEffect(() => {
+    if (!restoreReadingFocus.current) return
+    restoreReadingFocus.current = false
+    if (reading) document.querySelector<HTMLButtonElement>('.document-panel:not([hidden]) .reading-button')?.focus()
+    else if (readingFocus.current?.isConnected) readingFocus.current.focus()
+    else document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
+  }, [reading])
   exitReading.current = () => { void toggleReading(false) }
   useEffect(() => {
     let disposed = false; let stop: (() => void) | undefined
     const update = () => { void windowState().then((state) => {
       if (disposed) return
       setMaximized(state.maximized)
-      if (readingRef.current && !state.fullscreen && !windowOperation.current) { readingRef.current = false; setReading(false) }
+      if (readingRef.current && !state.fullscreen && !windowOperation.current) { readingRef.current = false; restoreReadingFocus.current = true; setReading(false) }
     }).catch((err) => { if (!disposed) setError(String(err)) }) }
     update()
     listenWindowState(update).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => { if (!disposed) setError(String(err)) })
@@ -185,7 +195,7 @@ function Application() {
         if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
         if (menuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
           event.preventDefault()
-          const currentMenu = (event.target as HTMLElement).closest('[role=menu]')
+          const currentMenu = (event.target as HTMLElement).closest('[role=menu]') ?? menu.current?.querySelector('[role=menu]')
           const items = Array.from(currentMenu?.querySelectorAll<HTMLButtonElement>('[role^=menuitem]:not(:disabled)') ?? []).filter((item) => item.closest('[role=menu]') === currentMenu)
           const index = items.indexOf(document.activeElement as HTMLButtonElement)
           items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
@@ -205,6 +215,7 @@ function Application() {
           <button role="menuitem" title={blocked ? '请先完成保存、图片编辑或草稿恢复' : '导出当前正文（含未保存编辑）；请先完成输入法组合输入'} disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>导出 DOCX</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>打印文档</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('history')}>版本历史</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
           <div className="style-menu">
             <button className="style-menu-trigger" role="menuitem" aria-label="Style · 配色主题" aria-haspopup="menu" aria-expanded={styleMenuOpen} aria-controls="style-menu" onClick={() => setStyleMenuOpen(!styleMenuOpen)}>Style · 配色主题 <span aria-hidden="true">›</span></button>
