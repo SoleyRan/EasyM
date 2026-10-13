@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { createContext, runInContext } from 'node:vm'
 import { productionWorkers, workerKind } from './production-workers.mjs'
+import { mkdir, writeFile } from 'node:fs/promises'
+import os from 'node:os'
 
 // Exercise the worker code shipped inside the production bundle, without a DOM.
 const workerSources = await productionWorkers()
@@ -38,4 +40,31 @@ await docxSelf.onmessage({ data: { type: 'parse', text: '# DOCX 中文\n\n未保
 assert.equal(docxResult?.error, undefined)
 assert.equal(docxResult?.value.name, '办公.docx')
 assert.equal(docxResult?.value.blocks[0].type, 'heading')
-console.log('All four production workers initialise without a DOM; Markdown, DOCX parsing, entities, source positions, search counting and sanitisation pass.')
+let diffResult
+const diffSelf = { postMessage: message => { diffResult = message } }
+runInContext(workerSources.find(source => workerKind(source) === 'history'), createContext({ self: diffSelf, TextEncoder, TextDecoder, Date }), { timeout: 5000 })
+diffSelf.onmessage({ data: { before: 'one\r\ntwo', after: 'one\nchanged' } })
+assert.equal(diffResult?.fallback, undefined)
+assert.equal(diffResult?.additions, 1); assert.equal(diffResult?.deletions, 1)
+diffSelf.onmessage({ data: { type: 'references', texts: ['![local](assets/a.png) ![outside](../a.png) ![remote](https://example.com/a.png)'] } })
+assert.equal(diffResult.references[0].references.join(','), 'assets/a.png')
+assert.equal(diffResult.references[0].unarchivedReferences.join(','), '../a.png')
+const base = Array.from({ length: 80000 }, (_, i) => String(i).padStart(6, '0') + ' ' + 'x'.repeat(56)).join('\n')
+const samples = [
+  { name: '5MiB-near-limit-small-edit', before: base, after: base.replace('000040 ', 'edited ') },
+  { name: '100KiB-single-line', before: 'a'.repeat(100 * 1024), after: 'b'.repeat(100 * 1024) },
+  { name: 'unrelated-10000-lines', before: Array.from({ length: 10000 }, (_, i) => 'a' + i).join('\n'), after: Array.from({ length: 10000 }, (_, i) => 'b' + i).join('\n') },
+  { name: 'over-5MiB-fallback', before: 'a'.repeat(5 * 1024 * 1024 + 1), after: '' },
+]
+const measurements = []
+for (const sample of samples) {
+  const memory = process.memoryUsage(), start = performance.now()
+  diffSelf.onmessage({ data: sample })
+  const end = process.memoryUsage()
+  measurements.push({ name: sample.name, bytesBefore: Buffer.byteLength(sample.before), bytesAfter: Buffer.byteLength(sample.after), durationMs: Math.round((performance.now() - start) * 100) / 100, heapDeltaBytes: end.heapUsed - memory.heapUsed, rssAfterBytes: end.rss, additions: diffResult.additions, deletions: diffResult.deletions, fallback: diffResult.fallback ?? null })
+}
+assert.equal(measurements[0].additions, 1); assert.equal(measurements[0].deletions, 1)
+assert.match(measurements[2].fallback, /限制/); assert.match(measurements[3].fallback, /5 MiB/)
+await mkdir('test-results', { recursive: true })
+await writeFile('test-results/history-diff-performance.json', JSON.stringify({ verifiedAt: new Date().toISOString(), platform: os.platform(), release: os.release(), cpu: os.cpus()[0]?.model, node: process.version, scope: 'Actual shipped worker in Node VM. Endpoint process heap/RSS samples, not browser/WebView peak memory; GC may produce negative deltas.', measurements }, null, 2) + '\n')
+console.log('All five production workers initialise without a DOM; Markdown, DOCX, history diff, search counting and sanitisation pass.')

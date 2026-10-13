@@ -10,6 +10,9 @@ import { createExport } from '../core/export'
 import { parseForExport, saveHtml } from '../platform/export'
 import { PrintDialog } from './PrintDialog'
 import { DocxDialog, type DocxPhase } from './DocxDialog'
+import { HistoryDialog } from './HistoryDialog'
+import { historyInput, historyOperation, relocateHistoryImages } from '../platform/history'
+import type { ImageMetadata } from '../core/images'
 import type { PreparedDocx } from '../core/docx-model'
 import type { DocxOptions } from '../core/docx-options'
 import type { ExportDocument } from '../core/export'
@@ -59,7 +62,7 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print'
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history'
 export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
@@ -89,6 +92,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const activeRef = useRef(active)
   activeRef.current = active
   const [docx, setDocx] = useState<{ prepared: PreparedDocx | null; source: string; phase: DocxPhase } | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
   const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
@@ -235,7 +239,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       const mixed = snapshot.lineEnding === 'mixed' && nextText !== snapshot.originalText
       if (mixed && !window.confirm('图片应用将保存正文，并将混合换行统一为 LF。是否继续？')) throw new Error('应用已取消，原版本仍保留。')
       const bytes = encodeFile(snapshot, nextText, mixed ? 'lf' : undefined)
-      const result = await saveDocument({ id: fileId, name, revision }, bytes, false, resources, operationId)
+      const result = await saveDocument({ id: fileId, name, revision, originalText: snapshot.originalText }, bytes, false, resources, operationId)
       if (!result) throw new Error('保存已取消，原版本仍保留。')
       await clearDraft().catch((err) => setError(errorMessage(err)))
       setRevision(result.revision); setSnapshot(decodeFile(bytes)); if (result.warning) setError(errorMessage(result.warning))
@@ -256,6 +260,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         else if (action === 'workspace') void chooseWorkspace()
         else if (action === 'reload') void reloadExternal()
         else if (action === 'exportDocx') void exportDocxDocument()
+        else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
         else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
         else void save(true)
       },
@@ -265,6 +270,39 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     })
   })
   useEffect(() => () => { docxTask.current?.abort(); docxTask.current = null }, [])
+  function closeHistory() {
+    setHistoryOpen(false); setBusy(false)
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
+  }
+  function historyBytes(): Uint8Array | null {
+    try { return encodeFile(snapshot, text) } catch { return null }
+  }
+  async function restoreHistory(snapshotId: string) {
+    if (!fileId || !revision || saving.current || editor.current?.composing()) throw new Error('当前文档不可恢复，请稍后重试。')
+    if (snapshot.lineEnding === 'mixed') throw new Error('history_mixed')
+    saving.current = true
+    try {
+      const currentBytes = encodeFile(snapshot, text)
+      const detail = await historyOperation<{ bytes: number[] }>(fileId, { action: 'detail', snapshotId })
+      const plan = await historyOperation<{ relocations: Record<string, string>; metadata: ImageMetadata }>(fileId, { action: 'prepare', snapshotId })
+      const nextText = relocateHistoryImages(decodeFile(new Uint8Array(detail.bytes)).text, plan.relocations)
+      const bytes = encodeFile(snapshot, nextText)
+      const result = await historyOperation<{ revision: string; metadata: ImageMetadata; warning?: string }>(fileId, { action: 'restore', snapshotId, bytes: Array.from(bytes), relocations: plan.relocations,
+        current: await historyInput(currentBytes, images.resources, revision), expectedRevision: revision, operationId: crypto.randomUUID(), encoding: snapshot.encoding, lineEnding: snapshot.lineEnding })
+      // One editor transaction keeps undo/redo. Earlier resources remain available for both directions.
+      if (!editor.current?.patch([{ from: 0, to: text.length, insert: nextText }], { anchor: 0, head: 0 })) {
+        setRevision(result.revision); setAutoSavePaused(true)
+        throw new Error('磁盘正文已恢复，编辑器应用未完成；已保留当前编辑与草稿，请重新加载外部版本或另存当前编辑。')
+      }
+      const instances = [...images.resources.instances.filter(i => !result.metadata.instances.some(next => next.displayPath === i.displayPath)), ...result.metadata.instances]
+      images.setResources({ assets: images.resources.assets, instances })
+      setRevision(result.revision); setSnapshot(decodeFile(bytes)); setAutoSavePaused(false); setDirty(false)
+      persistedTextRevision.current = changeRevision.current
+      try { await clearDraft(changeRevision.current) } catch (e) { setError(errorMessage(e)) }
+      if (result.warning) setError(result.warning)
+      setStatus('版本已恢复并保存，可一次撤销'); closeHistory()
+    } finally { saving.current = false }
+  }
   function finishDocx(controller: AbortController, message: string, offset?: number) {
     if (docxTask.current !== controller) return
     controller.abort(); docxTask.current = null; exporting.current = false
@@ -548,7 +586,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       if (automatic && mixed) { setAutoSavePaused(true); setStatus('自动保存已暂停'); setError('该文件混合使用 LF/CRLF。请按 Ctrl/Cmd+S 确认换行转换，或通过 EM 菜单另存副本。'); return false }
       if (mixed && !window.confirm('该文件混合使用 LF/CRLF。修改后需统一为 LF；是否继续保存？')) { setStatus('保存已取消'); return false }
       const bytes = encodeFile(snapshot, savingText, mixed ? 'lf' : undefined)
-      const result = await saveDocument({ id: fileId, name, revision }, bytes, saveAs, images.resources)
+      const result = await saveDocument({ id: fileId, name, revision, originalText: snapshot.originalText }, bytes, saveAs, images.resources)
       if (!result) { if (automatic) setAutoSavePaused(true); setStatus('保存已取消'); return false }
       if (result.destination === 'disk') persistedTextRevision.current = savingRevision
       setAutoSavePaused(false)
@@ -711,5 +749,5 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}</>
+  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}{historyOpen && active && <HistoryDialog fileId={fileId} text={text} bytes={historyBytes()} snapshot={snapshot} revision={revision} resources={images.resources} onClose={closeHistory} onRestore={restoreHistory} />}</>
 }

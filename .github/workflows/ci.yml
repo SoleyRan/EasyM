@@ -34,6 +34,9 @@ jobs:
             test-results/docx-verification.json
             test-results/docx-ui-verification.json
             test-results/docx-ui/*.png
+            test-results/history-verification.json
+            test-results/history-diff-performance.json
+            test-results/history/*.png
             test-results/writing-verification.json
             test-results/search-verification.json
             test-results/search-slow-verification.json

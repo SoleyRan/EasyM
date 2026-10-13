@@ -3,6 +3,7 @@ import { readFile, readdir } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 
 export function workerKind(source) {
+  if (source.includes('HISTORY_DIFF_FAILED')) return 'history'
   if (source.includes('DOCX 后台任务失败')) return 'docx'
   if (source.includes('OffscreenCanvas')) return 'image'
   if (source.includes('SEARCH_COUNT_FAILED')) return 'search'
@@ -21,6 +22,6 @@ export async function productionWorkers() {
       if (typeof source === 'string' && source.startsWith('(function()')) workers.push(source)
     }
   }
-  assert.deepEqual(workers.map(workerKind).sort(), ['docx', 'image', 'markdown', 'search'], 'Expected exactly one of each shipped worker')
+  assert.deepEqual(workers.map(workerKind).sort(), ['docx', 'history', 'image', 'markdown', 'search'], 'Expected exactly one of each shipped worker')
   return workers
 }

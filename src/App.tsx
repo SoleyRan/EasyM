@@ -204,6 +204,7 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>导出 HTML</button>
           <button role="menuitem" title={blocked ? '请先完成保存、图片编辑或草稿恢复' : '导出当前正文（含未保存编辑）；请先完成输入法组合输入'} disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>导出 DOCX</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>打印文档</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('history')}>版本历史</button>
           <div className="menu-divider" role="separator" />
           <div className="style-menu">
             <button className="style-menu-trigger" role="menuitem" aria-label="Style · 配色主题" aria-haspopup="menu" aria-expanded={styleMenuOpen} aria-controls="style-menu" onClick={() => setStyleMenuOpen(!styleMenuOpen)}>Style · 配色主题 <span aria-hidden="true">›</span></button>

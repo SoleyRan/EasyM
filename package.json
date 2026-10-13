@@ -16,6 +16,7 @@
     "verify:docx-library": "node scripts/verify-docx-library.mjs",
     "verify:docx": "node scripts/verify-docx.mjs",
     "verify:docx-ui": "node scripts/verify-docx-ui.mjs",
+    "verify:history": "node scripts/verify-history.mjs",
     "verify:browser": "node scripts/verify-browser.mjs",
     "verify:performance": "node scripts/verify-performance.mjs",
     "verify:writing": "node scripts/verify-writing.mjs",

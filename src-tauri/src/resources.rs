@@ -7,7 +7,7 @@ const MAX_IMAGE: usize = 20 * 1024 * 1024;
 const MAX_TOTAL: usize = 128 * 1024 * 1024;
 const MAX_META: u64 = 2 * 1024 * 1024;
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Asset { pub path: String, pub bytes: Vec<u8> }
 #[derive(Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -50,7 +50,7 @@ fn managed(path: &str) -> bool {
     suffix.is_some_and(|name| name.starts_with("img-") && (name.ends_with(".png") || name.ends_with(".jpg")) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.'))
 }
 
-fn validate_instance(instance: &serde_json::Value) -> Result<(), String> {
+pub(crate) fn validate_instance(instance: &serde_json::Value) -> Result<(), String> {
     for key in ["sourcePath", "displayPath"] { if !instance.get(key).and_then(|v| v.as_str()).is_some_and(managed) { return Err("invalid_data".into()); } }
     if instance.get("recipe").and_then(|v| v.get("version")).and_then(|v| v.as_u64()) != Some(1) { return Err("invalid_data".into()); }
     Ok(())
@@ -67,7 +67,7 @@ pub(crate) fn directory(root: &Path, path: &str) -> Result<PathBuf, String> {
     Ok(current)
 }
 
-fn verify_image(bytes: &[u8]) -> Result<(), String> {
+pub(crate) fn verify_image(bytes: &[u8]) -> Result<(), String> {
     if bytes.len() > MAX_IMAGE { return Err("quota_exceeded".into()); }
     let reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().map_err(|_| "invalid_data")?;
     if !matches!(reader.format(), Some(image::ImageFormat::Png | image::ImageFormat::Jpeg)) { return Err("invalid_data".into()); }

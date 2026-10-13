@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前在 `feature/v0.3` 开发办公增强，已完成核心 Windows 实机验收、[设计冻结](Docs/Easy-Markdown-v0.3-设计与实施计划.md)、[DOCX 模型/预检（3A）](Docs/Easy-Markdown-v0.3-第三步A-模型与预检.md)、[DOCX 生成/安全保存底层（3B）](Docs/Easy-Markdown-v0.3-第三步B-生成与保存.md)与 [菜单/预检界面和 Word 验证（3C）](Docs/Easy-Markdown-v0.3-第三步C-预检界面与验收.md)。DOCX 已接入界面；WPS/LibreOffice、原生另存对话框及其他平台仍待实机。下一步是持久历史的存储底层，批量图片尚未实现。应用与历史安装包仍为 0.2.0，本步未生成新包；新增实机结果见 [第一步记录](Docs/Easy-Markdown-v0.3-第一步-实机验收.md)。
+当前在 `feature/v0.3` 开发办公增强，已完成核心 Windows 实机验收、[设计冻结](Docs/Easy-Markdown-v0.3-设计与实施计划.md)、[DOCX 模型/预检（3A）](Docs/Easy-Markdown-v0.3-第三步A-模型与预检.md)、[DOCX 生成/安全保存底层（3B）](Docs/Easy-Markdown-v0.3-第三步B-生成与保存.md)、[菜单/预检界面和 Word 验证（3C）](Docs/Easy-Markdown-v0.3-第三步C-预检界面与验收.md)，以及[第四步版本历史与恢复](Docs/Easy-Markdown-v0.3-第四步-版本历史与恢复.md)。历史已接入 EM 菜单，需对桌面已保存文档明确启用；包含正文与本地图片归档、后台差异、恢复/副本和显式清理。下一步是批量图片与可访问性。应用版本仍为 0.2.0，本步未生成新安装包；原生对话框、其他平台及办公软件的剩余验收详见各步记录。
 
 v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
 
@@ -24,6 +24,7 @@ v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即�
 - EM 菜单内置空白、会议纪要和项目说明模板，支持变量字面替换、独立新标签、草稿恢复和首次另存；
 - EM 菜单导出单文件静态 HTML，内联已授权本地 PNG/JPEG，远程/缺失图片提示占位；打印预览、Ctrl/Cmd+P 和系统打印入口，输出不改变 Markdown 或草稿；
 - EM 菜单导出可编辑 DOCX，支持纸张/办公样式、预检定位、缺图占位确认和后台取消；导出包含未保存编辑，保留草稿与撤销，准备/生成期间可阅读其他标签；
+- EM 菜单版本历史：显式启用后归档磁盘基线、手动内存快照与限频自动版本，支持命名/固定、文字与图片差异、确认恢复、一次撤销/重做、精确字节副本及有预览的历史清理；
 - 格式工具栏应用/取消切换、选区按下/混合状态，以及主题适配的鼠标选区高亮；
 - 已命名本地文档停止输入 1.2 秒后自动保存，草稿与未应用图片操作恢复；
 - PNG/JPEG 导入、后台处理、裁剪/旋转/翻转/尺寸/Alt、取消和应用；
@@ -54,6 +55,7 @@ pnpm verify:workers
 pnpm verify:docx-library
 pnpm verify:docx
 pnpm verify:docx-ui
+pnpm verify:history
 pnpm exec playwright install chromium
 pnpm verify:browser
 pnpm verify:writing
