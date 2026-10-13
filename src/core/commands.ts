@@ -1,4 +1,5 @@
 import { applyPatches, type EditCommandResult, type Selection } from './document'
+import { insertionDefinitions } from './quick-entry'
 
 export interface CommandContext {
   documentId: string
@@ -43,6 +44,7 @@ export const commandDefinitions = [
   definition('paragraph.convert', '转换为', '格式', ['convert paragraph', 'heading', 'list']),
   definition('insert.image', '插入图片', '插入', ['image'], 'Mod+Shift+P'),
   definition('insert.table', '插入表格', '插入', ['table']),
+  ...insertionDefinitions,
   definition('table.edit', '编辑表格', '编辑', ['edit table']),
   definition('edit.undo', '撤销', '编辑', ['undo'], 'Mod+Z'),
   definition('edit.redo', '重做', '编辑', ['redo'], 'Mod+Shift+Z'),
@@ -65,6 +67,8 @@ export const commandDefinitions = [
   definition('file.batchImages', '批量处理图片', '文件', ['batch images']),
   definition('app.template', '从模板新建', '文件', ['template']),
   definition('app.settings', '设置', '应用', ['settings']),
+  definition('app.commands', '命令面板', '应用', ['command palette'], 'F1', true),
+  definition('app.quickOpen', '快速打开', '文件', ['quick open', 'filename'], 'Mod+Alt+O'),
 ] as const
 
 export function sameCommandTarget(a: CommandContext, b: CommandContext): boolean {

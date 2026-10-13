@@ -1,0 +1,105 @@
+{
+  "version": "0.3.0",
+  "startedAt": "2026-10-13T14:38:50.953Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 500
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 4802
+    },
+    {
+      "script": "docx",
+      "passed": true,
+      "durationMs": 7973
+    },
+    {
+      "script": "docx-ui",
+      "passed": true,
+      "durationMs": 48515
+    },
+    {
+      "script": "history",
+      "passed": true,
+      "durationMs": 3378
+    },
+    {
+      "script": "batch-images",
+      "passed": true,
+      "durationMs": 10548
+    },
+    {
+      "script": "settings",
+      "passed": true,
+      "durationMs": 2961
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 5941
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 67443
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 7434
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 27234
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 2261
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 5065
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 5173
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 6009
+    },
+    {
+      "script": "commands",
+      "passed": true,
+      "durationMs": 2111
+    },
+    {
+      "script": "tables",
+      "passed": true,
+      "durationMs": 11072
+    },
+    {
+      "script": "content-tools",
+      "passed": true,
+      "durationMs": 13341
+    },
+    {
+      "script": "quick-entry",
+      "passed": true,
+      "durationMs": 12011
+    }
+  ],
+  "distIndexSha256": "0bf78b04ccfdfd85710802520927c056c4014887397c8d885609474f982c54b8",
+  "finishedAt": "2026-10-13T14:42:54.747Z"
+}

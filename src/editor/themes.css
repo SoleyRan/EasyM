@@ -295,3 +295,22 @@
 .toolbar > * { flex-shrink: 0; }
 .toolbar button[aria-label="转换为"] { width: auto; min-width: 64px; white-space: nowrap; }
 .toolbar-hint { white-space: nowrap; }
+.quick-entry-backdrop { position: fixed; inset: 0; background: #0003; display: flex; align-items: flex-start; justify-content: center; padding: min(12vh, 80px) 16px 16px; z-index: 50; }
+.quick-entry-panel { width: min(620px, 100%); max-height: calc(100vh - 32px - min(12vh, 80px)); display: flex; flex-direction: column; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 35px #0003; padding: 14px; }
+.quick-entry-heading { display: flex; align-items: center; justify-content: space-between; }
+.quick-entry-heading h2 { margin: 0 0 10px; font-size: 16px; }
+.quick-entry-panel input { flex-shrink: 0; width: 100%; padding: 9px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 5px; }
+.quick-entry-results { overflow: auto; min-height: 80px; max-height: 380px; margin: 8px 0; }
+.quick-entry-result { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 8px; cursor: pointer; border-radius: 5px; }
+.quick-entry-result > span:first-child { min-width: 0; flex: 1; }
+.quick-entry-result strong, .quick-entry-result small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.quick-entry-result small, .quick-entry-footer small { color: var(--muted); font-size: 12px; }
+.quick-entry-result[aria-selected="true"] { background: var(--hover); outline: 1px solid var(--accent); outline-offset: -1px; }
+.quick-entry-result[aria-disabled="true"] { cursor: default; opacity: .65; }
+.quick-entry-result .quick-entry-reason { white-space: normal; }
+.quick-entry-footer { display: grid; gap: 5px; padding-top: 6px; border-top: 1px solid var(--border); }
+.quick-entry-footer p { margin: 0; font-size: 12px; }
+.slash-menu { z-index: 35; display: flex; flex-direction: column; max-height: min(340px, calc(100vh - 20px)); width: min(260px, calc(100vw - 20px)); overflow: auto; padding: 6px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 7px; box-shadow: 0 5px 20px #0002; }
+.slash-menu button { text-align: left; padding: 7px 10px; border-radius: 4px; flex-shrink: 0; }
+.slash-menu button.active { color: var(--accent); background: var(--hover); }
+.slash-menu small { color: var(--muted); padding: 6px; font-size: 11px; }

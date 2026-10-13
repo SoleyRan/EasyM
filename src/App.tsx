@@ -15,6 +15,9 @@ import { OverlayProvider, OverlayHost, PositionedOverlay, useOverlays } from './
 import type { OverlayLease } from './core/overlays'
 import { CommandRegistry, commandDefinitions, type CommandContext } from './core/commands'
 import type { CSSProperties } from 'react'
+import { CommandPalette, QuickOpen } from './editor/QuickEntry'
+import { openWorkspaceDocument } from './platform/workspace'
+import { decodeFile } from './core/codec'
 
 interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
@@ -57,6 +60,12 @@ function Application() {
   const restoreTemplateFocus = useRef(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
+  const [quickEntry, setQuickEntry] = useState<{ kind: 'commands' | 'open'; context: CommandContext } | null>(null)
+  const quickEntryRef = useRef(quickEntry); quickEntryRef.current = quickEntry
+  const quickGeneration = useRef(0), quickOpening = useRef(false)
+  const [quickBusy, setQuickBusy] = useState(false), [quickError, setQuickError] = useState('')
+  const closeQuickEntry = () => { quickGeneration.current++; quickOpening.current = false; setQuickBusy(false); setQuickEntry(null) }
+  useEffect(() => { if (quickEntry) closeQuickEntry() }, [active, workspace?.id])
   const [showFiles, setShowFiles] = useState(false)
   const [reading, setReading] = useState(false)
   const [windowBusy, setWindowBusy] = useState(false)
@@ -229,10 +238,54 @@ function Application() {
   appRuntime.current = {
     context: () => handles.current.get(active)?.commandContext() ?? ({ documentId: active, fileId: summaries[active]?.fileId ?? null, textRevision: 0, selection: { anchor: 0, head: 0 }, active: true, reading, composing: false, lockReason: blocked ? '请先完成当前文档操作。' : undefined }),
     ready: () => !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
-    run: commandId => { setMenuOpen(false); if (commandId === 'app.template') setTemplateOpen(true); else setSettingsOpen(true) },
+    run: commandId => {
+      setMenuOpen(false)
+      if (commandId === 'app.template') setTemplateOpen(true)
+      else if (commandId === 'app.commands' || commandId === 'app.quickOpen') { setQuickError(''); setQuickEntry({ kind: commandId === 'app.commands' ? 'commands' : 'open', context: appCommands.capture() }) }
+      else setSettingsOpen(true)
+    },
   }
   const executeApp = (commandId: string) => { const handle = handles.current.get(active); if (handle?.prepareLeave) { void handle.prepareLeave().then(proceed => { if (proceed) runApp(commandId) }); return } runApp(commandId) }
   const runApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(String(err))) }
+  const quickRuntime = useRef({ blocked, executeApp }); quickRuntime.current = { blocked, executeApp }
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      const id = event.key === 'F1' && !event.ctrlKey && !event.metaKey && !event.altKey ? 'app.commands' : (event.ctrlKey || event.metaKey) && event.altKey && !event.shiftKey && event.key.toLowerCase() === 'o' ? 'app.quickOpen' : null
+      if (!id || event.defaultPrevented || event.isComposing || manager.modal() || quickEntryRef.current || quickRuntime.current.blocked) return
+      event.preventDefault(); quickRuntime.current.executeApp(id)
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [manager])
+  function chooseQuickCommand(commandId: string) {
+    const session = quickEntryRef.current, handle = handles.current.get(active)
+    if (!session || !handle) return
+    const status = commandId.startsWith('app.') ? appCommands.status(commandId, session.context) : handle.commandStatus(commandId, session.context)
+    if (!status.enabled) { setQuickError(status.reason ?? '操作暂不可用。'); return }
+    closeQuickEntry()
+    requestAnimationFrame(() => { if (commandId.startsWith('app.')) void appCommands.execute(commandId, undefined, session.context); else handle.execute(commandId, undefined, session.context) })
+  }
+  async function chooseQuickFile(target: { tabId: string } | { workspaceId: string; path: string }) {
+    const session = quickEntryRef.current, handle = handles.current.get(active)
+    if (!session || !handle || quickOpening.current) return
+    if (!handle.commandStatus('file.open', session.context).enabled) { setQuickError('当前文档暂不可切换，请完成编辑或重新打开面板。'); return }
+    if ('tabId' in target) { if (!tabs.some(tab => tab.id === target.tabId)) return; closeQuickEntry(); setActive(target.tabId); return }
+    if (!desktop || workspace?.id !== target.workspaceId) return
+    quickOpening.current = true; setQuickBusy(true); setQuickError('')
+    const generation = ++quickGeneration.current
+    let opened: OpenedFile | null = null, accepted = false
+    try {
+      opened = await openWorkspaceDocument(target.workspaceId, target.path)
+      if (generation !== quickGeneration.current || quickEntryRef.current !== session) return
+      if (!handle.commandStatus('file.open', session.context).enabled) throw new Error('目标文档或选区已变化，请重新打开面板。')
+      decodeFile(opened.bytes)
+      accepted = true; closeQuickEntry(); add(opened, target.path, workspace)
+    } catch (err) { if (generation === quickGeneration.current) setQuickError(`打开文件失败：${String(err)}`) }
+    finally {
+      if (opened?.id && !accepted && ![...handles.current.values()].some(value => value.summary.fileId === opened!.id)) await releaseDocument(opened.id).catch(() => undefined)
+      if (generation === quickGeneration.current) { quickOpening.current = false; setQuickBusy(false) }
+    }
+  }
   const fileAction = (action: FileAction) => {
     const handle = handles.current.get(active)
     if (blocked || !handle?.commandStatus('file.' + action).enabled) return
@@ -263,6 +316,8 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => executeApp('app.template')}>从模板新建</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.open').enabled} onClick={() => fileAction('open')}>打开文件</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.workspace').enabled} onClick={() => fileAction('workspace')}>打开工作区</button>
+          <button role="menuitem" disabled={blocked || !appCommands.status('app.quickOpen').enabled} onClick={() => executeApp('app.quickOpen')}>快速打开 <kbd>Ctrl/⌘+Alt+O</kbd></button>
+          <button role="menuitem" disabled={blocked || !appCommands.status('app.commands').enabled} onClick={() => executeApp('app.commands')}>命令面板 <kbd>F1</kbd></button>
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
@@ -324,8 +379,8 @@ function Application() {
     </div>
     <OverlayHost />
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
+      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
@@ -333,6 +388,8 @@ function Application() {
     </section>)}
     {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} selectionTools={showSelectionTools} onSelectionTools={setShowSelectionTools} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
+    {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
+    {quickEntry?.kind === 'open' && <QuickOpen tabs={tabs.map(tab => ({ id: tab.id, name: summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md', path: tab.path }))} workspace={workspace} pending={quickBusy} error={quickError} choose={chooseQuickFile} close={closeQuickEntry} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
       const handle = handles.current.get(active)
       // This confirmed dialog result may create a tab while general commands are suspended.

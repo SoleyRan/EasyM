@@ -8,7 +8,13 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const [host, setHost] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     let composing = false
-    const start = (event: Event) => { composing = true; if (!(event.target instanceof HTMLElement && event.target.closest('.table-panel')) && manager.top()?.level !== 'modal') manager.dismissTop() }
+    const start = (event: Event) => {
+      composing = true
+      const target = event.target instanceof HTMLElement ? event.target : null
+      // Source composition hides its own slash menu without treating the IME
+      // interruption as Escape. Other source menus still dismiss normally.
+      if (!target?.closest('.table-panel, .quick-entry-panel') && !(target?.closest('.cm-content') && manager.top()?.level === 'content') && manager.top()?.level !== 'modal') manager.dismissTop()
+    }
     const end = () => { composing = false }
     const keyboard = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.isComposing || composing || manager.top()?.level === 'modal') return

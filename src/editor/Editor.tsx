@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, Prec } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
 import { history, historyKeymap, defaultKeymap, undo, redo, undoDepth, redoDepth, selectAll } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
@@ -21,6 +21,8 @@ import { createSearchPanel } from './search-panel'
 import { liveRendering, setLiveEnabled, setLiveBlocks } from './live-decoration'
 import type { ParsedDocument } from '../core/markdown'
 import { useContextMenu } from './ContextMenu'
+import { filterCommands, slashTrigger, type SlashTrigger } from '../core/quick-entry'
+import { SlashMenu } from './QuickEntry'
 
 export interface EditorHandle {
   selection(): Selection
@@ -69,6 +71,12 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
   const view = useRef<EditorView | null>(null)
   const composition = useRef(false)
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor | null>(null)
+  const [slash, setSlash] = useState<{ trigger: SlashTrigger; rect: DOMRect; context: CommandContext; index: number } | null>(null)
+  const slashRef = useRef(slash); slashRef.current = slash
+  const ignoredSlash = useRef<string | null>(null)
+  const slashDefinitions = commandDefinitions.filter(command => command.id.startsWith('insert.'))
+  const closeSlash = () => { const value = slashRef.current; if (value) ignoredSlash.current = `${value.context.textRevision}:${value.trigger.from}:${value.trigger.to}`; slashRef.current = null; setSlash(null) }
+  const chooseSlash = (id: string) => { const value = slashRef.current; if (!value) return; closeSlash(); callbacks.current.onCommand(id, { slash: value.trigger }, value.context) }
   const selectionEnabled = useRef(selectionTools && !blocked); selectionEnabled.current = selectionTools && !blocked
   const isComposing = (editor: EditorView) => composition.current || editor.compositionStarted
   const callbacks = useRef({ commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable, onEditLanguage })
@@ -143,7 +151,22 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
   }), [])
 
   useEffect(() => {
-    let timer = 0, dragging = false
+    let timer = 0, slashTimer = 0, dragging = false
+    const updateSlash = () => {
+      clearTimeout(slashTimer)
+      slashTimer = window.setTimeout(() => {
+        const editor = view.current, context = callbacks.current.commandContext?.()
+        if (!editor || !editor.hasFocus || editor.state.readOnly || dragging || isComposing(editor) || !context?.active || context.reading || context.lockReason) { setSlash(null); return }
+        const selection = editor.state.selection.main, line = editor.state.doc.lineAt(selection.head)
+        // Ordinary caret movement must not serialize/parse the whole document.
+        if (!selection.empty || selection.head !== line.to || line.length > 69 || !/^\uFEFF? {0,3}\//.test(line.text)) { setSlash(null); return }
+        const trigger = slashTrigger(editor.state.doc.toString(), selection)
+        if (!trigger || ignoredSlash.current === `${context.textRevision}:${trigger.from}:${trigger.to}`) { setSlash(null); return }
+        const rect = editor.coordsAtPos(trigger.to), bounds = editor.scrollDOM.getBoundingClientRect()
+        if (!rect || rect.top < bounds.top || rect.bottom > bounds.bottom) { setSlash(null); return }
+        setSlash({ trigger, context, rect: new DOMRect(rect.left, rect.top, 1, rect.bottom - rect.top), index: 0 })
+      }, 80)
+    }
     const hideSelection = () => { clearTimeout(timer); setSelectionAnchor(null) }
     const showSelection = () => {
       hideSelection()
@@ -169,7 +192,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
       state: EditorState.create({
         doc: initialText,
         extensions: [
-          readOnly.current.of(EditorState.readOnly.of(blocked)), lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
+          readOnly.current.of([EditorState.readOnly.of(blocked), EditorView.contentAttributes.of({ 'aria-readonly': String(blocked) })]), lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
           search({ top: true, literal: true, createPanel: createSearchPanel, scrollToMatch: range => EditorView.scrollIntoView(range, { y: 'start', yMargin: 8 }) }),
           largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
           liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset), editTable: offset => callbacks.current.onEditTable(offset), editLanguage: offset => callbacks.current.onEditLanguage(offset) }),
@@ -189,13 +212,27 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
             { key: 'Mod-s', run: (v) => { if (!isComposing(v)) callbacks.current.onCommand('file.save'); return true } }, ...defaultKeymap, ...historyKeymap,
           ]),
           keymap.of(commandDefinitions.filter(command => command.shortcut && (command.id.startsWith('format.') || command.id === 'insert.image')).map(command => ({ key: command.shortcut!.replaceAll('+', '-').replace(/([A-Z])$/, letter => letter.toLowerCase()), run: (v: EditorView) => { if (!isComposing(v)) callbacks.current.onCommand(command.id); return true } }))),
-          EditorView.domEventHandlers({
+          Prec.highest(EditorView.domEventHandlers({
+            keydown: event => {
+              const value = slashRef.current
+              if (!value || event.isComposing || composition.current || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false
+              const items = filterCommands(slashDefinitions, value.trigger.query)
+              if (['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+                event.preventDefault()
+                if (items.length) setSlash({ ...value, index: event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (value.index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length })
+                return true
+              }
+              if (event.key === 'Enter') { event.preventDefault(); if (items[value.index]) chooseSlash(items[value.index].id); return true }
+              if (event.key === 'Tab') closeSlash()
+              return false
+            },
             pointerdown: () => { begin(); return false },
             blur: event => { if (!(event.relatedTarget instanceof HTMLElement && event.relatedTarget.closest('.selection-toolbar'))) hideSelection(); return false },
-            compositionstart: () => { composition.current = true; hideSelection(); return false },
-            compositionend: () => { queueMicrotask(() => { composition.current = false }); return false },
+            compositionstart: () => { composition.current = true; hideSelection(); setSlash(null); return false },
+            compositionend: () => { queueMicrotask(() => { composition.current = false; updateSlash() }); return false },
             scroll: (_event, v) => {
               hideSelection()
+              setSlash(null)
               const scroll = v.scrollDOM
               const height = Math.max(0, scroll.getBoundingClientRect().top - v.documentTop)
               const line = v.lineBlockAtHeight(height)
@@ -226,9 +263,10 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
               else callbacks.current.onImages(files)
               return true
             },
-          }),
+          })),
           EditorView.contentAttributes.of({ 'aria-label': 'Markdown 源码编辑器', spellcheck: 'false' }),
           EditorView.updateListener.of((update) => {
+            if (update.docChanged || update.selectionSet) updateSlash()
             if (update.docChanged) hideSelection()
             if (update.selectionSet && (!update.docChanged || update.transactions.some(transaction => transaction.isUserEvent('input.toolbar')))) showSelection()
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
@@ -246,10 +284,11 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
     callbacks.current.onHighlightLimited?.(limited)
     callbacks.current.onCodeLanguage?.(fencedCode(editor)?.language ?? null)
     updateFormats(editor.state)
-    return () => { clearTimeout(timer); window.removeEventListener('pointerup', release); window.removeEventListener('blur', hideSelection); window.removeEventListener('resize', hideSelection); resizeObserver.disconnect(); editor.destroy(); view.current = null }
+    return () => { clearTimeout(timer); clearTimeout(slashTimer); window.removeEventListener('pointerup', release); window.removeEventListener('blur', hideSelection); window.removeEventListener('resize', hideSelection); resizeObserver.disconnect(); editor.destroy(); view.current = null }
   }, [])
-  useEffect(() => { view.current?.dispatch({ effects: readOnly.current.reconfigure(EditorState.readOnly.of(blocked)) }) }, [blocked])
+  useEffect(() => { view.current?.dispatch({ effects: readOnly.current.reconfigure([EditorState.readOnly.of(blocked), EditorView.contentAttributes.of({ 'aria-readonly': String(blocked) })]) }) }, [blocked])
   useEffect(() => { if (!selectionTools || blocked) setSelectionAnchor(null) }, [selectionTools, blocked])
+  useEffect(() => { if (blocked) closeSlash() }, [blocked])
   useEffect(() => {
     view.current?.dispatch({ effects: setLiveEnabled.of(live) })
   }, [live])
@@ -294,5 +333,5 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
       { label: '插入图片', disabled: !status('insert.image').enabled, run: () => invoke('insert.image') },
       { label: '查找 / 替换', disabled: !status('edit.search').enabled, run: () => invoke('edit.search') },
     ])
-  }} />{selectionAnchor && <SelectionToolbar anchor={selectionAnchor} status={(id, context) => callbacks.current.commandStatus?.(id, context) ?? { enabled: true }} execute={(id, argument, context) => callbacks.current.onCommand(id, argument, context)} dismiss={() => setSelectionAnchor(null)} />}</>
+  }} />{slash && <SlashMenu rect={slash.rect} items={filterCommands(slashDefinitions, slash.trigger.query)} index={slash.index} choose={chooseSlash} close={closeSlash} />}{selectionAnchor && <SelectionToolbar anchor={selectionAnchor} status={(id, context) => callbacks.current.commandStatus?.(id, context) ?? { enabled: true }} execute={(id, argument, context) => callbacks.current.onCommand(id, argument, context)} dismiss={() => setSelectionAnchor(null)} />}</>
 })

@@ -36,7 +36,8 @@
     "icons": "tauri icon src-tauri/icons/app-icon.svg --output src-tauri/icons",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
-    "verify:content-tools": "node scripts/verify-content-tools.mjs"
+    "verify:content-tools": "node scripts/verify-content-tools.mjs",
+    "verify:quick-entry": "node scripts/verify-quick-entry.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

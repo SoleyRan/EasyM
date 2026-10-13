@@ -13,6 +13,8 @@ export const openWorkspace = () => invoke<Workspace | null>('open_workspace')
 export const listWorkspace = (id: string, relativePath = '') => invoke<WorkspaceEntry[]>('list_workspace', { id, relativePath })
 export const searchWorkspace = (id: string, query: string, requestId: string) => invoke<WorkspaceSearchReport>('search_workspace', { id, query, requestId })
 export const cancelWorkspaceSearch = (requestId: string) => invoke<void>('cancel_workspace_search', { requestId })
+export interface FilenameReport { paths: string[]; scanned: number; skipped: number; limited: boolean; cancelled: boolean }
+export const searchWorkspaceFilenames = (id: string, query: string, requestId: string) => invoke<FilenameReport>('search_workspace_filenames', { id, query, requestId })
 
 export async function openWorkspaceDocument(id: string, relativePath: string): Promise<OpenedFile> {
   const file = await invoke<Omit<OpenedFile, 'bytes'> & { bytes: number[] }>('open_workspace_document', { id, relativePath })

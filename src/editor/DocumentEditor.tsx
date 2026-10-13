@@ -42,6 +42,7 @@ import { codeAt, paragraphTarget, paragraphCommand, type ParagraphTarget } from 
 import type { FencedBlock } from '../core/code-block'
 import type { EditCommandResult } from '../core/document'
 import { openExternalLink, relativeDocumentTarget } from '../platform/links'
+import { insertStructure, validSlash, insertKinds, type InsertKind, type SlashTrigger } from '../core/quick-entry'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -76,9 +77,9 @@ function errorMessage(error: unknown): string {
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; tableDecision?: boolean }
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
-export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
+export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
-  reading: boolean; readingBusy: boolean; onReading(next: boolean): void
+  quickEntryOpen?: boolean; reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void; showSelectionTools?: boolean
@@ -87,7 +88,7 @@ interface Props {
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
   onReadOther?: () => void
 }
-export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
+export default function DocumentEditor({ quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -132,7 +133,9 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const tableRef = useRef(tableSession); tableRef.current = tableSession
   const textRef = useRef(text); textRef.current = text
   const [tableError, setTableError] = useState('')
-  const [tableInsert, setTableInsert] = useState<CommandContext | null>(null)
+  const [tableInsert, setTableInsert] = useState<(CommandContext & { slash?: SlashTrigger }) | null>(null)
+  const tableCommandOffset = useRef<number | null>(null)
+  const imageInsert = useRef<{ context: CommandContext; slash: SlashTrigger } | null>(null)
   const [contentTool, setContentTool] = useState<{ kind: 'link' | 'language' | 'paragraph'; context: CommandContext; link?: LinkTarget | null; code?: FencedBlock; paragraph?: ParagraphTarget } | null>(null)
   const contentToolRef = useRef(contentTool); contentToolRef.current = contentTool
   const [contentError, setContentError] = useState('')
@@ -218,6 +221,12 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     return () => window.clearTimeout(timer)
   }, [text])
   const imagePicker = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const picker = imagePicker.current
+    const cancel = () => { imageInsert.current = null; editor.current?.focus() }
+    picker?.addEventListener('cancel', cancel)
+    return () => picker?.removeEventListener('cancel', cancel)
+  }, [])
   function syncPreview(position = sourceScroll.current, remeasure = false) {
     if (reading) return
     sourceScroll.current = position
@@ -358,7 +367,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     context: () => ({ documentId: id, fileId, textRevision: changeRevision.current, selection: editor.current?.selection() ?? { anchor: 0, head: 0 }, active: activeRef.current,
       reading, editorMode: view, composing: contentComposing.current || cellComposing.current || !!editor.current?.composing(), lockReason: contentToolRef.current ? '请先确认或取消就地内容工具。' : suspended ? '请先关闭当前对话框。' : disabled || autoSaving || saving.current || exporting.current || images.applying || panelApplying.current ? '正在处理或恢复文档，请完成后操作。' : undefined }),
     status: commandId => {
-      if (commandId === 'table.edit') return { enabled: true };
+      if (commandId === 'table.edit') { try { sourceTable(textRef.current, tableCommandOffset.current ?? tableRef.current?.table.from ?? editor.current?.selection().head ?? 0); return { enabled: true } } catch (err) { return { enabled: false, reason: errorMessage(err) } } }
 
       if (commandId.startsWith('format.')) return editor.current?.formatStatus?.(commandId.slice(7) as Format) ?? { enabled: true, checked: formats[commandId.slice(7) as Format] }
       if (commandId === 'paragraph.convert') { try { paragraphTarget(textRef.current, editor.current?.selection() ?? { anchor: 0, head: 0 }); return { enabled: true } } catch (err) { return { enabled: false, reason: errorMessage(err) } } }
@@ -370,14 +379,18 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       return { enabled: true }
     },
     run: (commandId, context, argument) => {
+      const trigger = argument && typeof argument === 'object' && 'slash' in argument ? (argument as { slash: SlashTrigger }).slash : undefined
+      if (trigger && !validSlash(textRef.current, context.selection, trigger)) throw new Error('快捷插入位置已变化，请重新输入 /。')
+      const kind = commandId.slice(7) as InsertKind
+      if (commandId.startsWith('insert.') && insertKinds.some(([value]) => value === kind)) return editor.current?.applyCommand(insertStructure(context.textRevision, textRef.current, context.selection, kind, trigger), context) ?? false
       if (commandId === 'format.link') { openContentTool('link', context); return }
       if (commandId === 'paragraph.convert') { openContentTool('paragraph', context); return }
       if (commandId === 'content.language') { openContentTool('language', context); return }
       if (commandId.startsWith('format.')) return editor.current?.format(commandId.slice(7) as Format, codeLanguage, context) ?? false
       if (commandId === 'code.language') return applyCodeLanguage(String(argument), context)
-      if (commandId === 'insert.table') { setError(''); setTableInsert(context); return }
+      if (commandId === 'insert.table') { setError(''); setTableInsert({ ...context, slash: trigger }); return }
       if (commandId === 'table.edit') { openTable(typeof argument === 'number' ? argument : context.selection.head, context); return }
-      if (commandId === 'insert.image') { imagePicker.current?.click(); return }
+      if (commandId === 'insert.image') { imageInsert.current = trigger ? { context, slash: trigger } : null; imagePicker.current?.click(); return }
       if (commandId === 'edit.undo') { editor.current?.undo(); return }
       if (commandId === 'edit.redo') { editor.current?.redo(); return }
       if (commandId === 'edit.search') { editor.current?.openSearch(); return }
@@ -400,14 +413,17 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }
   function execute(commandId: string, argument?: unknown, expected?: CommandContext) {
     if (tableRef.current) { void prepareLeave().then(proceed => { if (proceed) execute(commandId, argument) }); return }
-    void registry.execute(commandId, argument, expected).then(status => { if (!status.enabled && activeRef.current) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(errorMessage(err)))
+    tableCommandOffset.current = commandId === 'table.edit' && typeof argument === 'number' ? argument : null
+    const result = registry.execute(commandId, argument, expected)
+    tableCommandOffset.current = null
+    void result.then(status => { if (!status.enabled && activeRef.current) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(errorMessage(err)))
   }
   const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session, tableDecision }
   useEffect(() => {
     onReport(id, summary, { summary, prepareLeave, canLeave: () => !contentToolRef.current && !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
       canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!contentToolRef.current && !saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
       canEdit: () => registry.status('file.open').enabled,
-      commandContext: () => registry.capture(), commandStatus: commandId => registry.status(commandId), execute,
+      commandContext: () => registry.capture(), commandStatus: (commandId, expected) => registry.status(commandId, expected), execute,
       run: action => execute('file.' + action),
       retain: async () => { if (!pendingDraft && !draftUnavailable && (dirty || images.session)) { window.clearTimeout(draftTimer.current); await enqueueDraft() } },
       discard: async () => { discarded.current = true; await clearDraft() },
@@ -630,7 +646,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }, [text, name, snapshot, dirty, draftReady, draftUnavailable, pendingDraft, images.resources, images.session, images.applying, fileId, revision])
 
   useEffect(() => {
-    if (contentTool || tableSession || tableInsert || !desktop || !fileId || !dirty || disabled || images.applying || autoSaving || autoSavePaused || suspended || discarded.current) return
+    if (quickEntryOpen || contentTool || tableSession || tableInsert || !desktop || !fileId || !dirty || disabled || images.applying || autoSaving || autoSavePaused || suspended || discarded.current) return
     let timer: number
     const attempt = () => {
       // Wait for IME composition to finish instead of persisting an intermediate syllable.
@@ -639,7 +655,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     }
     timer = window.setTimeout(attempt, 1200)
     return () => window.clearTimeout(timer)
-  }, [contentTool, tableSession, tableInsert, text, dirty, fileId, revision, snapshot, disabled, images.applying, autoSaving, autoSavePaused, suspended, images.resources])
+  }, [quickEntryOpen, contentTool, tableSession, tableInsert, text, dirty, fileId, revision, snapshot, disabled, images.applying, autoSaving, autoSavePaused, suspended, images.resources])
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => { if (!desktop && (dirty || images.session || tableSession)) event.preventDefault() }
@@ -914,7 +930,12 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
   return <><div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={!!contentTool || tableDecision || busy || !!printable}>
-    <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => { void images.importFiles(Array.from(event.target.files ?? [])); event.target.value = '' }} />
+    <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => {
+      const target = imageInsert.current; imageInsert.current = null
+      if (target && (!registry.status('insert.image', target.context).enabled || !validSlash(textRef.current, target.context.selection, target.slash))) { setError('图片插入位置已变化，请重新选择。'); event.target.value = ''; return }
+      void images.importFiles(Array.from(event.target.files ?? []), target ? { anchor: target.slash.from, head: target.slash.to } : undefined)
+      event.target.value = ''
+    }} />
     {images.session && <ImagePanel key={images.session.instance.instanceId} image={images.session} onBusy={(value) => { panelApplying.current = value }} onCancel={() => { images.cancel(); if (!dirty) void clearDraft().catch((err) => setError(errorMessage(err))) }} onChange={images.update} onApply={images.apply} />}
     <div className="workspace">
       {showFiles && <ResizableSidebar side="left">
@@ -942,7 +963,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading || !!tableSession}><Editor key={epoch} ref={editor} initialText={text} commandStatus={(commandId, expected) => registry.status(commandId, expected)} selectionTools={showSelectionTools && active && !reading && !suspended && !contentTool} commandContext={() => commandRuntime.current.context()} blocked={!!contentTool || !!tableSession || reading || suspended || disabled} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onEditTable={offset => execute('table.edit', offset)} onEditLanguage={offset => { if (parsedText.current === textRef.current) openContentTool('language', registry.capture(), offset) }} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => execute('file.save')} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={execute} /></div>
+          <div className="source-pane" hidden={reading} inert={reading || !!tableSession}><Editor key={epoch} ref={editor} initialText={text} commandStatus={(commandId, expected) => registry.status(commandId, expected)} selectionTools={showSelectionTools && active && !reading && !suspended && !contentTool} commandContext={() => commandRuntime.current.context()} blocked={quickEntryOpen || !!contentTool || !!tableSession || reading || suspended || disabled} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onEditTable={offset => execute('table.edit', offset)} onEditLanguage={offset => { if (parsedText.current === textRef.current) openContentTool('language', registry.capture(), offset) }} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => execute('file.save')} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={execute} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onContextMenu={event => {
             const selected = window.getSelection()
             const selectedText = selected?.rangeCount && event.currentTarget.contains(selected.getRangeAt(0).commonAncestorContainer) ? selected.toString() : ''
@@ -989,7 +1010,9 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   {contentTool && active && contentTool.paragraph && <ParagraphDialog target={contentTool.paragraph} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={kind => applyContentTool(context => paragraphCommand(context.textRevision, textRef.current, context.selection, kind))} />}
   {tableInsert && active && <TableInsert error={error} onClose={() => { setTableInsert(null); editor.current?.focus() }} onInsert={(rows, columns) => {
     try {
-      const context = tableInsert, patch = insertTable(textRef.current, Math.min(context.selection.anchor, context.selection.head), Math.max(context.selection.anchor, context.selection.head), rows, columns)
+      const context = tableInsert
+      if (context.slash && !validSlash(textRef.current, context.selection, context.slash)) throw new Error('快捷插入位置已变化，请重新输入 /。')
+      const patch = insertTable(textRef.current, context.slash?.from ?? Math.min(context.selection.anchor, context.selection.head), context.slash?.to ?? Math.max(context.selection.anchor, context.selection.head), rows, columns)
       sourceTable(applyPatches(textRef.current, [patch]), patch.firstCell)
       // The dialog itself is the only additional lock. Recheck every original
       // identity/revision/selection and all task locks before committing.
