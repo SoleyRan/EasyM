@@ -4,7 +4,9 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前在 `feature/v0.3`，已完成办公增强实现和 [0.3.0 本机验收与开发包交付](Docs/Easy-Markdown-v0.3-验收与交付.md)：DOCX 预检/后台导出、显式启用的持久版本历史与文字/图片差异、恢复/清理、最多 100 实例的安全批图，以及键盘焦点和阅读模式改进。PDF 候选实测评估后保留系统打印，专用引擎延期。173 项前端、50 项 Windows Rust、15 组生产回归、慢速查找/模板、Word 打开编辑再保存与原生窗口启动通过；0.3.0 Windows 安装包/便携包已生成。最新三平台 CI、隔离安装/卸载、真实 IME/原生对话框、读屏与跨平台 GUI 等门槛仍待验收，不称为正式发行。范围见 [v0.3 设计计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)。
+当前在 `feature/v0.4`，已冻结 [v0.4 设计与实施计划](Docs/Easy-Markdown-v0.4-设计与实施计划.md)，尚未开始实现。按顺序完成统一命令与浮层、可视化表格、选区与内容就地工具、快捷插入/命令面板/快速打开、排版设置与回归交付。仅借鉴 MarkText 的交互设计，独立实现，不引入其代码或资源；产品版本暂时保持 0.3.0。
+
+v0.3 已合并到 develop，已完成办公增强实现和 [0.3.0 本机验收与开发包交付](Docs/Easy-Markdown-v0.3-验收与交付.md)：DOCX 预检/后台导出、显式启用的持久版本历史与文字/图片差异、恢复/清理、最多 100 实例的安全批图，以及键盘焦点和阅读模式改进。PDF 候选实测评估后保留系统打印，专用引擎延期。173 项前端、50 项 Windows Rust、15 组生产回归、慢速查找/模板、Word 打开编辑再保存与原生窗口启动通过；0.3.0 Windows 安装包/便携包已生成。提交 `efcfe0b` 的 [三平台 CI 第 2 次运行](https://github.com/SoleyRan/EasyM/actions/runs/38367149201/attempts/2) 全部通过，包含 Windows 原生启动、隔离安装/卸载和便携包校验。真实 IME/原生对话框、读屏与跨平台 GUI 等门槛仍待验收，不称为正式发行。范围见 [v0.3 设计计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)。
 
 v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
 
@@ -16,7 +18,7 @@ v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即�
 - 分屏源码与预览双向滚动同步，点击大纲标题同步定位两侧；
 - 代码块语言选择及源码/预览语法高亮、语言修改撤销/重做；
 - 多文档标签，各自保留正文、撤销记录、滚动位置和草稿；
-- 四种 Style 配色（浅色、深色、暖纸、护眼绿），点击 EM 菜单中的 Style，在右侧子菜单选择并自动记住；
+- 四种 Style 配色（浅色、深色、暖纸、护眼绿），在 EM → 设置中选择并自动记住；
 - 随主题变化的顶栏窗口控制、拖动与双击最大化；底部行数与字数；
 - 全屏阅读模式：仅显示预览，支持文件树/大纲、按钮或 Esc 退出，保留正文和撤销记录；
 - Markdown 源范围补丁、可隐藏且记住偏好的格式工具栏、标题大纲与带边框表格；
@@ -89,7 +91,7 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.3.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.3 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.3 验收与交付](Docs/Easy-Markdown-v0.3-验收与交付.md)，校验值见 [构建记录](Docs/verification/v0.3/acceptance-67d45fd/windows-build.json)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.3.0_x64-setup.exe`（附带项目与第三方许可，未签名；本版本安装/卸载仍待最新 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
+Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.3.0_x64-setup.exe`（附带项目与第三方许可，未签名；`efcfe0b` 的安装/卸载已通过上述 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
 
 ## 许可
 
