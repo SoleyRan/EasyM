@@ -1,0 +1,129 @@
+{
+  "phase": "v0.4 step 1",
+  "verifiedAt": "2026-10-13T10:16:25.113Z",
+  "branch": "feature/v0.4",
+  "documentationCommit": "702949589973bdec680aff19416e4b68e0c9eb2a",
+  "implementation": "Uncommitted workspace snapshot; independent implementation",
+  "version": "0.3.0",
+  "passed": true,
+  "checks": {
+    "typecheck": true,
+    "build": true,
+    "releaseMetadata": true,
+    "unitFiles": 34,
+    "unitTests": 191,
+    "productionGroups": 16,
+    "productionBrowser": "chromium",
+    "edgeCommands": true,
+    "edgeContextMenu": true,
+    "diffCheck": true
+  },
+  "distIndexSha256": "b4bf8136578cd86f0f92c800d1f91a44f81a28cc4e8b7fe5ff8c2cd1c59309f2",
+  "sourceFiles": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "baadd5862aceb98cf308151dc554e6d22b8f88674849cc07773febddd589af19"
+    },
+    {
+      "path": "package.json",
+      "sha256": "de47a2cb393cce7a6cee5d6a191aa5fc11e191a2403b3bd9952f211c03dab819"
+    },
+    {
+      "path": "scripts/verify-commands.mjs",
+      "sha256": "1626dba5c516348309893be475d738e87e39a43ccc4630373ae44ba6d63dd225"
+    },
+    {
+      "path": "scripts/verify-regression.mjs",
+      "sha256": "645bd06758a087eb0b0f3852f3151372521372945cc977940d36b5ea2b87edcb"
+    },
+    {
+      "path": "scripts/verify-writing.mjs",
+      "sha256": "c9b9c2a0d0f9ce7ee808775f8e0889c254488690318dcbf1b1e236071cf6fe65"
+    },
+    {
+      "path": "src/App.test.ts",
+      "sha256": "2ba4b60c1e97fe4d57cea18e480f45b9637d8c5fb2b63a37d1d350b7b70d1adf"
+    },
+    {
+      "path": "src/App.tsx",
+      "sha256": "829d113fd90815d54b1706b29f49aec8e403ce7c461b221a2359d50c8e759ad6"
+    },
+    {
+      "path": "src/core/commands.test.ts",
+      "sha256": "7b9fc32f03a1e1ccf9d9609ee5fd4d4f6affd2c061888de30b0f8af032d13945"
+    },
+    {
+      "path": "src/core/commands.ts",
+      "sha256": "202fce6fd747fea754f394e8ea7c72fa58e127cb97a537f9f16fceb87f6678da"
+    },
+    {
+      "path": "src/core/overlays.test.ts",
+      "sha256": "8a811446cff0d98ea709afcf462b8f0b3f03beb8e0ff134d7b2ca67fb93e8c2c"
+    },
+    {
+      "path": "src/core/overlays.ts",
+      "sha256": "922b1c0f283d00f3a95c326309d59e0a6794660f9e5f745ba27e8a248789608c"
+    },
+    {
+      "path": "src/editor/ApplicationDialogs.tsx",
+      "sha256": "863a720a76a66a68dd8b802b2e0d4121d57e551e6a9b787174111c3f937b3ab0"
+    },
+    {
+      "path": "src/editor/BatchImageDialog.tsx",
+      "sha256": "d6443244cc87a85a92b318eaf876041e6162f92f15b66893ddc064847f2b5d36"
+    },
+    {
+      "path": "src/editor/CloseDialog.tsx",
+      "sha256": "89eac8d25d477967da938562c4ba5faffcc9de2e0ad77365e1e00ac7a2288ebe"
+    },
+    {
+      "path": "src/editor/ContextMenu.tsx",
+      "sha256": "2d6c8571ee5667c417d6e38712f08a73a65c9430e97e85cb383bf694d0d3e22e"
+    },
+    {
+      "path": "src/editor/DocumentEditor.tsx",
+      "sha256": "c19f74c80751a1ed0e168ab6c99659f177caaa6bcfe763d4917cefbeaccfa042"
+    },
+    {
+      "path": "src/editor/DocxDialog.tsx",
+      "sha256": "f9091cd87e06247878cf6db1f31acbf13c3e4c9d8bba28651ac246eef748a96f"
+    },
+    {
+      "path": "src/editor/Editor.tsx",
+      "sha256": "a35bef012fd2377ec653dcb88ab5b6dfbf3c832c83c791260f8055c53dd8b12c"
+    },
+    {
+      "path": "src/editor/HistoryDialog.tsx",
+      "sha256": "b809c20939eaf4e3eb640dcbc85a71ee97e4bc92bdc614e157ba70f2f94320aa"
+    },
+    {
+      "path": "src/editor/ImagePanel.tsx",
+      "sha256": "97be04403f149eb628c01f6562166e6e22fba065e9fbafeb3ac156d9b28b273f"
+    },
+    {
+      "path": "src/editor/Overlay.tsx",
+      "sha256": "85950b9bfdb07546a9cf881b48d6c27f126e420dae1f40ff41b909a59a7cdd29"
+    },
+    {
+      "path": "src/editor/PrintDialog.tsx",
+      "sha256": "f8023d336142b1f81654e71f4697596c004814ae7b3547915dd07b4c36d06246"
+    },
+    {
+      "path": "src/editor/TemplateDialog.tsx",
+      "sha256": "18096826f0c38008a8a556ae45e4fb87e526fe7ccec2c734d8bfdfb737acdb0b"
+    },
+    {
+      "path": "src/editor/themes.css",
+      "sha256": "428b1759ae19058188c2d165ebc45df64ccd01e145e0e876b5b65c14da8509a6"
+    }
+  ],
+  "limitations": [
+    "Real IME candidates and native file/print dialogs require manual verification.",
+    "macOS/Linux native GUI, screen readers and remote CI have not been run for this step.",
+    "Rust unchanged; no Rust rebuild or Windows package in this step."
+  ],
+  "notes": [
+    "Known existing bundle size warning and React act warnings do not fail checks.",
+    "First Edge regression falsely counted edge:// downloads UI resources as application external requests; full Chromium suite preserves external request assertions."
+  ]
+}

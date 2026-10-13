@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "browser": "msedge",
+  "checks": [
+    "shortcut/toolbar share format toggles and one undo stack",
+    "menu above search; Escape closes submenu, menu, then search",
+    "right-click replaces application menu; modal refuses lower overlays",
+    "menus clamp and flip in a narrow short viewport",
+    "composition protects source; image and print shortcuts remain distinct",
+    "Escape in reading closes the top menu before exiting reading"
+  ],
+  "pageErrors": []
+}

@@ -1,3 +1,4 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { canGenerateDocx, type PreparedDocx } from '../core/docx-model'
 import { defaultDocxOptions, type DocxOptions } from '../core/docx-options'
@@ -15,6 +16,7 @@ interface Props {
 
 export function DocxDialog({ prepared, source, phase, onGenerate, onCancel, onLocate, onReadOther }: Props) {
   const dialog = useRef<HTMLFormElement>(null)
+  useModalOverlay(dialog)
   const [options, setOptions] = useState<DocxOptions>(defaultDocxOptions)
   const ready = phase === 'ready', cancellable = phase !== 'saving'
   const lines = useMemo(() => {

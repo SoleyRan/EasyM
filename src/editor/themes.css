@@ -246,3 +246,10 @@
 .batch-comparison img { width: 100%; height: 200px; object-fit: contain; background: var(--surface); border: 1px solid var(--border); }
 .batch-dialog :is(button, input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .application *, .application *::before, .application *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Menus live outside clipped/scrolling panels; modal-local edit menus remain above dialogs. */
+.overlay-host { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+.overlay-host > * { pointer-events: auto; }
+.overlay-host .file-menu { z-index: 1000; max-width: calc(100vw - 12px); max-height: calc(100vh - 12px); overflow-y: auto; color: var(--text); }
+.overlay-host .export-submenu { z-index: 1001; width: 176px; }
+@media print { .overlay-host { display: none !important; } }

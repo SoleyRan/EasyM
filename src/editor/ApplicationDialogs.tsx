@@ -1,3 +1,4 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useRef, useState, type ReactNode, type KeyboardEventHandler } from 'react'
 import { appVersion, historyDirectory, themes, type Theme, type HistoryDirectory } from '../platform/preferences'
 import { desktop } from '../platform/storage'
@@ -5,6 +6,7 @@ import { historyError } from '../platform/history'
 
 function ApplicationDialog({ title, onClose, busy = false, children, onKeyDown }: { title: string; onClose(): void; busy?: boolean; children: ReactNode; onKeyDown?: KeyboardEventHandler<HTMLDivElement> }) {
   const dialog = useRef<HTMLDivElement>(null)
+  useModalOverlay(dialog)
   useEffect(() => { dialog.current?.focus() }, [])
   return <div className="modal-backdrop application-backdrop" onKeyDown={event => {
     onKeyDown?.(event)

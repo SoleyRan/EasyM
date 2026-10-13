@@ -32,6 +32,7 @@ import { ResizableSidebar } from './ResizableSidebar'
 import { MAX_LIVE_DOCUMENT } from '../core/live-preview'
 import { navigateButtons } from './navigation'
 import { useContextMenu, type ContextAction } from './ContextMenu'
+import { CommandRegistry, commandDefinitions, type CommandContext, type CommandStatus } from '../core/commands'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -66,7 +67,7 @@ function errorMessage(error: unknown): string {
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
-export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
+export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
@@ -252,23 +253,58 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   })
   const liveImageContext = useMemo(() => ({ resources: images.resources, fileId }), [images.resources, fileId])
   const disabled = busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
+  const commandRuntime = useRef<{ context(): CommandContext; status(id: string): CommandStatus; run(id: string, context: CommandContext, argument?: unknown): void | boolean | Promise<void | boolean> }>(null!)
+  const registry = useMemo(() => {
+    const commands = new CommandRegistry(() => commandRuntime.current.context())
+    for (const definition of commandDefinitions.filter(item => !item.id.startsWith('app.'))) commands.register({ ...definition,
+      status: () => commandRuntime.current.status(definition.id), run: (context, argument) => commandRuntime.current.run(definition.id, context, argument) })
+    return commands
+  }, [])
+  commandRuntime.current = {
+    context: () => ({ documentId: id, fileId, textRevision: changeRevision.current, selection: editor.current?.selection() ?? { anchor: 0, head: 0 }, active: activeRef.current,
+      reading, editorMode: view, composing: !!editor.current?.composing(), lockReason: suspended ? '请先关闭当前对话框。' : disabled || autoSaving || saving.current || exporting.current || images.applying || panelApplying.current ? '正在处理或恢复文档，请完成后操作。' : undefined }),
+    status: commandId => {
+      if (commandId.startsWith('format.')) return { enabled: true, checked: formats[commandId.slice(7) as Format] }
+      if (commandId === 'edit.undo' || commandId === 'edit.redo') return { enabled: editor.current?.historyState?.()[commandId.slice(5) as 'undo' | 'redo'] ?? true, reason: '没有可撤销或重做的修改。' }
+      if (commandId === 'file.reload' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
+      if (commandId === 'view.reading' && readingBusy) return { enabled: false, reason: '正在切换窗口模式。' }
+      if (commandId.startsWith('view.')) return { enabled: true, checked: commandId === 'view.reading' ? reading : commandId === 'view.files' ? showFiles : commandId === 'view.outline' ? showOutline : commandId === 'view.toolbar' ? showToolbar : commandId === `view.${view}` }
+      return { enabled: true }
+    },
+    run: (commandId, context, argument) => {
+      if (commandId.startsWith('format.')) return editor.current?.format(commandId.slice(7) as Format, codeLanguage, context) ?? false
+      if (commandId === 'code.language') return applyCodeLanguage(String(argument), context)
+      if (commandId === 'insert.image') { imagePicker.current?.click(); return }
+      if (commandId === 'edit.undo') { editor.current?.undo(); return }
+      if (commandId === 'edit.redo') { editor.current?.redo(); return }
+      if (commandId === 'edit.search') { editor.current?.openSearch(); return }
+      if (commandId === 'view.reading') { onReading(!reading); return }
+      if (commandId === 'view.files') { onShowFiles(!showFiles); return }
+      if (commandId === 'view.outline') { setShowOutline(!showOutline); return }
+      if (commandId === 'view.toolbar') { onShowToolbar(!showToolbar); return }
+      if (commandId.startsWith('view.')) { setView(commandId.slice(5) as ViewMode); return }
+      const action = commandId.slice(5)
+      if (action === 'new') onNew()
+      else if (action === 'open') return open()
+      else if (action === 'workspace') return chooseWorkspace()
+      else if (action === 'reload') return reloadExternal()
+      else if (action === 'exportDocx') return exportDocxDocument()
+      else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
+      else if (action === 'batchImages') { setBatchOpen(true); setBusy(true) }
+      else if (action === 'exportHtml' || action === 'print') return exportDocument(action)
+      else if (action === 'save' || action === 'saveAs') return save(action === 'saveAs')
+    },
+  }
+  function execute(commandId: string, argument?: unknown, expected?: CommandContext) {
+    void registry.execute(commandId, argument, expected).then(status => { if (!status.enabled && activeRef.current) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(errorMessage(err)))
+  }
   const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
   useEffect(() => {
     onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
       canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
-      canEdit: () => !disabled && !exporting.current && !saving.current && !editor.current?.composing(),
-      run: (action) => {
-        if (disabled || exporting.current || saving.current || editor.current?.composing()) return
-        if (action === 'new') onNew()
-        else if (action === 'open') void open()
-        else if (action === 'workspace') void chooseWorkspace()
-        else if (action === 'reload') void reloadExternal()
-        else if (action === 'exportDocx') void exportDocxDocument()
-        else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
-        else if (action === 'batchImages') { setBatchOpen(true); setBusy(true) }
-        else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
-        else void save(true)
-      },
+      canEdit: () => registry.status('file.open').enabled,
+      commandContext: () => registry.capture(), commandStatus: commandId => registry.status(commandId), execute,
+      run: action => execute('file.' + action),
       retain: async () => { if (!pendingDraft && !draftUnavailable && (dirty || images.session)) { window.clearTimeout(draftTimer.current); await enqueueDraft() } },
       discard: async () => { discarded.current = true; await clearDraft() },
       resume: () => { discarded.current = false; flushDraft.current() }, save: () => save(),
@@ -414,9 +450,9 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   useEffect(() => {
     if (!active) return
     const print = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'p') {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'p' && !event.isComposing) {
         event.preventDefault()
-        if (!disabled && !suspended) void exportDocument('print')
+        if (!(event.target as HTMLElement)?.closest('input, textarea, [role=dialog]')) execute('file.print')
       }
     }
     window.addEventListener('keydown', print, true)
@@ -637,11 +673,8 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     finally { saving.current = false; if (automatic) setAutoSaving(false); else setBusy(false) }
   }
 
-  function command(kind: Command) {
-    if (disabled || editor.current?.composing()) return
-    editor.current?.format(kind, codeLanguage)
-  }
-  function chooseView(next: ViewMode) { if (!editor.current?.composing()) setView(next) }
+  function command(kind: Command) { execute('format.' + kind) }
+  function chooseView(next: ViewMode) { execute('view.' + next) }
   async function searchCurrentWorkspace() {
     if (!workspace || disabled || !workspaceQuery.trim()) return
     cancelSearch()
@@ -692,14 +725,14 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     if (reference && parsedText.current === text && !disabled) void images.edit(reference)
   }
 
-  function chooseCodeLanguage(language: string) {
-    setCodeLanguage(language)
-    if (disabled || editor.current?.composing()) return
+  function chooseCodeLanguage(language: string) { execute('code.language', language) }
+  function applyCodeLanguage(language: string, context: CommandContext) {
     const block = editor.current?.fencedCode()
-    if (!block) return
-    const selection = editor.current!.selection()
-    const result = codeBlockCommand(changeRevision.current, text, selection, language, block)
-    editor.current?.patch(result.patches, result.selection)
+    if (!block) { setCodeLanguage(language); return true }
+    const result = codeBlockCommand(context.textRevision, text, context.selection, language, block)
+    const applied = editor.current?.applyCommand(result, context) ?? false
+    if (applied) setCodeLanguage(language)
+    return applied
   }
 
   async function recover(keep: boolean) {
@@ -741,13 +774,13 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.3.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
-        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button disabled={disabled} onClick={() => editor.current?.openSearch()}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
-        {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={disabled} aria-pressed={formats[kind]} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={disabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={disabled} onClick={() => imagePicker.current?.click()}>▣</button><button aria-label="撤销" disabled={disabled} onClick={() => editor.current?.undo()}>↶</button><button aria-label="重做" disabled={disabled} onClick={() => editor.current?.redo()}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
+        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
+        {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={!registry.status('format.' + kind).enabled} aria-pressed={registry.status('format.' + kind).checked} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={!registry.status('code.language').enabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={!registry.status('insert.image').enabled} onClick={() => execute('insert.image')}>▣</button><button aria-label="撤销" disabled={!registry.status('edit.undo').enabled} onClick={() => execute('edit.undo')}>↶</button><button aria-label="重做" disabled={!registry.status('edit.redo').enabled} onClick={() => execute('edit.redo')}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => void save()} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={(kind) => kind === 'image' ? imagePicker.current?.click() : command(kind as Command)} /></div>
+          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} commandStatus={commandId => registry.status(commandId)} commandContext={() => commandRuntime.current.context()} blocked={reading || suspended || disabled} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => execute('file.save')} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={execute} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onContextMenu={event => {
             const selected = window.getSelection()
             const selectedText = selected?.rangeCount && event.currentTarget.contains(selected.getRangeAt(0).commonAncestorContainer) ? selected.toString() : ''

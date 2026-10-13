@@ -478,7 +478,7 @@ it('restores pending crop and alt, then retains them when exiting without applyi
   const alt = container.querySelector<HTMLInputElement>('.alt-input')!
   expect(alt.value).toBe('原 Alt')
   await click('EM 菜单')
-  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
+  expect(container.querySelector('[aria-label="文件菜单"]')).toBeNull()
   expect(docxApi.preflight).not.toHaveBeenCalled()
   await requestClose()
   const saveButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === '保存并退出')!

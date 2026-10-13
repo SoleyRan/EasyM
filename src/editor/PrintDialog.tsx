@@ -1,3 +1,4 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { exportStyles, type ExportDocument } from '../core/export'
@@ -6,6 +7,7 @@ import './print.css'
 
 export function PrintDialog({ output, onClose }: { output: ExportDocument; onClose(): void }) {
   const dialog = useRef<HTMLDivElement>(null), root = useRef<HTMLElement>(null)
+  useModalOverlay(dialog)
   const [printing, setPrinting] = useState(false), [error, setError] = useState('')
   const locked = useRef(false)
   useEffect(() => {
@@ -13,7 +15,7 @@ export function PrintDialog({ output, onClose }: { output: ExportDocument; onClo
     document.title = output.name.replace(/\.html$/i, ''); document.body.classList.add('easym-print-ready')
     dialog.current?.querySelector<HTMLButtonElement>('button')?.focus()
     const keyboard = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !locked.current) { event.preventDefault(); event.stopPropagation(); onClose() }
+      if (event.key === 'Escape' && !event.isComposing && !locked.current) { event.preventDefault(); event.stopPropagation(); onClose() }
       if (event.key === 'Tab') {
         const buttons = Array.from(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
         const next = buttons[(buttons.indexOf(document.activeElement as HTMLButtonElement) + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length]

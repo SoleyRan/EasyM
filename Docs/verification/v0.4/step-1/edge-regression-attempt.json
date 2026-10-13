@@ -1,0 +1,26 @@
+{
+  "version": "0.3.0",
+  "startedAt": "2026-10-13T09:55:08.993Z",
+  "browser": "msedge",
+  "passed": false,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 515
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 5324
+    },
+    {
+      "script": "docx",
+      "passed": false,
+      "durationMs": 8327
+    }
+  ],
+  "distIndexSha256": "410dd5bcf17a1c7f4ba6d73721fd5eaa769efbdd2aac38ddf44db8861d4fb1e6",
+  "error": "docx verification failed (1)",
+  "finishedAt": "2026-10-13T09:55:23.165Z"
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import DocumentEditor, { type DocumentHandle, type DocumentSummary, type FileAction } from './editor/DocumentEditor'
 import { CloseDialog } from './editor/CloseDialog'
 import { TemplateDialog } from './editor/TemplateDialog'
@@ -11,17 +11,25 @@ import { desktop } from './platform/storage'
 import { ContextMenuProvider, useContextMenu } from './editor/ContextMenu'
 import { SettingsDialog, GuideDialog } from './editor/ApplicationDialogs'
 import { themes, type Theme, storedPreference, storePreference, editorFontSize, needsGuide, completeGuide } from './platform/preferences'
+import { OverlayProvider, OverlayHost, PositionedOverlay, useOverlays } from './editor/Overlay'
+import type { OverlayLease } from './core/overlays'
+import { CommandRegistry, commandDefinitions, type CommandContext } from './core/commands'
 import type { CSSProperties } from 'react'
 
 interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 
 export default function App() {
-  return <ContextMenuProvider><Application /></ContextMenuProvider>
+  return <OverlayProvider><ContextMenuProvider><Application /></ContextMenuProvider></OverlayProvider>
 }
 
 function Application() {
   const contextMenu = useContextMenu()
+  const { manager } = useOverlays()
+  const menuLease = useRef<OverlayLease | null>(null)
+  const exportLease = useRef<OverlayLease | null>(null)
+  const menuSurface = useRef<HTMLDivElement>(null)
+  const exportSurface = useRef<HTMLDivElement>(null)
   const [tabs, setTabs] = useState<Tab[]>([first])
   const [active, setActive] = useState(first.id)
   const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
@@ -102,7 +110,7 @@ function Application() {
     update()
     listenWindowState(update).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => { if (!disposed) setError(String(err)) })
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && readingRef.current && !appModalRef.current) { event.preventDefault(); exitReading.current() }
+      if (event.key === 'Escape' && !event.defaultPrevented && !event.isComposing && readingRef.current && !appModalRef.current) { event.preventDefault(); exitReading.current() }
     }
     window.addEventListener('keydown', escape)
     return () => { disposed = true; stop?.(); window.removeEventListener('keydown', escape) }
@@ -110,16 +118,27 @@ function Application() {
   useEffect(() => { try { localStorage.setItem('easym-theme', theme) } catch { /* Theme remains usable without persistence. */ } }, [theme])
   useEffect(() => { try { localStorage.setItem('easym-toolbar', showToolbar ? 'visible' : 'hidden') } catch { /* Visibility remains usable without persistence. */ } }, [showToolbar])
   useEffect(() => { if (!storePreference('easym-editor-font-size', String(fontSize))) setError('无法保存编辑字号，当前会话仍可使用。') }, [fontSize])
-  useEffect(() => {
-    if (!menuOpen) { setExportMenuOpen(false); return }
-    menu.current?.querySelector<HTMLButtonElement>('[role^=menuitem]:not(:disabled)')?.focus()
-    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node)) setMenuOpen(false) }
+  useLayoutEffect(() => {
+    if (!menuOpen) { menuLease.current?.release(); menuLease.current = null; setExportMenuOpen(false); return }
+    menuLease.current = manager.open('menu', () => {
+      setMenuOpen(false)
+      if (!manager.top()) menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus({ preventScroll: true })
+    })
+    if (!menuLease.current) { setMenuOpen(false); return }
+    menuSurface.current?.querySelector<HTMLButtonElement>('[role^=menuitem]:not(:disabled)')?.focus()
+    const outside = (event: PointerEvent) => { if (![menu.current, menuSurface.current, exportSurface.current].some(node => node?.contains(event.target as Node))) setMenuOpen(false) }
     document.addEventListener('pointerdown', outside)
-    return () => document.removeEventListener('pointerdown', outside)
-  }, [menuOpen])
-  useEffect(() => {
-    if (exportMenuOpen) menu.current?.querySelector<HTMLButtonElement>('#export-menu [role=menuitem]:not(:disabled)')?.focus()
-  }, [exportMenuOpen])
+    return () => { document.removeEventListener('pointerdown', outside); menuLease.current?.release() }
+  }, [menuOpen, manager])
+  useLayoutEffect(() => {
+    if (!exportMenuOpen || !menuLease.current?.current()) return
+    exportLease.current = manager.open('menu', () => {
+      setExportMenuOpen(false)
+      if (manager.top()?.id === menuLease.current?.id) menuSurface.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus()
+    }, menuLease.current.id)
+    exportSurface.current?.querySelector<HTMLButtonElement>('[role=menuitem]:not(:disabled)')?.focus()
+    return () => { exportLease.current?.release(); exportLease.current = null }
+  }, [exportMenuOpen, manager])
   useEffect(() => {
     if (!templateOpen && restoreTemplateFocus.current) {
       restoreTemplateFocus.current = false
@@ -197,22 +216,37 @@ function Application() {
     setTemplateOpen(false)
   }
   const blocked = appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  const appRuntime = useRef<{ context(): CommandContext; run(id: string): void; ready(): boolean }>(null!)
+  const appCommands = useMemo(() => {
+    const registry = new CommandRegistry(() => appRuntime.current.context())
+    for (const definition of commandDefinitions.filter(item => item.id.startsWith('app.'))) registry.register({ ...definition,
+      status: () => ({ enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }), run: () => appRuntime.current.run(definition.id) })
+    return registry
+  }, [])
+  appRuntime.current = {
+    context: () => handles.current.get(active)?.commandContext() ?? ({ documentId: active, fileId: summaries[active]?.fileId ?? null, textRevision: 0, selection: { anchor: 0, head: 0 }, active: true, reading, composing: false, lockReason: blocked ? '请先完成当前文档操作。' : undefined }),
+    ready: () => !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
+    run: commandId => { setMenuOpen(false); if (commandId === 'app.template') setTemplateOpen(true); else setSettingsOpen(true) },
+  }
+  const executeApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(String(err))) }
   const fileAction = (action: FileAction) => {
+    const handle = handles.current.get(active)
+    if (blocked || !handle?.commandStatus('file.' + action).enabled) return
     setMenuOpen(false)
-    handles.current.get(active)?.run(action)
+    handle.run(action)
   }
   return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties}>
     <div className="document-strip" hidden={reading} inert={templateOpen || appModal}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
         const inExportMenu = !!(event.target as HTMLElement).closest('#export-menu')
         if ((inExportMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && exportMenuOpen)) {
-          event.preventDefault(); event.stopPropagation(); setExportMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus(); return
+          event.preventDefault(); event.stopPropagation(); setExportMenuOpen(false); menuSurface.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus(); return
         }
         if (event.key === 'ArrowRight' && (event.target as HTMLButtonElement).closest('.export-menu-trigger') && !(event.target as HTMLButtonElement).disabled) { event.preventDefault(); setExportMenuOpen(true); return }
-        if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
         if (menuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
           event.preventDefault()
-          const currentMenu = (event.target as HTMLElement).closest('[role=menu]') ?? menu.current?.querySelector('[role=menu]')
+          const currentMenu = (event.target as HTMLElement).closest('[role=menu]') ?? menuSurface.current
           const items = Array.from(currentMenu?.querySelectorAll<HTMLButtonElement>('[role^=menuitem]:not(:disabled)') ?? []).filter((item) => item.closest('[role=menu]') === currentMenu)
           const index = items.indexOf(document.activeElement as HTMLButtonElement)
           items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
@@ -220,27 +254,31 @@ function Application() {
         if (event.key === 'Tab') setMenuOpen(false)
       }}>
         <button className="app-menu-trigger brand-mark" aria-label="EM 菜单" title="EasyM · 文件菜单" aria-haspopup="menu" aria-expanded={menuOpen} aria-controls="file-menu" disabled={closeBusy || !!closing} onClick={() => setMenuOpen(!menuOpen)}>EM</button>
-        {menuOpen && <div className="file-menu" id="file-menu" role="menu" aria-label="文件菜单">
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('new')}>新建文档</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => { setMenuOpen(false); setTemplateOpen(true) }}>从模板新建</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('open')}>打开文件</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('workspace')}>打开工作区</button>
+        {menuOpen && <PositionedOverlay className="file-menu" id="file-menu" label="文件菜单" element={menuSurface} lease={menuLease} anchor={() => menu.current?.querySelector('.app-menu-trigger')?.getBoundingClientRect() ?? null}>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.new').enabled} onClick={() => fileAction('new')}>新建文档</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => executeApp('app.template')}>从模板新建</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.open').enabled} onClick={() => fileAction('open')}>打开文件</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.workspace').enabled} onClick={() => fileAction('workspace')}>打开工作区</button>
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
           <div className="export-menu">
             <button className="export-menu-trigger" role="menuitem" aria-label="导出" aria-haspopup="menu" aria-expanded={exportMenuOpen} aria-controls="export-menu" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => setExportMenuOpen(!exportMenuOpen)}>导出 <span aria-hidden="true">›</span></button>
-            {exportMenuOpen && <div className="export-submenu" id="export-menu" role="menu" aria-label="导出格式">
+            {exportMenuOpen && <PositionedOverlay className="file-menu export-submenu" id="export-menu" label="导出格式" element={exportSurface} lease={exportLease} side="right" anchor={() => {
+              const row = menuSurface.current?.querySelector('.export-menu-trigger')?.getBoundingClientRect()
+              const parent = menuSurface.current?.getBoundingClientRect()
+              return row && parent ? new DOMRect(row.left, row.top, parent.right - row.left, row.height) : null
+            }}>
               <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>HTML</button>
               <button role="menuitem" title="导出当前正文（含未保存编辑）；请先完成输入法组合输入" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>DOCX</button>
               <button role="menuitem" title="通过系统打印窗口另存为 PDF" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>PDF</button>
-            </div>}
+            </PositionedOverlay>}
           </div>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('history')}>版本历史</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('batchImages')}>批量处理图片</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.history').enabled} onClick={() => fileAction('history')}>版本历史</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.batchImages').enabled} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => { setMenuOpen(false); setSettingsOpen(true) }}>设置</button>
-        </div>}
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => executeApp('app.settings')}>设置</button>
+        </PositionedOverlay>}
       </div>
       <div ref={tablist} className="document-tablist" role="tablist" aria-label="打开的文档" onMouseDown={(event) => {
         if (desktop && event.button === 0 && event.target === event.currentTarget) void dragWindow().catch((err) => setError(String(err)))
@@ -280,6 +318,7 @@ function Application() {
         <button className="window-close" aria-label="关闭窗口" title="关闭" disabled={closeBusy || !!closing} onClick={() => requestClose('window')}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13" /></svg></button>
       </div>}
     </div>
+    <OverlayHost />
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
     {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen || appModal}>
       <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} onReadOther={tabs.length > 1 ? () => {
@@ -291,7 +330,9 @@ function Application() {
     {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
-      if (!handles.current.get(active)?.canEdit()) return
+      const handle = handles.current.get(active)
+      // This confirmed dialog result may create a tab while general commands are suspended.
+      if (!handle?.canLeave() || handle.summary.busy || handle.summary.pendingImage) return
       setTemplateOpen(false); add(undefined, null, null, undefined, seed)
     }} />}
     {closing && <CloseDialog scope={closing === 'window' ? 'window' : closing.length > 1 ? 'tabs' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
