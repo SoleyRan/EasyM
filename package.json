@@ -29,6 +29,7 @@
     "verify:export": "node scripts/verify-export.mjs",
     "verify:context-menu": "node scripts/verify-context-menu.mjs",
     "verify:commands": "node scripts/verify-commands.mjs",
+    "verify:tables": "node scripts/verify-tables.mjs",
     "verify:regression": "node scripts/verify-regression.mjs",
     "verify:release": "node scripts/verify-release-metadata.mjs",
     "tauri": "tauri",

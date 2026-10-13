@@ -59,16 +59,16 @@ function fencedCode(editor: EditorView): FencedBlock | null {
   return { from: node.from, to: node.to, language }
 }
 
-interface Props { commandStatus?(id: string): CommandStatus; commandContext?(): CommandContext; blocked?: boolean; initialText: string; live?: boolean; parsed?: ParsedDocument; previewText?: string; imageContext?: unknown; onRenderImage?(resource: string): Promise<string | null>; onEditImage?(offset: number): void; onChange(text: string): void; onSave(): void; onCommand?(kind: string, argument?: unknown, expected?: CommandContext): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
+interface Props { commandStatus?(id: string): CommandStatus; commandContext?(): CommandContext; blocked?: boolean; initialText: string; live?: boolean; parsed?: ParsedDocument; previewText?: string; imageContext?: unknown; onRenderImage?(resource: string): Promise<string | null>; onEditImage?(offset: number): void; onEditTable?(offset: number): void; onChange(text: string): void; onSave(): void; onCommand?(kind: string, argument?: unknown, expected?: CommandContext): void; onImages?(files: File[]): void; onClipboardFiles?(): void; onWorkspaceImage?(image: WorkspaceImage): void; onScroll?(position: SourceScroll): void; onCodeLanguage?(language: string | null): void; onHighlightLimited?(limited: boolean): void; onFormats?(formats: FormatState): void; onSearchMatch?(offset: number): void }
 
-export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandStatus, commandContext, blocked = false, initialText, live = false, parsed, previewText, imageContext, onRenderImage = async () => null, onEditImage = () => undefined, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
+export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandStatus, commandContext, blocked = false, initialText, live = false, parsed, previewText, imageContext, onRenderImage = async () => null, onEditImage = () => undefined, onEditTable = () => undefined, onChange, onSave, onCommand = () => undefined, onImages = () => undefined, onClipboardFiles = () => undefined, onWorkspaceImage = () => undefined, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch }, ref) {
   const contextMenu = useContextMenu()
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const composition = useRef(false)
   const isComposing = (editor: EditorView) => composition.current || editor.compositionStarted
-  const callbacks = useRef({ commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage })
-  callbacks.current = { commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage }
+  const callbacks = useRef({ commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable })
+  callbacks.current = { commandStatus, commandContext, onChange, onSave, onCommand, onImages, onClipboardFiles, onWorkspaceImage, onScroll, onCodeLanguage, onHighlightLimited, onFormats, onSearchMatch, onRenderImage, onEditImage, onEditTable }
   const readOnly = useRef(new Compartment())
   const applyCommand = (result: EditCommandResult, context: CommandContext) => {
     const editor = view.current
@@ -150,7 +150,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
           readOnly.current.of(EditorState.readOnly.of(blocked)), lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
           search({ top: true, literal: true, createPanel: createSearchPanel, scrollToMatch: range => EditorView.scrollIntoView(range, { y: 'start', yMargin: 8 }) }),
           largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
-          liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset) }),
+          liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset), editTable: offset => callbacks.current.onEditTable(offset) }),
           EditorState.transactionExtender.of((transaction) => {
             const before = transaction.startState.field(largeLines) > 0
             const after = transaction.state.field(largeLines) > 0
@@ -255,6 +255,8 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
       { label: '全选', disabled: state.doc.length === 0, run: () => { selectAll(editor); editor.focus() } },
       { label: '加粗', disabled: !status('format.bold').enabled, checked: status('format.bold').checked ?? formats.bold, run: () => invoke('format.bold') },
       { label: '斜体', disabled: !status('format.italic').enabled, checked: status('format.italic').checked ?? formats.italic, run: () => invoke('format.italic') },
+      { label: '插入表格', disabled: !status('insert.table').enabled, run: () => invoke('insert.table') },
+      { label: '编辑表格', disabled: !status('table.edit').enabled, run: () => invoke('table.edit') },
       { label: '插入图片', disabled: !status('insert.image').enabled, run: () => invoke('insert.image') },
       { label: '查找 / 替换', disabled: !status('edit.search').enabled, run: () => invoke('edit.search') },
     ])

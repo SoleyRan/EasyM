@@ -5,6 +5,8 @@ import { act, createElement, forwardRef, useImperativeHandle, useState } from 'r
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { applyPatches, type TextPatch } from './core/document'
+import { validateCommandEdit, type CommandContext } from './core/commands'
+import type { EditCommandResult } from './core/document'
 import { blankSnapshot } from './core/codec'
 import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
@@ -18,14 +20,17 @@ vi.mock('./platform/window', () => ({ listenForClose: async (request: () => void
 vi.mock('./platform/storage', () => ({ desktop: true, releaseDocument: vi.fn(), openDocument: native.open, reloadDocument: native.reload, saveDocument: native.save, materializeResources: async (_id: unknown, resources: unknown) => resources, readImage: vi.fn(), readImageBlob: vi.fn() }))
 vi.mock('./editor/usePreview', () => ({ usePreview: (text: string) => ({ parsed: { html: '', headings: [], images: [] }, parsedText: { current: text } }) }))
 vi.mock('./platform/images', async (original) => ({ ...await original<object>(), processImage: async () => ({ blob: new Blob(['display'], { type: 'image/png' }), width: 1, height: 1, mime: 'image/png' }) }))
-vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props: { initialText: string; onChange(text: string): void; onSave(): void }, ref) {
+vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props: { initialText: string; onChange(text: string): void; onSave(): void; onCommand(id: string): void; commandContext(): CommandContext }, ref) {
   const [body, setBody] = useState(props.initialText)
   useImperativeHandle(ref, () => ({
     selection: () => ({ anchor: 0, head: 0 }), composing: () => native.composing,
     patch: (patches: TextPatch[]) => { const next = applyPatches(body, patches); setBody(next); props.onChange(next); return true },
-    jump: native.jump, undo: () => undefined, redo: () => undefined,
+    applyCommand: (result: EditCommandResult, context: CommandContext) => {
+      try { if (!validateCommandEdit(body, result, context, props.commandContext())) return true; const next = applyPatches(body, result.patches); setBody(next); props.onChange(next); return true } catch { return false }
+    },
+    focus: () => undefined, jump: native.jump, undo: () => undefined, redo: () => undefined,
   }))
-  return createElement('textarea', { 'aria-label': 'Markdown 源码编辑器', value: body, onKeyDown: (event: { key: string; ctrlKey: boolean }) => { if (event.ctrlKey && event.key === 's') props.onSave() }, onChange: (event: { target: { value: string } }) => { setBody(event.target.value); props.onChange(event.target.value) } })
+  return createElement('textarea', { 'aria-label': 'Markdown 源码编辑器', value: body, onKeyDown: (event: { key: string; ctrlKey: boolean }) => { if (event.ctrlKey && event.key === 's') props.onSave(); if (event.ctrlKey && event.key === 'p') props.onCommand('file.print') }, onChange: (event: { target: { value: string } }) => { setBody(event.target.value); props.onChange(event.target.value) } })
 }) }))
 import App from './App'
 import { appVersion } from './platform/preferences'
@@ -900,4 +905,45 @@ it('opens the export submenu explicitly and handles hierarchical keyboard naviga
   expect(document.activeElement).toBe(trigger)
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('#file-menu')).toBeNull()
+})
+
+const tableFixture = '| name | value |\n| --- | --- |\n| x | y |'
+async function tableDraft(value: string) {
+  const input = container.querySelector<HTMLTextAreaElement>('[aria-label="单元格 Markdown"]')!
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!
+  await act(async () => { setter.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true })); input.dispatchEvent(new Event('change', { bubbles: true })) })
+}
+it('refuses stale table targets and preserves the input when applying before export fails', async () => {
+  await mount(); await edit(tableFixture); await click('编辑表格'); await tableDraft('kept draft')
+  await edit(tableFixture.replace('x', 'external'))
+  await click('确认')
+  expect(container.querySelector('[aria-label="单元格 Markdown"]')).not.toBeNull()
+  expect(container.querySelector<HTMLTextAreaElement>('[aria-label="单元格 Markdown"]')!.value).toBe('kept draft')
+  expect(container.textContent).toContain('正文或选区已变化')
+  const source = container.querySelector('.document-panel:not([hidden]) textarea')!
+  await act(async () => source.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true })))
+  await settle()
+  expect(container.querySelector('[aria-label="未应用的表格输入"]')).not.toBeNull()
+  const decision = container.querySelector('[aria-label="未应用的表格输入"]')!
+  await act(async () => [...decision.querySelectorAll('button')].find(button => button.textContent === '应用')!.click())
+  await settle()
+  expect(container.querySelector('.print-dialog')).toBeNull()
+  expect(container.querySelector('[aria-label="单元格 Markdown"]')!.textContent).toBe('kept draft')
+  await act(async () => [...decision.querySelectorAll('button')].find(button => button.textContent === '放弃')!.click())
+  await new Promise(resolve => setTimeout(resolve, 30)); await settle()
+  expect(container.querySelector('.print-dialog')).not.toBeNull()
+  expect(container.querySelector('.print-dialog')!.textContent).toContain('external')
+})
+it('requires a table draft decision before switching tabs and proceeding with print', async () => {
+  await mount(); await edit(tableFixture); await click('编辑表格'); await tableDraft('applied')
+  await click('新建标签')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
+  const choose = async (name: string) => { const decision = container.querySelector('[aria-label="未应用的表格输入"]')!; await act(async () => [...decision.querySelectorAll('button')].find(button => button.textContent === name)!.click()); await new Promise(resolve => setTimeout(resolve, 30)); await settle() }
+  await choose('取消')
+  expect(container.querySelector('[aria-label="单元格 Markdown"]')!.textContent).toBe('applied')
+  const source = container.querySelector('.document-panel:not([hidden]) textarea')!
+  await act(async () => source.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true }))); await settle()
+  await choose('应用')
+  expect(container.querySelector('.print-dialog')!.textContent).toContain('applied')
+  expect(container.querySelector('[aria-label="单元格 Markdown"]')).toBeNull()
 })

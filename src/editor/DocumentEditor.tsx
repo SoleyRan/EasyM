@@ -33,6 +33,9 @@ import { MAX_LIVE_DOCUMENT } from '../core/live-preview'
 import { navigateButtons } from './navigation'
 import { useContextMenu, type ContextAction } from './ContextMenu'
 import { CommandRegistry, commandDefinitions, type CommandContext, type CommandStatus } from '../core/commands'
+import { applyPatches } from '../core/document'
+import { sourceTable, tableCellAt, insertTable, changeTable, type Alignment, type TableOperation } from '../core/tables'
+import { TablePanel, TableInsert, DraftDecision, type TableSession } from './TablePanel'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -65,9 +68,9 @@ function errorMessage(error: unknown): string {
   return labels[value] ?? value
 }
 
-export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
+export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; tableDecision?: boolean }
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
-export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
+export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
@@ -118,6 +121,68 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const workspaceSearchRequest = useRef<string | null>(null)
   const navigatedLocation = useRef<string | null>(null)
   const editor = useRef<EditorHandle>(null)
+  const [tableSession, setTableSession] = useState<(TableSession & { context: CommandContext }) | null>(null)
+  const tableRef = useRef(tableSession); tableRef.current = tableSession
+  const textRef = useRef(text); textRef.current = text
+  const [tableError, setTableError] = useState('')
+  const [tableInsert, setTableInsert] = useState<CommandContext | null>(null)
+  const [tableDecision, setTableDecision] = useState(false)
+  const decisionResolve = useRef<((proceed: boolean) => void) | null>(null)
+  const cellComposing = useRef(false)
+  function updateTable(next: typeof tableSession) { tableRef.current = next; setTableSession(next) }
+  function tableDraft(value: string) { const current = tableRef.current; if (current) updateTable({ ...current, draft: value }) }
+  function openTable(offset: number, context: CommandContext) {
+    try {
+      const table = sourceTable(textRef.current, offset), cell = tableCellAt(table, offset)
+      setTableError(''); updateTable({ table, ...cell, draft: table.rows[cell.row][cell.column].value, context, version: context.textRevision })
+    } catch (err) { setError(errorMessage(err)) }
+  }
+  function commitTable(mode: 'end' | 'next' | 'previous' | 'stay', operation?: TableOperation, alignment?: Alignment, destination?: { row: number; column: number }): boolean {
+    const session = tableRef.current
+    if (!session || cellComposing.current) return false
+    try {
+      const status = registry.status('table.edit', session.context)
+      if (!status.enabled) throw new Error(status.reason)
+      const { table, row, column } = session
+      const index = row * table.align.length + column
+      const addLastRow = mode === 'next' && index === table.rows.length * table.align.length - 1
+      const patches = changeTable(table, row, column, session.draft, operation, alignment, addLastRow)
+      const nextText = applyPatches(textRef.current, patches)
+      const nextTable = sourceTable(nextText, table.from)
+      let nextRow = Math.min(row, nextTable.rows.length - 1), nextColumn = Math.min(column, nextTable.align.length - 1)
+      if (mode === 'next' || mode === 'previous') {
+        const nextIndex = index + (mode === 'next' ? 1 : -1)
+        nextRow = Math.max(0, Math.floor(nextIndex / nextTable.align.length)); nextColumn = Math.max(0, nextIndex % nextTable.align.length)
+      }
+      if (destination) { nextRow = destination.row; nextColumn = destination.column }
+      const position = mode === 'previous' && index === 0 ? Math.max(0, table.from - 1) : nextTable.rows[nextRow][nextColumn].from
+      if (!editor.current?.applyCommand({ baseTextRevision: session.context.textRevision, patches, selection: { anchor: position, head: position } }, session.context)) throw new Error('正文或选区已变化，未应用输入。请复制草稿后重新打开表格。')
+      // A no-op command deliberately leaves the undo stack untouched; update
+      // the caret separately so Tab still moves between empty cells.
+      editor.current.jump(position)
+      setTableError('')
+      if (mode === 'end' || (mode === 'previous' && index === 0)) { updateTable(null); requestAnimationFrame(() => { if (activeRef.current && !tableRef.current) editor.current?.focus() }) }
+      else updateTable({ table: nextTable, row: nextRow, column: nextColumn, draft: nextTable.rows[nextRow][nextColumn].value, context: registry.capture(), version: changeRevision.current })
+      return true
+    } catch (err) { setTableError(errorMessage(err)); return false }
+  }
+  async function prepareLeave(): Promise<boolean> {
+    const session = tableRef.current
+    if (!session) return !tableInsert && !cellComposing.current
+    if (cellComposing.current) return false
+    if (session.draft === session.table.rows[session.row][session.column].value) { updateTable(null); requestAnimationFrame(() => { if (activeRef.current && !tableRef.current) editor.current?.focus() }); return true }
+    if (decisionResolve.current) return false
+    setTableDecision(true)
+    return new Promise(resolve => { decisionResolve.current = resolve })
+  }
+  function decideTable(choice: 'apply' | 'discard' | 'cancel') {
+    if (choice === 'apply' && !commitTable('end')) return
+    if (choice === 'discard') updateTable(null)
+    setTableDecision(false)
+    const resolve = decisionResolve.current; decisionResolve.current = null
+    requestAnimationFrame(() => resolve?.(choice !== 'cancel'))
+  }
+  useEffect(() => () => { decisionResolve.current?.(false) }, [])
   const preview = useRef<HTMLElement>(null)
   const sourceScroll = useRef<SourceScroll>({ offset: 0, fraction: 0, ratio: 0 })
   const scrollAnchors = useRef<{ from: number; top: number }[] | null>(null)
@@ -200,6 +265,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     editor.current?.scrollToSource(previous.from + fraction * (next.from - previous.from), ratio)
   }
   function jumpTo(offset: number) {
+    if (tableRef.current) { void prepareLeave().then(proceed => { if (proceed) jumpTo(offset) }); return }
     if (reading) {
       const nodes = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? [])
       const node = nodes.filter((element) => Number(element.dataset.sourceFrom) <= offset).at(-1) ?? nodes[0]
@@ -230,6 +296,18 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       scrollFrame.current = null
     }
   }, [active, view, parsed.html, showFiles, showOutline, showToolbar, reading])
+  useEffect(() => {
+    if (reading || view !== 'split' || !preview.current) return
+    const inserted: HTMLElement[] = []
+    for (const table of preview.current.querySelectorAll<HTMLTableElement>('table[data-source-from]')) {
+      const actions = document.createElement('div'); actions.className = 'preview-table-actions'
+      for (const [label, action] of [['编辑表格', 'edit'], ['源码', 'source']] as const) {
+        const button = document.createElement('button'); button.type = 'button'; button.textContent = label; button.dataset.tableAction = action; button.dataset.tableOffset = table.dataset.sourceFrom ?? '0'; actions.append(button)
+      }
+      table.parentElement?.insertBefore(actions, table); inserted.push(actions)
+    }
+    return () => inserted.forEach(node => node.remove())
+  }, [parsed.html, view, reading, active])
   function openedResources(body: string, instances = images.resources.instances) {
     const paths = new Set(parseDocument(body).images.map((item) => item.url))
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
@@ -252,7 +330,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     applied: () => { setView(current => current === 'live' ? 'live' : 'split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
   })
   const liveImageContext = useMemo(() => ({ resources: images.resources, fileId }), [images.resources, fileId])
-  const disabled = busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
+  const disabled = !!tableInsert || busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
   const commandRuntime = useRef<{ context(): CommandContext; status(id: string): CommandStatus; run(id: string, context: CommandContext, argument?: unknown): void | boolean | Promise<void | boolean> }>(null!)
   const registry = useMemo(() => {
     const commands = new CommandRegistry(() => commandRuntime.current.context())
@@ -262,8 +340,10 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }, [])
   commandRuntime.current = {
     context: () => ({ documentId: id, fileId, textRevision: changeRevision.current, selection: editor.current?.selection() ?? { anchor: 0, head: 0 }, active: activeRef.current,
-      reading, editorMode: view, composing: !!editor.current?.composing(), lockReason: suspended ? '请先关闭当前对话框。' : disabled || autoSaving || saving.current || exporting.current || images.applying || panelApplying.current ? '正在处理或恢复文档，请完成后操作。' : undefined }),
+      reading, editorMode: view, composing: cellComposing.current || !!editor.current?.composing(), lockReason: suspended ? '请先关闭当前对话框。' : disabled || autoSaving || saving.current || exporting.current || images.applying || panelApplying.current ? '正在处理或恢复文档，请完成后操作。' : undefined }),
     status: commandId => {
+      if (commandId === 'table.edit') return { enabled: true };
+
       if (commandId.startsWith('format.')) return { enabled: true, checked: formats[commandId.slice(7) as Format] }
       if (commandId === 'edit.undo' || commandId === 'edit.redo') return { enabled: editor.current?.historyState?.()[commandId.slice(5) as 'undo' | 'redo'] ?? true, reason: '没有可撤销或重做的修改。' }
       if (commandId === 'file.reload' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
@@ -274,6 +354,8 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     run: (commandId, context, argument) => {
       if (commandId.startsWith('format.')) return editor.current?.format(commandId.slice(7) as Format, codeLanguage, context) ?? false
       if (commandId === 'code.language') return applyCodeLanguage(String(argument), context)
+      if (commandId === 'insert.table') { setError(''); setTableInsert(context); return }
+      if (commandId === 'table.edit') { openTable(typeof argument === 'number' ? argument : context.selection.head, context); return }
       if (commandId === 'insert.image') { imagePicker.current?.click(); return }
       if (commandId === 'edit.undo') { editor.current?.undo(); return }
       if (commandId === 'edit.redo') { editor.current?.redo(); return }
@@ -296,11 +378,12 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     },
   }
   function execute(commandId: string, argument?: unknown, expected?: CommandContext) {
+    if (tableRef.current) { void prepareLeave().then(proceed => { if (proceed) execute(commandId, argument) }); return }
     void registry.execute(commandId, argument, expected).then(status => { if (!status.enabled && activeRef.current) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(errorMessage(err)))
   }
-  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
+  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session, tableDecision }
   useEffect(() => {
-    onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
+    onReport(id, summary, { summary, prepareLeave, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
       canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
       canEdit: () => registry.status('file.open').enabled,
       commandContext: () => registry.capture(), commandStatus: commandId => registry.status(commandId), execute,
@@ -526,7 +609,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }, [text, name, snapshot, dirty, draftReady, draftUnavailable, pendingDraft, images.resources, images.session, images.applying, fileId, revision])
 
   useEffect(() => {
-    if (!desktop || !fileId || !dirty || disabled || images.applying || autoSaving || autoSavePaused || suspended || discarded.current) return
+    if (tableSession || tableInsert || !desktop || !fileId || !dirty || disabled || images.applying || autoSaving || autoSavePaused || suspended || discarded.current) return
     let timer: number
     const attempt = () => {
       // Wait for IME composition to finish instead of persisting an intermediate syllable.
@@ -535,13 +618,13 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
     }
     timer = window.setTimeout(attempt, 1200)
     return () => window.clearTimeout(timer)
-  }, [text, dirty, fileId, revision, snapshot, disabled, images.applying, autoSaving, autoSavePaused, suspended, images.resources])
+  }, [tableSession, tableInsert, text, dirty, fileId, revision, snapshot, disabled, images.applying, autoSaving, autoSavePaused, suspended, images.resources])
 
   useEffect(() => {
-    const handler = (event: BeforeUnloadEvent) => { if (!desktop && (dirty || images.session)) event.preventDefault() }
+    const handler = (event: BeforeUnloadEvent) => { if (!desktop && (dirty || images.session || tableSession)) event.preventDefault() }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
-  }, [dirty, images.session])
+  }, [dirty, images.session, tableSession])
 
   useEffect(() => {
     if (!preview.current || (view !== 'split' && !reading)) return
@@ -567,6 +650,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }, [parsed.html, fileId, view, reading, images.resources])
 
   function changed(next: string) {
+    textRef.current = next
     discarded.current = false
     changeRevision.current++
     setText(next)
@@ -594,6 +678,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
 
   async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null, location?: WorkspaceLocation) {
     if (disabled || saving.current || editor.current?.composing()) return
+    if (!await prepareLeave()) return
     setBusy(true)
     try {
       const file = await read()
@@ -643,7 +728,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   }
 
   async function save(saveAs = false, automatic = false): Promise<boolean> {
-    if (saving.current || busy || printable || exporting.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
+    if (tableRef.current || tableInsert || saving.current || busy || printable || exporting.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
     saving.current = true
     if (automatic) setAutoSaving(true); else setBusy(true)
     setError(''); setStatus(automatic ? '正在自动保存…' : '正在保存…')
@@ -751,7 +836,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
   const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
-  return <><div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={busy || !!printable}>
+  return <><div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={tableDecision || busy || !!printable}>
     <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => { void images.importFiles(Array.from(event.target.files ?? [])); event.target.value = '' }} />
     {images.session && <ImagePanel key={images.session.instance.instanceId} image={images.session} onBusy={(value) => { panelApplying.current = value }} onCancel={() => { images.cancel(); if (!dirty) void clearDraft().catch((err) => setError(errorMessage(err))) }} onChange={images.update} onApply={images.apply} />}
     <div className="workspace">
@@ -775,12 +860,12 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       </ResizableSidebar>}
       <main className="editor-area">
         <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
-        {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={!registry.status('format.' + kind).enabled} aria-pressed={registry.status('format.' + kind).checked} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={!registry.status('code.language').enabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={!registry.status('insert.image').enabled} onClick={() => execute('insert.image')}>▣</button><button aria-label="撤销" disabled={!registry.status('edit.undo').enabled} onClick={() => execute('edit.undo')}>↶</button><button aria-label="重做" disabled={!registry.status('edit.redo').enabled} onClick={() => execute('edit.redo')}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
+        {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={!registry.status('format.' + kind).enabled} aria-pressed={registry.status('format.' + kind).checked} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={!registry.status('code.language').enabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><span className="toolbar-divider" /><button aria-label="插入表格" disabled={!registry.status('insert.table').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('insert.table')}>表格＋</button><button aria-label="编辑表格" disabled={!registry.status('table.edit').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('table.edit')}>编辑表格</button><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={!registry.status('insert.image').enabled} onClick={() => execute('insert.image')}>▣</button><button aria-label="撤销" disabled={!registry.status('edit.undo').enabled} onClick={() => execute('edit.undo')}>↶</button><button aria-label="重做" disabled={!registry.status('edit.redo').enabled} onClick={() => execute('edit.redo')}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
-          <div className="source-pane" hidden={reading} inert={reading}><Editor key={epoch} ref={editor} initialText={text} commandStatus={commandId => registry.status(commandId)} commandContext={() => commandRuntime.current.context()} blocked={reading || suspended || disabled} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => execute('file.save')} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={execute} /></div>
+          <div className="source-pane" hidden={reading} inert={reading || !!tableSession}><Editor key={epoch} ref={editor} initialText={text} commandStatus={commandId => registry.status(commandId)} commandContext={() => commandRuntime.current.context()} blocked={!!tableSession || reading || suspended || disabled} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onEditTable={offset => execute('table.edit', offset)} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => execute('file.save')} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={execute} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onContextMenu={event => {
             const selected = window.getSelection()
             const selectedText = selected?.rangeCount && event.currentTarget.contains(selected.getRangeAt(0).commonAncestorContainer) ? selected.toString() : ''
@@ -802,7 +887,11 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
             if (reference && parsedText.current === text) void images.edit(reference)
           }} onClick={(event) => {
             const target = event.target as HTMLElement
+            const tableAction = target.closest<HTMLElement>('[data-table-action]')
+            if (!reading && tableAction) { if (parsedText.current !== text) return; if (tableAction.dataset.tableAction === 'edit') execute('table.edit', Number(tableAction.dataset.tableOffset)); else jumpTo(Number(tableAction.dataset.tableOffset)); return }
             if (target.closest('a')) event.preventDefault()
+            const cell = target.closest<HTMLElement>('th,td')
+            if (!reading && parsedText.current === text && cell) { execute('table.edit', Number(cell.dataset.sourceFrom)); return }
             const node = target.closest<HTMLElement>('[data-source-from]')
             if (!reading && parsedText.current === text && node?.dataset.sourceFrom) jumpTo(Number(node.dataset.sourceFrom))
           }} dangerouslySetInnerHTML={{ __html: parsed.html }} />}
@@ -814,5 +903,17 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}{historyOpen && active && <HistoryDialog fileId={fileId} text={text} bytes={historyBytes()} snapshot={snapshot} revision={revision} resources={images.resources} onClose={closeHistory} onRestore={restoreHistory} />}{batchOpen && active && <BatchImageDialog text={text} fileId={fileId} resources={images.resources} onClose={closeBatch} onHistory={() => { setBatchOpen(false); setHistoryOpen(true) }} onApply={applyBatch} />}</>
+  </div>{tableInsert && active && <TableInsert error={error} onClose={() => { setTableInsert(null); editor.current?.focus() }} onInsert={(rows, columns) => {
+    try {
+      const context = tableInsert, patch = insertTable(textRef.current, Math.min(context.selection.anchor, context.selection.head), Math.max(context.selection.anchor, context.selection.head), rows, columns)
+      sourceTable(applyPatches(textRef.current, [patch]), patch.firstCell)
+      // The dialog itself is the only additional lock. Recheck every original
+      // identity/revision/selection and all task locks before committing.
+      setTableInsert(null)
+      requestAnimationFrame(() => {
+        if (editor.current?.applyCommand({ baseTextRevision: context.textRevision, patches: [patch], selection: { anchor: patch.firstCell, head: patch.firstCell } }, context)) openTable(patch.firstCell, registry.capture())
+        else setError('正文已变化或正在处理，表格未插入。请重试。')
+      })
+    } catch (err) { setError(errorMessage(err)) }
+  }} />}{tableSession && active && <TablePanel session={tableSession} error={tableError} decision={tableDecision} onComposing={value => { cellComposing.current = value }} onDraft={tableDraft} onCommit={commitTable} onNavigate={(row, column) => { commitTable('stay', undefined, undefined, { row, column }) }} onDismiss={() => { void prepareLeave() }} />}{tableDecision && <DraftDecision error={tableError} onChoose={decideTable} />}{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}{historyOpen && active && <HistoryDialog fileId={fileId} text={text} bytes={historyBytes()} snapshot={snapshot} revision={revision} resources={images.resources} onClose={closeHistory} onRestore={restoreHistory} />}{batchOpen && active && <BatchImageDialog text={text} fileId={fileId} resources={images.resources} onClose={closeBatch} onHistory={() => { setBatchOpen(false); setHistoryOpen(true) }} onApply={applyBatch} />}</>
 }

@@ -38,6 +38,8 @@ export const commandDefinitions = [
   definition('format.link', '链接', '格式', ['link'], 'Mod+K'),
   definition('code.language', '代码块语言', '格式', ['language']),
   definition('insert.image', '插入图片', '插入', ['image'], 'Mod+Shift+P'),
+  definition('insert.table', '插入表格', '插入', ['table']),
+  definition('table.edit', '编辑表格', '编辑', ['edit table']),
   definition('edit.undo', '撤销', '编辑', ['undo'], 'Mod+Z'),
   definition('edit.redo', '重做', '编辑', ['redo'], 'Mod+Shift+Z'),
   definition('edit.search', '查找 / 替换', '编辑', ['find', 'replace'], 'Mod+F'),

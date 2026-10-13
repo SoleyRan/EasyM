@@ -177,13 +177,14 @@ function Application() {
     if (remaining.length) { setTabs(remaining); if (ids.includes(active)) setActive(remaining.at(-1)!.id) }
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
-  const requestClose = (id: string | string[] | 'window') => {
+  const requestClose = (id: string | string[] | 'window', prepared = false) => {
     if (appModal) return
     if (templateOpen) { cancelTemplate(); return }
     const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
     if (!ids.length) return
     const targets = ids.map(target => handles.current.get(target)).filter((h): h is DocumentHandle => !!h)
     if (closing || closeBusy || closeOperation.current || targets.length !== ids.length || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
+    if (!prepared) { void (async () => { for (const handle of targets) if (handle.prepareLeave && !await handle.prepareLeave()) return; requestClose(id, true) })(); return }
     setError('')
     setMenuOpen(false)
     if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id === 'window' ? 'window' : ids); return }
@@ -228,7 +229,8 @@ function Application() {
     ready: () => !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
     run: commandId => { setMenuOpen(false); if (commandId === 'app.template') setTemplateOpen(true); else setSettingsOpen(true) },
   }
-  const executeApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(String(err))) }
+  const executeApp = (commandId: string) => { const handle = handles.current.get(active); if (handle?.prepareLeave) { void handle.prepareLeave().then(proceed => { if (proceed) runApp(commandId) }); return } runApp(commandId) }
+  const runApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(String(err))) }
   const fileAction = (action: FileAction) => {
     const handle = handles.current.get(active)
     if (blocked || !handle?.commandStatus('file.' + action).enabled) return
@@ -236,7 +238,7 @@ function Application() {
     handle.run(action)
   }
   return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties}>
-    <div className="document-strip" hidden={reading} inert={templateOpen || appModal}>
+    <div className="document-strip" hidden={reading} inert={templateOpen || appModal || !!summaries[active]?.tableDecision}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
         const inExportMenu = !!(event.target as HTMLElement).closest('#export-menu')
         if ((inExportMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && exportMenuOpen)) {
@@ -305,11 +307,11 @@ function Application() {
             event.preventDefault()
             const index = tabs.findIndex((item) => item.id === tab.id)
             const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
-            setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus()
-          }} onClick={() => { if (handles.current.get(active)?.canSwitch()) setActive(tab.id) }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
+            void (async () => { const handle = handles.current.get(active); if (!handle?.prepareLeave || await handle.prepareLeave()) { setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus() } })()
+          }} onClick={() => { const handle = handles.current.get(active); if (handle?.canSwitch()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) setActive(tab.id) })() }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
           <button className="tab-close" aria-label={`关闭 ${summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}`} disabled={blocked} onClick={() => requestClose(tab.id)}>×</button>
         </div>)}
-        <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { if (handles.current.get(active)?.canLeave()) add() }}>＋</button>
+        <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { const handle = handles.current.get(active); if (handle?.canLeave()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) add() })() }}>＋</button>
       </div>
       <div className="titlebar-drag" aria-hidden="true" onMouseDown={(event) => { if (event.button === 0) void dragWindow().catch((err) => setError(String(err))) }} onDoubleClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))} />
       {desktop && <div className="window-controls" aria-label="窗口控制">

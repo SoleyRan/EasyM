@@ -8,10 +8,11 @@ export function OverlayProvider({ children }: { children: ReactNode }) {
   const [host, setHost] = useState<HTMLDivElement | null>(null)
   useEffect(() => {
     let composing = false
-    const start = () => { composing = true; if (manager.top()?.level !== 'modal') manager.dismissTop() }
+    const start = (event: Event) => { composing = true; if (!(event.target instanceof HTMLElement && event.target.closest('.table-panel')) && manager.top()?.level !== 'modal') manager.dismissTop() }
     const end = () => { composing = false }
     const keyboard = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.isComposing || composing || manager.top()?.level === 'modal') return
+      if (event.target instanceof HTMLElement && event.target.closest('.table-panel textarea')) return
       if (manager.dismissTop()) { event.preventDefault(); event.stopPropagation() }
     }
     window.addEventListener('keydown', keyboard, true)

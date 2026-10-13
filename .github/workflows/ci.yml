@@ -52,6 +52,8 @@ jobs:
             test-results/export-verification.json
             test-results/context-menu-verification.json
             test-results/commands-verification.json
+            test-results/tables-verification.json
+            test-results/tables/*.png
             test-results/regression-verification.json
           if-no-files-found: warn
 
