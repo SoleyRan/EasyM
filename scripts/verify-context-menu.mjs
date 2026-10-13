@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide, selectAppearanceTheme } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser, page
@@ -38,6 +38,7 @@ try {
     }
     document.addEventListener('contextmenu', event => { setTimeout(() => { window.defaultMenuBlocked = event.defaultPrevented }, 0) })
   })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const menu = page.getByRole('menu', { name: '右键菜单', exact: true })
@@ -108,9 +109,7 @@ try {
 
   // Menu stays inside the viewport and follows the theme in each editor view.
   for (const [theme, label] of [['light', '清爽浅色'], ['dark', '午夜深色'], ['paper', '暖纸'], ['forest', '护眼绿']]) {
-    await page.getByRole('button', { name: 'EM 菜单' }).click()
-    await page.getByRole('menuitem', { name: 'Style · 配色主题' }).click()
-    await page.getByRole('menuitemradio', { name: label, exact: true }).click()
+    await selectAppearanceTheme(page, label)
     for (const view of ['源码', '分屏', '即时渲染']) {
       await page.getByRole('button', { name: view, exact: true }).click()
       const box = await page.locator('.document-panel:not([hidden]) .cm-scroller').boundingBox()

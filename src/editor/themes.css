@@ -1,5 +1,23 @@
 .history-backdrop { z-index: 40; }
 .history-dialog { color: var(--text); background: var(--page); border: 1px solid var(--border); width: min(1180px, 96vw); max-height: 94vh; overflow: auto; border-radius: 12px; padding: 22px; box-shadow: 0 20px 80px #0005; }
+.application-backdrop { z-index: 30; }
+.application-dialog { width: min(680px, 96vw); max-height: 90vh; overflow: auto; color: var(--text); background: var(--page); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 20px 80px #0005; }
+.application-dialog h2 { margin: 0; font-size: 22px; }
+.application-dialog h3 { margin: 0 0 10px; font-size: 16px; }
+.application-dialog section { padding: 16px 0; border-bottom: 1px solid var(--border); }
+.application-dialog p { line-height: 1.7; font-size: 13px; overflow-wrap: anywhere; }
+.application-dialog .guide-intro { color: var(--accent); }
+.guide-page { min-height: 190px; }
+.guide-navigation { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px; }
+.guide-progress { color: var(--muted); font-size: 13px; }
+.guide-navigation button { min-width: 44px; }
+.application-dialog button, .application-dialog select { border: 1px solid var(--border); color: var(--text); background: var(--surface); padding: 7px 12px; border-radius: 6px; }
+.application-dialog button:hover { background: var(--hover); }
+.application-dialog .panel-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.application-dialog .apply-button { background: var(--accent-fill); color: white; }
+.application-dialog .apply-button:hover { background: var(--accent-fill); filter: brightness(.94); }
+.setting-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; font-size: 14px; }
+.application .cm-editor { font-size: var(--editor-font-size, 14px); }
 .history-dialog h2 { margin: 0 0 12px; font-size: 20px; }
 .history-dialog p, .history-dialog li { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
 .history-dialog button { padding: 7px 12px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text); }
@@ -65,10 +83,9 @@
 .window-controls button:hover { background: var(--hover); }
 .window-controls .window-close:hover { background: #c42b3b; color: #fff; }
 .window-controls svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.2; }
-.style-menu { position: relative; }
-.file-menu .style-menu-trigger { display: flex; align-items: center; justify-content: space-between; }
-.theme-submenu { position: absolute; left: calc(100% + 10px); top: -6px; width: 176px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); box-shadow: 0 6px 20px #10213d22; }
-.file-menu [aria-checked=true] { color: var(--accent); background: var(--hover); }
+.export-menu { position: relative; }
+.file-menu .export-menu-trigger { display: flex; align-items: center; justify-content: space-between; }
+.export-submenu { position: absolute; left: calc(100% + 10px); top: -6px; width: 176px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); box-shadow: 0 6px 20px #10213d22; }
 .app-menu { position: relative; flex-shrink: 0; }
 .app-menu-trigger { width: 32px; height: 30px; font-size: 12px; letter-spacing: -.5px; }
 .file-menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 9; width: 230px; padding: 6px; border: 1px solid var(--border); border-radius: 8px; background: var(--page); box-shadow: 0 8px 28px #10213d33; }

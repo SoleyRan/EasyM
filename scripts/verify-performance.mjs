@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { cpus, totalmem, platform, release } from 'node:os'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 import { productionWorkers, workerKind } from './production-workers.mjs'
 
 // Local baseline only. Event-to-next-frame measures UI latency, not physical screen/input latency.
@@ -20,7 +20,8 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
     const page = await context.newPage()
     page.setDefaultTimeout(30000)
-    await page.goto(server.url)
+    await acknowledgeGuide(page)
+  await page.goto(server.url)
     await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
     const [picker] = await Promise.all([
       page.waitForEvent('filechooser'),
@@ -71,6 +72,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const page = await context.newPage()
   page.setDefaultTimeout(60000)
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   await page.waitForFunction(() => !document.querySelector('.document-panel:not([hidden]) .content-grid')?.inert)
   await page.evaluate(async () => {

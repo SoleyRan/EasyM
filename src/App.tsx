@@ -9,11 +9,12 @@ import { releaseDocument, type OpenedFile } from './platform/storage'
 import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
 import { ContextMenuProvider, useContextMenu } from './editor/ContextMenu'
+import { SettingsDialog, GuideDialog } from './editor/ApplicationDialogs'
+import { themes, type Theme, storedPreference, storePreference, editorFontSize, needsGuide, completeGuide } from './platform/preferences'
+import type { CSSProperties } from 'react'
 
 interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
-const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }
-type Theme = keyof typeof themes
 
 export default function App() {
   return <ContextMenuProvider><Application /></ContextMenuProvider>
@@ -31,8 +32,22 @@ function Application() {
   const [error, setError] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [guideOpen, setGuideOpen] = useState(needsGuide)
+  const [fontSize, setFontSize] = useState(editorFontSize)
+  const previousGuideVersion = useRef(storedPreference('easym-guide-version'))
+  const appModal = settingsOpen || guideOpen
+  const appModalRef = useRef(false)
+  appModalRef.current = appModal
+  function closeApplicationDialog() {
+    if (guideOpen) {
+      if (!completeGuide()) setError('无法保存导引记录，下次启动可能再次显示。')
+      setGuideOpen(false)
+    } else setSettingsOpen(false)
+    requestAnimationFrame(() => menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus())
+  }
   const restoreTemplateFocus = useRef(false)
-  const [styleMenuOpen, setStyleMenuOpen] = useState(false)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const [showFiles, setShowFiles] = useState(false)
   const [reading, setReading] = useState(false)
@@ -87,23 +102,24 @@ function Application() {
     update()
     listenWindowState(update).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => { if (!disposed) setError(String(err)) })
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && readingRef.current) { event.preventDefault(); exitReading.current() }
+      if (event.key === 'Escape' && readingRef.current && !appModalRef.current) { event.preventDefault(); exitReading.current() }
     }
     window.addEventListener('keydown', escape)
     return () => { disposed = true; stop?.(); window.removeEventListener('keydown', escape) }
   }, [])
   useEffect(() => { try { localStorage.setItem('easym-theme', theme) } catch { /* Theme remains usable without persistence. */ } }, [theme])
   useEffect(() => { try { localStorage.setItem('easym-toolbar', showToolbar ? 'visible' : 'hidden') } catch { /* Visibility remains usable without persistence. */ } }, [showToolbar])
+  useEffect(() => { if (!storePreference('easym-editor-font-size', String(fontSize))) setError('无法保存编辑字号，当前会话仍可使用。') }, [fontSize])
   useEffect(() => {
-    if (!menuOpen) { setStyleMenuOpen(false); return }
+    if (!menuOpen) { setExportMenuOpen(false); return }
     menu.current?.querySelector<HTMLButtonElement>('[role^=menuitem]:not(:disabled)')?.focus()
     const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node)) setMenuOpen(false) }
     document.addEventListener('pointerdown', outside)
     return () => document.removeEventListener('pointerdown', outside)
   }, [menuOpen])
   useEffect(() => {
-    if (styleMenuOpen) menu.current?.querySelector<HTMLButtonElement>('[role=menuitemradio][aria-checked=true]')?.focus()
-  }, [styleMenuOpen])
+    if (exportMenuOpen) menu.current?.querySelector<HTMLButtonElement>('#export-menu [role=menuitem]:not(:disabled)')?.focus()
+  }, [exportMenuOpen])
   useEffect(() => {
     if (!templateOpen && restoreTemplateFocus.current) {
       restoreTemplateFocus.current = false
@@ -143,6 +159,7 @@ function Application() {
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
   const requestClose = (id: string | string[] | 'window') => {
+    if (appModal) return
     if (templateOpen) { cancelTemplate(); return }
     const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
     if (!ids.length) return
@@ -179,19 +196,19 @@ function Application() {
     restoreTemplateFocus.current = true
     setTemplateOpen(false)
   }
-  const blocked = templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  const blocked = appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
   const fileAction = (action: FileAction) => {
     setMenuOpen(false)
     handles.current.get(active)?.run(action)
   }
-  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme}>
-    <div className="document-strip" hidden={reading} inert={templateOpen}>
+  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties}>
+    <div className="document-strip" hidden={reading} inert={templateOpen || appModal}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
-        const inStyleMenu = !!(event.target as HTMLElement).closest('#style-menu')
-        if ((inStyleMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && styleMenuOpen)) {
-          event.preventDefault(); event.stopPropagation(); setStyleMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.style-menu-trigger')?.focus(); return
+        const inExportMenu = !!(event.target as HTMLElement).closest('#export-menu')
+        if ((inExportMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && exportMenuOpen)) {
+          event.preventDefault(); event.stopPropagation(); setExportMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus(); return
         }
-        if (event.key === 'ArrowRight' && (event.target as HTMLElement).closest('.style-menu-trigger')) { event.preventDefault(); setStyleMenuOpen(true); return }
+        if (event.key === 'ArrowRight' && (event.target as HTMLButtonElement).closest('.export-menu-trigger') && !(event.target as HTMLButtonElement).disabled) { event.preventDefault(); setExportMenuOpen(true); return }
         if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
         if (menuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
           event.preventDefault()
@@ -211,18 +228,18 @@ function Application() {
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>导出 HTML</button>
-          <button role="menuitem" title={blocked ? '请先完成保存、图片编辑或草稿恢复' : '导出当前正文（含未保存编辑）；请先完成输入法组合输入'} disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>导出 DOCX</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>打印文档</button>
+          <div className="export-menu">
+            <button className="export-menu-trigger" role="menuitem" aria-label="导出" aria-haspopup="menu" aria-expanded={exportMenuOpen} aria-controls="export-menu" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => setExportMenuOpen(!exportMenuOpen)}>导出 <span aria-hidden="true">›</span></button>
+            {exportMenuOpen && <div className="export-submenu" id="export-menu" role="menu" aria-label="导出格式">
+              <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>HTML</button>
+              <button role="menuitem" title="导出当前正文（含未保存编辑）；请先完成输入法组合输入" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>DOCX</button>
+              <button role="menuitem" title="通过系统打印窗口另存为 PDF" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>PDF</button>
+            </div>}
+          </div>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('history')}>版本历史</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
-          <div className="style-menu">
-            <button className="style-menu-trigger" role="menuitem" aria-label="Style · 配色主题" aria-haspopup="menu" aria-expanded={styleMenuOpen} aria-controls="style-menu" onClick={() => setStyleMenuOpen(!styleMenuOpen)}>Style · 配色主题 <span aria-hidden="true">›</span></button>
-            {styleMenuOpen && <div className="theme-submenu" id="style-menu" role="menu" aria-label="配色主题">
-              {Object.entries(themes).map(([value, label]) => <button role="menuitemradio" aria-checked={theme === value} key={value} onClick={() => { setTheme(value as Theme); setMenuOpen(false); setStyleMenuOpen(false) }}><span aria-hidden="true">{theme === value ? '✓' : '　'}</span> {label}</button>)}
-            </div>}
-          </div>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => { setMenuOpen(false); setSettingsOpen(true) }}>设置</button>
         </div>}
       </div>
       <div ref={tablist} className="document-tablist" role="tablist" aria-label="打开的文档" onMouseDown={(event) => {
@@ -234,7 +251,7 @@ function Application() {
       }}>
         {tabs.map((tab) => <div className={`document-tab ${tab.id === active ? 'active' : ''}`} key={tab.id} onContextMenu={event => {
           setMenuOpen(false)
-          const canClose = (ids: string[]) => ids.length > 0 && !closing && !closeBusy && !closeOperation.current && !templateOpen && ids.every(id => {
+          const canClose = (ids: string[]) => ids.length > 0 && !appModal && !closing && !closeBusy && !closeOperation.current && !templateOpen && ids.every(id => {
             const handle = handles.current.get(id)
             return !!handle && !handle.summary.busy && handle.canLeave()
           })
@@ -264,13 +281,15 @@ function Application() {
       </div>}
     </div>
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} onReadOther={tabs.length > 1 ? () => {
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen || appModal}>
+      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
       } : undefined} />
     </section>)}
+    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
+    {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
       if (!handles.current.get(active)?.canEdit()) return
       setTemplateOpen(false); add(undefined, null, null, undefined, seed)

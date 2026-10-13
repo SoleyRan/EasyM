@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前在 `feature/v0.3` 开发办公增强，已完成核心 Windows 实机验收、[设计冻结](Docs/Easy-Markdown-v0.3-设计与实施计划.md)、[DOCX 模型/预检（3A）](Docs/Easy-Markdown-v0.3-第三步A-模型与预检.md)、[DOCX 生成/安全保存底层（3B）](Docs/Easy-Markdown-v0.3-第三步B-生成与保存.md)、[菜单/预检界面和 Word 验证（3C）](Docs/Easy-Markdown-v0.3-第三步C-预检界面与验收.md)、[第四步版本历史与恢复](Docs/Easy-Markdown-v0.3-第四步-版本历史与恢复.md)、[第五步批量图片与可访问性](Docs/Easy-Markdown-v0.3-第五步-批量图片与可访问性.md)，以及[第六步 PDF 引擎评估](Docs/Easy-Markdown-v0.3-第六步-PDF引擎评估.md)。EM 菜单的历史和批图用于桌面已保存并明确启用历史的文档；支持完整快照、差异/恢复、最多 100 个图片实例的真实对照与整批保存/撤销，以及键盘焦点和阅读模式改进。PDF 评估实测 18 份产物，v0.3 保留系统打印，专用引擎延期集成。下一步是统一回归、许可复核、0.3.0 版本更新和 Windows 开发包交付。应用版本仍为 0.2.0，本步未生成新安装包；原生对话框、读屏、其他平台及办公软件的剩余验收详见各步记录。
+当前在 `feature/v0.3`，已完成办公增强实现和 [0.3.0 本机验收与开发包交付](Docs/Easy-Markdown-v0.3-验收与交付.md)：DOCX 预检/后台导出、显式启用的持久版本历史与文字/图片差异、恢复/清理、最多 100 实例的安全批图，以及键盘焦点和阅读模式改进。PDF 候选实测评估后保留系统打印，专用引擎延期。173 项前端、50 项 Windows Rust、15 组生产回归、慢速查找/模板、Word 打开编辑再保存与原生窗口启动通过；0.3.0 Windows 安装包/便携包已生成。最新三平台 CI、隔离安装/卸载、真实 IME/原生对话框、读屏与跨平台 GUI 等门槛仍待验收，不称为正式发行。范围见 [v0.3 设计计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)。
 
 v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
 
@@ -25,6 +25,8 @@ v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即�
 - EM 菜单导出单文件静态 HTML，内联已授权本地 PNG/JPEG，远程/缺失图片提示占位；打印预览、Ctrl/Cmd+P 和系统打印入口，输出不改变 Markdown 或草稿；
 - EM 菜单导出可编辑 DOCX，支持纸张/办公样式、预检定位、缺图占位确认和后台取消；导出包含未保存编辑，保留草稿与撤销，准备/生成期间可阅读其他标签；
 - EM 菜单版本历史：显式启用后归档磁盘基线、手动内存快照与限频自动版本，支持命名/固定、文字与图片差异、确认恢复、一次撤销/重做、精确字节副本及有预览的历史清理；
+- EM → 设置：配色、格式工具栏显示、编辑字号与当前文档目录的历史保存位置；切换历史目录会复制校验并保留原副本；
+- 首次启动／版本变化的使用导引，说明自动保存、版本历史、图片处理和导出，可从设置重新查看；
 - 格式工具栏应用/取消切换、选区按下/混合状态，以及主题适配的鼠标选区高亮；
 - 已命名本地文档停止输入 1.2 秒后自动保存，草稿与未应用图片操作恢复；
 - PNG/JPEG 导入、后台处理、裁剪/旋转/翻转/尺寸/Alt、取消和应用；
@@ -56,6 +58,9 @@ pnpm verify:docx-library
 pnpm verify:docx
 pnpm verify:docx-ui
 pnpm verify:history
+pnpm verify:settings
+pnpm verify:batch-images
+pnpm verify:release
 pnpm exec playwright install chromium
 pnpm verify:browser
 pnpm verify:writing
@@ -82,12 +87,12 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
-Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.2.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 `samples/体验指南.md`，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)，最新校验值见 [v0.2 打包记录](Docs/verification/v0.2/acceptance-e66d0f7/package-verification.json)。
+Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.3.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.3 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.3 验收与交付](Docs/Easy-Markdown-v0.3-验收与交付.md)，校验值见 [构建记录](Docs/verification/v0.3/acceptance-67d45fd/windows-build.json)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.2.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/启动/卸载已通过最终 Windows CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs Docs/verification/v0.2` 记录证据。
+Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.3.0_x64-setup.exe`（附带项目与第三方许可，未签名；本版本安装/卸载仍待最新 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
 
 ## 许可
 
 项目代码采用 Apache-2.0，完整条款见 [LICENSE](LICENSE)。
 
-第三方依赖清单、许可文本和 Windows 依赖 SBOM 见 [第三方清单](Docs/dependencies/THIRD-PARTY-NOTICES.md)。CI 按目标平台重新生成并上传；Windows/Linux 文本缺项为 0，macOS 的 12 个 objc2 家族包仍需补完整文本及发行复核，当前分平台摘要见 `Docs/verification/v0.2/dependency-inventory-*.json`。许可文件按原始字节存储，Git 不转换其换行。当前功能限制见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)，既有数据恢复规则见 [v0.1 已知限制](Docs/Easy-Markdown-v0.1-已知限制.md)。
+第三方依赖清单、许可文本和 Windows 依赖 SBOM 见 [第三方清单](Docs/dependencies/THIRD-PARTY-NOTICES.md)。CI 按目标平台重新生成并上传；Windows/Linux 文本缺项为 0，macOS 的 12 个 objc2 家族包仍需补完整文本及发行复核，当前分平台摘要见 `Docs/verification/v0.3/acceptance-67d45fd/dependency-inventory-*.json`。许可文件按原始字节存储，Git 不转换其换行。当前功能限制见 [v0.3 验收与交付](Docs/Easy-Markdown-v0.3-验收与交付.md)，既有数据恢复规则见 [v0.1 已知限制](Docs/Easy-Markdown-v0.1-已知限制.md)。

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 import { fillSource } from './source-test-utils.mjs'
 
 const server = await serveProduction(), report = { stage: 'v0.3-step4', passed: false, verifiedAt: new Date().toISOString(), checks: [], scope: 'Production UI with deterministic desktop IPC fixture; real history filesystem, transactions and fault injection covered by locked Rust tests. Native file dialogs and cross-platform WebView remain manual.' }
@@ -30,6 +30,7 @@ try {
         if (command === 'open_document') return { id: 'authorized-file', name: '中文 history.md', bytes: [...encoder.encode(window.historyBody)], revision: window.historyRevision }
         if (command === 'close_document') return
         if (command === 'save_document') { window.historyBody = new TextDecoder().decode(new Uint8Array(args.bytes)); window.historyRevision = 'saved-' + Date.now(); return { id: 'authorized-file', name: '中文 history.md', revision: window.historyRevision } }
+        if (command === 'history_directory') return { path: '/fixture/.easym/history', documentDirectory: '/fixture', custom: false }
         if (command !== 'history_operation') throw new Error(`Unexpected command ${command}`)
         const r = args.request
         if (r.action === 'status') return window.historyMode === 'unknown' ? { ...state(), readOnly: true, enabled: false, warning: '历史格式版本较新；已保留原数据。' } : state()
@@ -55,6 +56,7 @@ try {
       },
     }
   })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   const menu = async name => { await page.getByRole('button', { name: 'EM 菜单', exact: true }).click(); await page.getByRole('menuitem', { name, exact: true }).click() }
   const editor = () => page.locator('.document-panel:not([hidden]) [aria-label="Markdown 源码编辑器"]')

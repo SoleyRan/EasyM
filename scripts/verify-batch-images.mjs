@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 import { productionWorkers, workerKind } from './production-workers.mjs'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
@@ -59,6 +59,7 @@ try {
           return { id: 'batch-file', name: '批图.md', revision: window.batchRevision }
         }
         if (command === 'close_document') return
+        if (command === 'history_directory') return { path: '/fixture/.easym/history', documentDirectory: '/fixture', custom: false }
         if (command === 'history_operation') {
           const r = args.request
           if (r.action === 'status') return { enabled: window.batchEnabled, readOnly: false, usedBytes: 0, budgetBytes: 512 * 1024 * 1024, paused: false, snapshots: [], orphans: [] }
@@ -76,6 +77,7 @@ try {
       },
     }
   })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   await page.evaluate(async () => {
     const canvas = new OffscreenCanvas(400, 200), ctx = canvas.getContext('2d')
@@ -144,7 +146,13 @@ try {
   const outputBytes = request.next.assets.find(a => a.path === request.items[2].displayPath).bytes
   assert.equal(outputBytes.some((v, i) => v === 255 && outputBytes[i+1] === 225), false, 'Processed JPEG contains no EXIF APP1')
   report.checks.push('conflict/quota preserve original; commit blocks Escape; distinct shared-reference instances and titles; original asset bytes unchanged; one undo/redo; EXIF removed')
-  await page.locator('.preview img[data-resource]').filter({ hasNotText: 'none' }).first().dblclick()
+  // New documents start in source mode; image editing requires a visible preview.
+  await page.getByRole('button', { name: '分屏', exact: true }).click()
+  const previewImage = page.locator('.document-panel:not([hidden]) .preview img[data-resource]').first()
+  await previewImage.waitFor({ state: 'visible' })
+  await previewImage.evaluate(image => image.decode())
+  await page.waitForFunction(() => document.querySelector('.document-panel:not([hidden]) .statusbar')?.textContent.includes('已自动保存'))
+  await previewImage.dblclick()
   const imageDialog = page.getByRole('dialog', { name: '编辑图片副本', exact: true }); await imageDialog.waitFor()
   assert.match(await imageDialog.innerText(), /源副本 400 × 200/)
   assert.equal(await imageDialog.getByRole('spinbutton', { name: '输出宽', exact: true }).inputValue(), '100')
@@ -202,9 +210,11 @@ try {
   // Keyboard-only menu, sidebar width, reading focus and reduced motion.
   const em = page.getByRole('button', {name:'EM 菜单',exact:true})
   await em.focus(); await page.keyboard.press('Enter'); await page.keyboard.press('End')
-  assert.equal(await page.evaluate(() => document.activeElement.textContent.includes('Style')),true)
-  await page.keyboard.press('ArrowRight'); await page.getByRole('menu',{name:'配色主题',exact:true}).waitFor()
-  await page.keyboard.press('ArrowLeft'); assert.equal(await page.getByRole('menu',{name:'配色主题',exact:true}).count(),0)
+  assert.equal(await page.evaluate(() => document.activeElement.textContent === '设置'),true)
+  await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp'); await page.keyboard.press('ArrowUp')
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label') === '导出'),true)
+  await page.keyboard.press('ArrowRight'); await page.getByRole('menu',{name:'导出格式',exact:true}).waitFor()
+  await page.keyboard.press('ArrowLeft'); assert.equal(await page.getByRole('menu',{name:'导出格式',exact:true}).count(),0)
   await page.keyboard.press('Escape'); await page.waitForFunction(()=>document.activeElement?.matches('.app-menu-trigger'))
   await page.getByRole('button',{name:'展开文件栏',exact:true}).click()
   const resize = page.getByRole('separator',{name:'调整文件栏宽度',exact:true}); await resize.focus(); const oldWidth=Number(await resize.getAttribute('aria-valuenow'))
@@ -213,7 +223,7 @@ try {
   await page.getByRole('button',{name:'退出阅读模式',exact:true}).waitFor(); await page.waitForFunction(()=>document.activeElement?.textContent==='退出阅读模式')
   assert.equal(await editor().isVisible(),false); await page.keyboard.press('Escape'); await page.waitForFunction(()=>document.activeElement?.textContent==='阅读模式')
   await page.emulateMedia({reducedMotion:'reduce'}); assert.equal(await em.evaluate(e=>getComputedStyle(e).transitionDuration),'0s')
-  report.checks.push('keyboard EM/style navigation, separator arrows and ARIA width, read-only reading enter/exit focus, prefers-reduced-motion')
+  report.checks.push('keyboard EM/export navigation, separator arrows and ARIA width, read-only reading enter/exit focus, prefers-reduced-motion')
   assert.deepEqual(errors, []); assert.deepEqual(remote, []); report.passed = true
   console.log('Batch images production UI, workers, transparency/metadata, atomic apply and undo/redo pass.')
 } catch(error) {report.error=error.message;await page?.screenshot({path:'test-results/batch-images/failure.png'}).catch(()=>{});console.error(await page?.locator('body').innerText().catch(()=>''));throw error}

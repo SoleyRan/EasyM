@@ -5,7 +5,7 @@ import { promisify } from 'node:util'
 import { cpus, totalmem, release } from 'node:os'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide, selectAppearanceTheme } from './serve-production.mjs'
 import { fillSource } from './source-test-utils.mjs'
 
 const output = 'test-results/docx-ui', server = await serveProduction()
@@ -37,6 +37,7 @@ try {
       terminate() { if (this.held) window.docxWorkerStats.terminated++; super.terminate() }
     }
   })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const source = () => editor.evaluate(element => [...element.querySelectorAll('.cm-line')].map(line => line.textContent).join('\n'))
@@ -55,7 +56,8 @@ try {
   }
   const action = async () => {
     await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-    await page.getByRole('menuitem', { name: '导出 DOCX', exact: true }).click()
+    await page.getByRole('menuitem', { name: '导出', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'DOCX', exact: true }).click()
   }
   const ready = () => page.waitForFunction(() => document.querySelector('.docx-dialog [role=status]')?.textContent.includes('预检完成'))
   const dialog = page.getByRole('dialog', { name: '导出 DOCX', exact: true })
@@ -151,9 +153,7 @@ try {
   report.checks.push('frozen office sample exported through production menu using imported display image')
 
   for (const [theme, label] of [['light', '清爽浅色'], ['dark', '午夜深色'], ['paper', '暖纸'], ['forest', '护眼绿']]) {
-    await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Style · 配色主题', exact: true }).click()
-    await page.getByRole('menuitemradio', { name: new RegExp(label) }).click()
+    await selectAppearanceTheme(page, label)
     await action(); await ready()
     assert.ok(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth))
     await page.screenshot({ path: `${output}/${theme}.png` })

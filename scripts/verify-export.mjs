@@ -3,7 +3,7 @@ import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
 import { pathToFileURL } from 'node:url'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser
@@ -15,12 +15,14 @@ try {
   page.on('request', request => { if (/evil\.example/.test(request.url())) remoteRequests.push(request.url()) })
   page.on('dialog', dialog => { void (dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss()) })
   await page.addInitScript(() => { window.print = () => { globalThis.printCalls = (globalThis.printCalls || 0) + 1 } })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const source = () => editor.evaluate(element => [...element.querySelectorAll('.cm-line')].map(line => line.textContent).join('\n'))
   const action = async name => {
     await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-    await page.getByRole('menuitem', { name, exact: true }).click()
+    await page.getByRole('menuitem', { name: '导出', exact: true }).click()
+    await page.getByRole('menuitem', { name: { '导出 HTML': 'HTML', '打印文档': 'PDF' }[name], exact: true }).click()
   }
   // Immediate export after an edit must not use the debounced preview's old body.
   await fillSource(page, '# 中文导出\n\n**latest**\n\n<script>globalThis.exportExecuted=true</script>\n\n[unsafe](javascript:alert%281%29)\n\n![remote](https://evil.example/track.png)\n\n![missing](gone.png)\n\n|甲|乙|\n|---|---|\n|一|二|\n\n```js\nconst value = "中文"\n```')

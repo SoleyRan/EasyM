@@ -81,5 +81,5 @@ export function compareHistory(before: string, after: string, signal?: AbortSign
 
 export const historyError = (error: unknown): string => {
   const code = error instanceof Error ? error.message : String(error)
-  return ({ history_read_only: '历史格式版本较新，已保留原数据，请使用新版 EasyM。', history_invalid: '历史数据无效；已停止操作并保留原数据。', history_corrupt: '归档对象哈希校验失败；禁止恢复，请检查备份。', history_incomplete: '快照缺少图片，禁止完整恢复；可仅另存正文。', history_quota: '历史配额不足，已暂停创建快照。请清理历史或提高配额。', history_mixed: '当前文档混合使用换行；请先确认并保存换行格式，或另存副本。', revision_conflict: '文件或清理计划已被外部修改；未覆盖正文，请刷新或另存副本。', history_pinned: '固定快照受保护，请先取消固定。', resource_missing: '归档对象或文件缺失，已保留当前正文。' } as Record<string, string>)[code] ?? code
+  return ({ history_location_invalid: '历史保存位置配置无效，请检查目录和位置配置；未切换保存位置。', history_disabled: '尚未启用版本历史，请先在 EM → 版本历史中启用。', history_read_only: '历史格式版本较新，已保留原数据，请使用新版 EasyM。', history_invalid: '历史数据无效；已停止操作并保留原数据。', history_corrupt: '归档对象哈希校验失败；禁止恢复，请检查备份。', history_incomplete: '快照缺少图片，禁止完整恢复；可仅另存正文。', history_quota: '历史配额不足，已暂停创建快照。请清理历史或提高配额。', history_mixed: '当前文档混合使用换行；请先确认并保存换行格式，或另存副本。', revision_conflict: '文件或清理计划已被外部修改；未覆盖正文，请刷新或另存副本。', history_pinned: '固定快照受保护，请先取消固定。', resource_missing: '归档对象或文件缺失，已保留当前正文。' } as Record<string, string>)[code] ?? code
 }

@@ -6,6 +6,7 @@ import { sourceHash } from '../platform/images'
 import { collectHistoryResources } from '../platform/history-resources'
 import { desktop, readImageBlob } from '../platform/storage'
 import { compareHistory, historyError, historyInput, historyOperation, type CleanupPlan, type HistorySnapshot, type HistoryStatus } from '../platform/history'
+import { historyDirectory } from '../platform/preferences'
 
 interface Props {
   fileId: string | null; text: string; bytes: Uint8Array | null; snapshot: FileSnapshot; revision: string | null; resources: ImageResources
@@ -18,6 +19,7 @@ export function HistoryDialog(props: Props) {
   const { fileId, text, bytes, revision, resources, snapshot, onClose, onRestore } = props
   const dialog = useRef<HTMLDivElement>(null), task = useRef<AbortController | null>(null), mounted = useRef(true)
   const [history, setHistory] = useState<HistoryStatus | null>(null), [selected, setSelected] = useState<HistorySnapshot | null>(null)
+  const [historyPath, setHistoryPath] = useState('')
   const [target, setTarget] = useState<FileSnapshot | null>(null), [diff, setDiff] = useState<HistoryDiff | null>(null)
   const [busy, setBusy] = useState(false), [comparing, setComparing] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('')
   const [name, setName] = useState(''), [budget, setBudget] = useState('512'), [cleanup, setCleanup] = useState<CleanupPlan | null>(null)
@@ -41,6 +43,7 @@ export function HistoryDialog(props: Props) {
     if (!available) return
     let live = true
     setBusy(true)
+    void historyDirectory(fileId!, 'status').then(value => { if (live && value) setHistoryPath(value.path) }).catch(e => { if (live) setError(historyError(e)) })
     void query<HistoryStatus>({ action: 'status' }).then(value => { if (live) applyStatus(value) }).catch(e => { if (live) setError(historyError(e)) }).finally(() => { if (live) setBusy(false) })
     return () => { live = false }
     // The host locks current text and authorization for this panel's lifetime.
@@ -112,9 +115,10 @@ export function HistoryDialog(props: Props) {
     <div className="history-dialog" role="dialog" aria-modal="true" aria-labelledby="history-title" ref={dialog} aria-busy={busy}>
       <div className="panel-title"><h2 id="history-title">版本历史</h2><button disabled={busy} onClick={close}>关闭版本历史</button></div>
       {!available && <p>{desktop ? '请先通过 EM 菜单另存为，保存文件后可启用持久版本历史。' : '版本历史是桌面本地功能。浏览器草稿仍使用本机草稿恢复；请在 EasyM 桌面版中打开已保存文件。'}</p>}
+      {available && historyPath && <p>历史保存位置：<code>{historyPath}</code>（可在 EM → 设置中更改）</p>}
       {history?.warning && <p role="alert">{history.warning}</p>}
       {available && !history?.enabled && !history?.readOnly && <section>
-        <p>启用后，正文与本地 PNG/JPEG 图片会归档到文档目录的 <code>.easym/history/</code>。复制或分享目录时，历史内容也可能一起分享。版本历史不能代替备份。</p>
+        <p>启用后，正文与本地 PNG/JPEG 图片会归档到上述历史保存位置（默认是文档目录的 <code>.easym/history/</code>）。复制或分享目录时，历史内容也可能一起分享。版本历史不能代替备份。</p>
         <button disabled={busy || !history} onClick={() => void action(async () => { const [references] = await collectHistoryResources([snapshot.originalText]); applyStatus(await query<HistoryStatus>({ action: 'enable', ...references, expectedRevision: revision })); setMessage('已启用，并归档磁盘基线。') })}>启用版本历史</button>
         {!!history?.orphans.length && <label>明确重新关联移动 / 重命名的历史<select aria-label="重新关联历史" defaultValue="" disabled={busy} onChange={event => {
           const documentId = event.target.value

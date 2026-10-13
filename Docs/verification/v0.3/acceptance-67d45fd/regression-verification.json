@@ -1,0 +1,85 @@
+{
+  "version": "0.3.0",
+  "startedAt": "2026-10-13T03:46:47.703Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 616
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 6478
+    },
+    {
+      "script": "docx",
+      "passed": true,
+      "durationMs": 9433
+    },
+    {
+      "script": "docx-ui",
+      "passed": true,
+      "durationMs": 30459
+    },
+    {
+      "script": "history",
+      "passed": true,
+      "durationMs": 3612
+    },
+    {
+      "script": "batch-images",
+      "passed": true,
+      "durationMs": 9577
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 6364
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 65980
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 6592
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 19721
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 2231
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 5414
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 4891
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 6407
+    },
+    {
+      "script": "performance",
+      "passed": true,
+      "durationMs": 14060
+    }
+  ],
+  "distIndexSha256": "64175a6202a5e8e69c888fbd2c6532d2154b1506c860bf29eaf54424dc65d7f4",
+  "finishedAt": "2026-10-13T03:49:59.551Z"
+}

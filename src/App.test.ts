@@ -28,6 +28,7 @@ vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props
   return createElement('textarea', { 'aria-label': 'Markdown 源码编辑器', value: body, onKeyDown: (event: { key: string; ctrlKey: boolean }) => { if (event.ctrlKey && event.key === 's') props.onSave() }, onChange: (event: { target: { value: string } }) => { setBody(event.target.value); props.onChange(event.target.value) } })
 }) }))
 import App from './App'
+import { appVersion } from './platform/preferences'
 
 let root: Root
 let container: HTMLDivElement
@@ -44,6 +45,7 @@ beforeEach(async () => {
   docxApi.preflight.mockReset(); docxApi.preflight.mockImplementation(async ({ text, name }) => ({ model: (await import('./core/docx-model')).createDocxModel(text, name), assets: [] }))
   docxApi.render.mockReset(); docxApi.render.mockResolvedValue(new ArrayBuffer(8)); docxApi.save.mockReset(); docxApi.save.mockResolvedValue(true)
   localStorage.clear()
+  localStorage.setItem('easym-guide-version', appVersion)
   for (const key of await drafts.keys()) await drafts.clear(key)
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
 })
@@ -52,6 +54,16 @@ async function settle() { await act(async () => { await drafts.load(); await new
 async function mount() { await act(async () => root.render(createElement(App))); await settle() }
 async function click(label: string) {
   if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本', '导出 HTML', '导出 DOCX', '打印文档'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
+  const exportLabels: Record<string, string> = { '导出 HTML': 'HTML', '导出 DOCX': 'DOCX', '打印文档': 'PDF' }
+  if (exportLabels[label]) {
+    if (!container.querySelector('#export-menu')) await click('导出')
+    // A blocked parent intentionally keeps its submenu closed.
+    if (!container.querySelector('#export-menu')) return
+    label = exportLabels[label]
+  }
+  if (label === '开始使用') {
+    while (container.querySelector('[aria-label="下一页"]')) await click('下一页')
+  }
   const button = Array.from(container.querySelectorAll('button')).filter((button) => !button.closest('[hidden]')).find((button) => button.textContent === label || button.getAttribute('aria-label') === label || button.querySelector('span:last-child')?.textContent === label)
   if (!button) throw new Error(`Missing button ${label}`)
   await act(async () => button.click())
@@ -63,6 +75,51 @@ async function edit(text: string) {
   await act(async () => { setter.call(editor, text); editor.dispatchEvent(new Event('input', { bubbles: true })); editor.dispatchEvent(new Event('change', { bubbles: true })) })
 }
 async function requestClose() { await act(async () => native.requestClose()) }
+
+it('shows first-run onboarding, acknowledges Escape and restores menu focus', async () => {
+  localStorage.removeItem('easym-guide-version')
+  await mount()
+  expect(container.querySelector('[aria-label="EasyM 使用导引"]')).not.toBeNull()
+  expect(container.querySelector('.document-panel')?.hasAttribute('inert')).toBe(true)
+  const dialog = container.querySelector('[aria-label="EasyM 使用导引"]')!
+  await act(async () => dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(container.querySelector('[aria-label="EasyM 使用导引"]')).toBeNull()
+  expect(localStorage.getItem('easym-guide-version')).toBe(appVersion)
+})
+it('shows one guide page at a time, navigates both directions and starts manual guides on page one', async () => {
+  localStorage.removeItem('easym-guide-version'); await mount()
+  const dialog = () => container.querySelector('[aria-label="EasyM 使用导引"]')!
+  expect(dialog().querySelectorAll('section')).toHaveLength(1)
+  expect(dialog().textContent).toContain('开始写作')
+  expect(dialog().textContent).not.toContain('找回以前的内容')
+  expect(dialog().querySelector<HTMLButtonElement>('[aria-label="上一页"]')!.disabled).toBe(true)
+  expect(dialog().querySelector('[aria-label="开始使用"]')).toBeNull()
+  await click('下一页'); expect(dialog().textContent).toContain('编辑与自动保存')
+  await click('下一页'); expect(dialog().textContent).toContain('找回以前的内容')
+  await click('上一页'); expect(dialog().textContent).toContain('2 / 4')
+  await act(async () => dialog().querySelector('[aria-label="下一页"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(dialog().textContent).toContain('3 / 4')
+  await click('下一页'); expect(dialog().textContent).toContain('图片、导出与阅读')
+  expect(dialog().textContent).toContain('4 / 4'); expect(dialog().querySelectorAll('section')).toHaveLength(1)
+  await click('开始使用'); expect(localStorage.getItem('easym-guide-version')).toBe(appVersion)
+  await click('EM 菜单'); await click('设置'); await click('查看使用导引')
+  expect(dialog().textContent).toContain('1 / 4')
+})
+it('shows an update guide and supports manual reopening in settings with persisted appearance', async () => {
+  localStorage.setItem('easym-guide-version', '0.2.0')
+  await mount(); expect(container.textContent).toContain(`已更新到 EasyM ${appVersion}`)
+  await click('开始使用'); await click('EM 菜单'); await click('设置')
+  expect(container.querySelector('[aria-label="设置"]')).not.toBeNull()
+  expect(container.textContent).toContain('请先打开或另存一个文档')
+  const font = container.querySelector<HTMLSelectElement>('[aria-label="编辑字号"]')!
+  await act(async () => { font.value = '20'; font.dispatchEvent(new Event('change', { bubbles: true })) })
+  expect(localStorage.getItem('easym-editor-font-size')).toBe('20')
+  expect(container.querySelector<HTMLElement>('.application')?.style.getPropertyValue('--editor-font-size')).toBe('20px')
+  await click('查看使用导引'); expect(container.querySelector('[aria-label="设置"]')).toBeNull()
+  await click('开始使用'); await act(async () => root.unmount()); root = createRoot(container)
+  await mount(); expect(container.querySelector('[aria-label="EasyM 使用导引"]')).toBeNull()
+  expect(container.querySelector<HTMLElement>('.application')?.style.getPropertyValue('--editor-font-size')).toBe('20px')
+})
 
 async function tabContext(index: number) {
   const tab = container.querySelectorAll('[role=tab]')[index]
@@ -184,7 +241,7 @@ it('locks DOCX preflight, cancels immediately, ignores late results and recovers
   await mount(); await edit('protected'); await click('导出 DOCX')
   expect(container.querySelector('.app-shell')?.hasAttribute('inert')).toBe(true)
   await click('EM 菜单')
-  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].filter(button => ['重新加载外部版本', '导出 DOCX', '另存为 / 冲突副本'].includes(button.textContent!)).every(button => button.disabled)).toBe(true)
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].filter(button => ['重新加载外部版本', '导出', '另存为 / 冲突副本'].includes(button.textContent!)).every(button => button.disabled)).toBe(true)
   await requestClose()
   expect(native.close).not.toHaveBeenCalled()
   expect(container.querySelector('.close-dialog')).toBeNull()
@@ -263,7 +320,7 @@ it('cancels DOCX generation, traps focus and prevents cancellation after native 
 it('refuses DOCX during IME; preflight/save errors release the lock', async () => {
   await mount()
   native.composing = true; await click('EM 菜单')
-  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.textContent === '导出 DOCX')?.disabled).toBe(true)
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
   native.composing = false; await click('EM 菜单')
   docxApi.preflight.mockRejectedValueOnce(new Error('预检失败'))
   await click('导出 DOCX')
@@ -421,7 +478,7 @@ it('restores pending crop and alt, then retains them when exiting without applyi
   const alt = container.querySelector<HTMLInputElement>('.alt-input')!
   expect(alt.value).toBe('原 Alt')
   await click('EM 菜单')
-  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.textContent === '导出 DOCX')?.disabled).toBe(true)
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
   expect(docxApi.preflight).not.toHaveBeenCalled()
   await requestClose()
   const saveButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === '保存并退出')!
@@ -559,7 +616,8 @@ it('shows file commands only in the EM menu and dismisses it on Escape', async (
   await mount()
   expect(container.querySelector('[role=menu]')).toBeNull()
   await click('EM 菜单')
-  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(12)
+  expect(container.querySelector('.export-menu-trigger')).not.toBeNull()
+  expect(container.querySelector('#export-menu')).toBeNull()
   const trigger = container.querySelector<HTMLButtonElement>('.app-menu-trigger')!
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('[role=menu]')).toBeNull()
@@ -668,7 +726,7 @@ it('serializes automatic writes and preserves edits made while a save is in flig
   native.save.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve })).mockResolvedValue({ id: 'local', name: 'local.md', revision: 'r2', destination: 'disk' })
   await edit('first'); await waitAuto()
   await click('EM 菜单')
-  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.textContent === '导出 DOCX')?.disabled).toBe(true)
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
   expect(docxApi.preflight).not.toHaveBeenCalled()
   await click('EM 菜单')
   await edit('second'); await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
@@ -758,9 +816,12 @@ it('uses themed custom window controls and protects dirty content on window clos
   expect(native.minimize).toHaveBeenCalledOnce(); expect(native.maximize).toHaveBeenCalledOnce()
   expect(container.querySelector('.theme-picker')).toBeNull()
   await click('EM 菜单')
-  await click('Style · 配色主题')
-  const dark = container.querySelector<HTMLButtonElement>('[role=menuitemradio]:nth-last-child(3)')!
-  await act(async () => dark.click()); await settle()
+  expect(container.querySelector('[role=menuitemradio]')).toBeNull()
+  expect(container.textContent).not.toContain('Style · 配色主题')
+  await click('设置')
+  const picker = container.querySelector<HTMLSelectElement>('[aria-label="设置配色主题"]')!
+  await act(async () => { picker.value = 'dark'; picker.dispatchEvent(new Event('change', { bubbles: true })) }); await settle()
+  await click('完成')
   expect(container.querySelector('.application')?.getAttribute('data-theme')).toBe('dark')
   expect(localStorage.getItem('easym-theme')).toBe('dark')
   await edit('keep'); await click('关闭窗口')
@@ -820,19 +881,21 @@ it('exits with only untouched new documents without prompting or saving', async 
   expect(native.save).not.toHaveBeenCalled(); expect(await drafts.keys()).toEqual([])
 })
 
-it('opens the Style submenu explicitly and handles hierarchical keyboard navigation', async () => {
+it('opens the export submenu explicitly and handles hierarchical keyboard navigation', async () => {
   await mount(); await click('EM 菜单')
-  expect(container.querySelector('#style-menu')).toBeNull()
-  await click('Style · 配色主题')
-  const trigger = container.querySelector<HTMLButtonElement>('.style-menu-trigger')!
-  const selected = container.querySelector<HTMLButtonElement>('[role=menuitemradio][aria-checked=true]')!
+  expect(container.querySelector('#export-menu')).toBeNull()
+  expect(container.textContent).not.toContain('Style · 配色主题')
+  await click('导出')
+  const trigger = container.querySelector<HTMLButtonElement>('.export-menu-trigger')!
+  const selected = container.querySelector<HTMLButtonElement>('#export-menu [role=menuitem]')!
+  expect(Array.from(container.querySelectorAll('#export-menu [role=menuitem]'), item => item.textContent)).toEqual(['HTML', 'DOCX', 'PDF'])
   expect(document.activeElement).toBe(selected)
   await act(async () => selected.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })))
-  expect(document.activeElement?.textContent).toContain('午夜深色')
+  expect(document.activeElement?.textContent).toBe('DOCX')
   await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
-  expect(container.querySelector('#style-menu')).toBeNull(); expect(container.querySelector('#file-menu')).not.toBeNull(); expect(document.activeElement).toBe(trigger)
+  expect(container.querySelector('#export-menu')).toBeNull(); expect(container.querySelector('#file-menu')).not.toBeNull(); expect(document.activeElement).toBe(trigger)
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
-  expect(container.querySelector('#style-menu')).not.toBeNull()
+  expect(container.querySelector('#export-menu')).not.toBeNull()
   await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })))
   expect(document.activeElement).toBe(trigger)
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))

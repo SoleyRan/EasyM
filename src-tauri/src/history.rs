@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tempfile::NamedTempFile;
 use tauri::State;
-use crate::{resources::{self, Asset, Metadata, directory, safe_existing}, storage::Storage, transaction};
+use crate::{resources::{self, Asset, Metadata, directory, safe_existing as resource_existing}, storage::Storage, transaction};
 
 const BASE: &str = ".easym/history";
 const MAX_JSON: u64 = 4 * 1024 * 1024;
@@ -12,6 +12,129 @@ const MAX_TEXT: usize = 10 * 1024 * 1024;
 const MAX_RESOURCES: usize = 128 * 1024 * 1024;
 const MAX_ENTRIES: usize = 10000;
 const DEFAULT_BUDGET: u64 = 512 * 1024 * 1024;
+const LOCATION: &str = ".easym/history-location.json";
+
+// Only history I/O is redirected. Asset paths and transaction journals remain document-relative.
+fn validate_archive(path: &Path) -> Result<(), String> {
+    let mut current = PathBuf::new();
+    for component in path.components() {
+        current.push(component);
+        if !matches!(component, Component::Normal(_)) { continue; }
+        if fs::symlink_metadata(&current).map_err(|_| "resource_missing")?.file_type().is_symlink() { return Err("permission_denied".into()); }
+    }
+    let parent = path.parent().ok_or("history_location_invalid")?.canonicalize().map_err(|_| "resource_missing")?;
+    let name = path.file_name().and_then(|n| n.to_str()).ok_or("history_location_invalid")?;
+    let resolved = resource_existing(&parent, name)?;
+    if !resolved.is_dir() { return Err("history_location_invalid".into()); }
+    Ok(())
+}
+fn history_location(root: &Path) -> Result<PathBuf, String> {
+    match fs::symlink_metadata(root.join(LOCATION)) {
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(root.join(BASE)),
+        Err(_) => return Err("permission_denied".into()), Ok(_) => ()
+    }
+    let config = resource_existing(root, LOCATION)?;
+    if fs::metadata(&config).map_err(|_| "io_failed")?.len() > 16384 { return Err("history_location_invalid".into()); }
+    let bytes = fs::read(config).map_err(|_| "io_failed")?;
+    let value: Value = serde_json::from_slice(&bytes).map_err(|_| "history_location_invalid")?;
+    if value["schemaVersion"] != 1 { return Err("history_location_invalid".into()); }
+    let path = PathBuf::from(value["path"].as_str().ok_or("history_location_invalid")?);
+    if !path.is_absolute() { return Err("history_location_invalid".into()); }
+    validate_archive(&path)?;
+    Ok(path)
+}
+fn history_path(root: &Path, path: impl AsRef<Path>) -> Result<PathBuf, String> {
+    let path = path.as_ref();
+    if let Ok(suffix) = path.strip_prefix(BASE) { return Ok(history_location(root)?.join(suffix)); }
+    Ok(root.join(path))
+}
+fn safe_existing(root: &Path, path: &str) -> Result<PathBuf, String> {
+    if path == BASE { let archive = history_location(root)?; validate_archive(&archive)?; return Ok(archive); }
+    if let Some(suffix) = path.strip_prefix(&format!("{BASE}/")) {
+        let archive = history_location(root)?; validate_archive(&archive)?;
+        return resource_existing(&archive, suffix);
+    }
+    resource_existing(root, path)
+}
+
+fn location_status(root: &Path) -> Result<Value, String> {
+    let path = history_location(root)?;
+    Ok(json!({"path":path,"documentDirectory":root,"custom":path != root.join(BASE)}))
+}
+fn copy_archive(source: &Path, target: &Path, total: &mut u64, count: &mut usize) -> Result<(), String> {
+    for item in fs::read_dir(source).map_err(|_| "io_failed")? {
+        let item = item.map_err(|_| "io_failed")?;
+        *count += 1; if *count > 50000 { return Err("quota_exceeded".into()); }
+        let info = fs::symlink_metadata(item.path()).map_err(|_| "io_failed")?;
+        let destination = target.join(item.file_name());
+        if info.file_type().is_symlink() { return Err("permission_denied".into()); }
+        if info.is_dir() { fs::create_dir(&destination).map_err(|_| "io_failed")?; copy_archive(&item.path(), &destination, total, count)?; }
+        else if info.is_file() {
+            *total += info.len(); if *total > 4096 * 1024 * 1024 || info.len() > 128 * 1024 * 1024 { return Err("quota_exceeded".into()); }
+            fs::copy(item.path(), &destination).map_err(|_| "io_failed")?;
+            let original = fs::read(item.path()).map_err(|_| "io_failed")?;
+            let mut copied = fs::OpenOptions::new().read(true).write(true).open(&destination).map_err(|_| "io_failed")?;
+            copied.flush().map_err(|_| "io_failed")?; copied.sync_all().map_err(|_| "io_failed")?;
+            if digest(&original) != digest(&fs::read(&destination).map_err(|_| "io_failed")?) { return Err("history_corrupt".into()); }
+        } else { return Err("permission_denied".into()); }
+    }
+    Ok(())
+}
+fn change_location(root: &Path, selected: Option<&Path>) -> Result<Value, String> {
+    let source = history_location(root)?;
+    if selected.is_none() && source == root.join(BASE) { return location_status(root); }
+    let mut index = index_read(root)?; reconcile(root, &mut index)?;
+    for name in index.documents.keys().cloned().collect::<Vec<_>>() {
+        let path = root.join(name);
+        if path.is_file() { recover_history(root, &mut index, &path)?; recover_batches(root, &mut index, &path)?; }
+    }
+    for entry in index.documents.values() { for id in &entry.snapshots {
+        let snapshot = manifest_read(root, &entry.document_id, id)?;
+        verify_snapshot(root, &snapshot, false)?;
+        for resource in snapshot.resources.iter().filter(|r| !r.missing) {
+            verify_resource(resource, &object_read(root, resource.hash.as_deref().ok_or("history_corrupt")?, 20 * 1024 * 1024)?)?;
+        }
+    } }
+    if source.exists() { index_write(root, &index)?; }
+    let target = if let Some(selected) = selected {
+        let parent = selected.canonicalize().map_err(|_| "permission_denied")?;
+        if parent.starts_with(&source) { return Err("history_location_invalid".into()); }
+        // Each switch gets a fresh namespace: stale copies are never silently merged or overwritten.
+        directory(&parent, &format!("EasyM-history/{}", digest(root.to_string_lossy().as_bytes())))?.join(uuid::Uuid::new_v4().to_string())
+    } else { directory(root, ".easym")?.join("history") };
+    let parent = target.parent().ok_or("history_location_invalid")?;
+    let staged = tempfile::tempdir_in(parent).map_err(|_| "io_failed")?;
+    if source.exists() { validate_archive(&source)?; copy_archive(&source, staged.path(), &mut 0, &mut 0)?; }
+    let previous = if target.exists() {
+        validate_archive(&target)?;
+        let backup = parent.join(format!("history-backup-{}", uuid::Uuid::new_v4()));
+        fs::rename(&target, &backup).map_err(|_| "io_failed")?; Some(backup)
+    } else { None };
+    if fs::rename(staged.path(), &target).is_err() {
+        if let Some(backup) = &previous { let _ = fs::rename(backup, &target); }
+        return Err("io_failed".into());
+    }
+    // A failed pointer commit leaves the original archive active and intact.
+    atomic(root, LOCATION, &serde_json::to_vec(&json!({"schemaVersion":1,"path":target})).map_err(|_| "io_failed")?, false)?;
+    let mut value = location_status(root)?;
+    value["retainedPath"] = json!(source);
+    value["backupPath"] = json!(previous);
+    Ok(value)
+}
+
+#[tauri::command]
+pub async fn history_directory(state: State<'_, Storage>, id: String, action: String) -> Result<Value, String> {
+    let storage = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        // Pick outside the queue, then serialize migration with saves/history/batch operations.
+        let selected = if action == "choose" {
+            let Some(path) = rfd::FileDialog::new().set_title("选择历史保存目录").pick_folder() else { return Ok(Value::Null); }; Some(path)
+        } else { None };
+        let sessions = storage.0.lock().map_err(|_| "io_failed")?;
+        let root = root(sessions.get(&id).ok_or("permission_denied")?)?;
+        match action.as_str() { "status" => location_status(&root), "choose" => change_location(&root, selected.as_deref()), "reset" => change_location(&root, None), _ => Err("invalid_data".into()) }
+    }).await.map_err(|_| "io_failed".to_string())?
+}
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -105,6 +228,12 @@ fn json_read<T: serde::de::DeserializeOwned>(root: &Path, path: &str) -> Result<
 }
 fn atomic(root: &Path, relative_path: &str, bytes: &[u8], immutable: bool) -> Result<(), String> {
     relative(relative_path)?;
+    if let Some(suffix) = relative_path.strip_prefix(&format!("{BASE}/")) {
+        let archive = history_location(root)?;
+        if archive == root.join(BASE) { directory(root, BASE)?; }
+        validate_archive(&archive)?;
+        return atomic(&archive, suffix, bytes, immutable);
+    }
     let (parent, name) = relative_path.rsplit_once('/').unwrap_or(("", relative_path));
     let parent = if parent.is_empty() { root.to_path_buf() } else { directory(root, parent)? }; let target = parent.join(name);
     if fs::symlink_metadata(&target).is_ok() { safe_existing(root, relative_path)?; }
@@ -115,12 +244,12 @@ fn atomic(root: &Path, relative_path: &str, bytes: &[u8], immutable: bool) -> Re
     else { file.persist(target).map_err(|_| "io_failed")?; } Ok(())
 }
 fn index_read(root: &Path) -> Result<Index, String> {
-    if fs::symlink_metadata(root.join(format!("{BASE}/index.json"))).is_err() {
+    if fs::symlink_metadata(history_path(&root, format!("{BASE}/index.json"))?).is_err() {
         // A missing index with existing history is recoverable only if a valid index was committed.
         // Do not silently adopt another directory's data or reset damaged authorization mappings.
-        if fs::symlink_metadata(root.join(BASE)).is_ok() {
+        if fs::symlink_metadata(history_path(&root, BASE)?).is_ok() {
             safe_existing(root, BASE)?;
-            if root.join(format!("{BASE}/documents")).exists() || root.join(format!("{BASE}/objects")).exists() { return Err("history_invalid".into()); }
+            if history_path(&root, format!("{BASE}/documents"))?.exists() || history_path(&root, format!("{BASE}/objects"))?.exists() { return Err("history_invalid".into()); }
         }
         return Ok(Index::default());
     }
@@ -165,7 +294,7 @@ fn manifest_read(root: &Path, doc: &str, snap: &str) -> Result<Snapshot, String>
 // No body is changed. A foreign/unknown manifest prevents mutation and GC across the directory.
 fn reconcile(root: &Path, index: &mut Index) -> Result<(), String> {
     let documents = format!("{BASE}/documents");
-    if root.join(&documents).exists() {
+    if history_path(&root, &documents)?.exists() {
         let entries: Vec<_> = fs::read_dir(safe_existing(root, &documents)?).map_err(|_| "io_failed")?.collect();
         if entries.len() > 4096 { return Err("quota_exceeded".into()); }
         for item in entries {
@@ -177,7 +306,7 @@ fn reconcile(root: &Path, index: &mut Index) -> Result<(), String> {
     let mut total = 0;
     for entry in index.documents.values_mut() {
         let directory_path = format!("{BASE}/documents/{}/snapshots", entry.document_id);
-        if !root.join(&directory_path).exists() { if !entry.snapshots.is_empty() { return Err("history_invalid".into()); } continue; }
+        if !history_path(&root, &directory_path)?.exists() { if !entry.snapshots.is_empty() { return Err("history_invalid".into()); } continue; }
         let folder = safe_existing(root, &directory_path)?;
         let mut found = BTreeSet::new();
         for file in fs::read_dir(folder).map_err(|_| "io_failed")? {
@@ -194,7 +323,7 @@ fn reconcile(root: &Path, index: &mut Index) -> Result<(), String> {
     Ok(())
 }
 fn size(root: &Path) -> Result<u64, String> {
-    if !root.join(BASE).exists() { return Ok(0); }
+    if !history_path(&root, BASE)?.exists() { return Ok(0); }
     let mut stack = vec![BASE.to_string()]; let mut bytes = 0; let mut count = 0;
     while let Some(folder) = stack.pop() {
         for file in fs::read_dir(safe_existing(root, &folder)?).map_err(|_| "io_failed")? {
@@ -214,7 +343,7 @@ fn object_read(root: &Path, hash: &str, max: usize) -> Result<Vec<u8>, String> {
 }
 fn object_write(root: &Path, bytes: &[u8]) -> Result<String, String> {
     let hash = digest(bytes); let path = format!("{BASE}/objects/{hash}");
-    if fs::symlink_metadata(root.join(&path)).is_ok() { object_read(root, &hash, bytes.len())?; }
+    if fs::symlink_metadata(history_path(&root, &path)?).is_ok() { object_read(root, &hash, bytes.len())?; }
     else { atomic(root, &path, bytes, true)?; }
     Ok(hash)
 }
@@ -289,7 +418,7 @@ fn capture_with(root: &Path, index: &mut Index, path: &Path, input: Input, reaso
         if previous.iter().filter(|s| s.reason == "automatic").any(|s| time.saturating_sub(s.created_at) < 60000) { return Ok(None); }
     }
     let used = size(root)?; let mut needed = 0; let mut hashes = BTreeSet::new();
-    for bytes in std::iter::once(&input.bytes).chain(payloads.iter()) { let hash = digest(bytes); if hashes.insert(hash.clone()) && !root.join(format!("{BASE}/objects/{hash}")).exists() { needed += bytes.len() as u64; } }
+    for bytes in std::iter::once(&input.bytes).chain(payloads.iter()) { let hash = digest(bytes); if hashes.insert(hash.clone()) && !history_path(&root, format!("{BASE}/objects/{hash}"))?.exists() { needed += bytes.len() as u64; } }
     let snapshot_id = uuid::Uuid::new_v4().to_string();
     let snapshot = Snapshot { schema_version: 1, snapshot_id: snapshot_id.clone(), document_id: entry.document_id.clone(), parent_snapshot_id: previous.last().map(|s| s.snapshot_id.clone()), created_at: time, reason: reason.into(), body_hash, body_size: input.bytes.len(), encoding, line_ending, disk_revision: input.disk_revision, complete: !resources.iter().any(|r| r.missing) && input.unarchived_references.is_empty(), unarchived_references: input.unarchived_references, resources, metadata: Metadata { schema_version: 1, instances } };
     let bytes = serde_json::to_vec_pretty(&snapshot).map_err(|_| "history_invalid")?;
@@ -299,7 +428,7 @@ fn capture_with(root: &Path, index: &mut Index, path: &Path, input: Input, reaso
     proposed_entry.snapshots.push(snapshot_id.clone()); proposed_entry.annotations.insert(snapshot_id.clone(), Annotation { name, pinned: false });
     let index_bytes = serde_json::to_vec_pretty(&proposed_index).map_err(|_| "history_invalid")?;
     if index_bytes.len() as u64 > MAX_JSON { return Err("quota_exceeded".into()); }
-    let old_index_bytes = fs::metadata(root.join(format!("{BASE}/index.json"))).map(|m| m.len()).unwrap_or(0);
+    let old_index_bytes = fs::metadata(history_path(&root, format!("{BASE}/index.json"))?).map(|m| m.len()).unwrap_or(0);
     if used + needed + bytes.len() as u64 + (index_bytes.len() as u64).saturating_sub(old_index_bytes) > index.budget_bytes { return Err("history_quota".into()); }
     object_write(root, &input.bytes)?; for bytes in payloads { object_write(root, &bytes)?; } fault(CapturePhase::Objects)?;
     atomic(root, &manifest_path(&entry.document_id, &snapshot_id)?, &bytes, true)?; fault(CapturePhase::Manifest)?;
@@ -366,7 +495,7 @@ fn cleanup_preview(root: &Path, index: &Index, path: &Path, selected: &[String])
     }
     if selected.iter().any(|id| !candidates.iter().any(|c| c["snapshotId"] == *id)) { return Err("history_invalid".into()); }
     let mut reclaim = 0; let object_dir = format!("{BASE}/objects");
-    if root.join(&object_dir).exists() {
+    if history_path(&root, &object_dir)?.exists() {
         let files: Vec<_> = fs::read_dir(safe_existing(root, &object_dir)?).map_err(|_| "io_failed")?.collect();
         if files.len() > MAX_ENTRIES * 4 { return Err("quota_exceeded".into()); }
         for file in files {
@@ -387,10 +516,10 @@ fn cleanup_commit(root: &Path, index: &mut Index, plan: Cleanup) -> Result<(), S
     for entry in index.documents.values() { for id in &entry.snapshots { let snap = manifest_read(root, &entry.document_id, id)?; kept.insert(snap.body_hash); for r in snap.resources { if let Some(h) = r.hash { kept.insert(h); } } } }
     for deleted in &index.deleted {
         let (doc, snap) = deleted.split_once('/').ok_or("history_invalid")?; let relative = manifest_path(doc, snap)?;
-        if fs::symlink_metadata(root.join(&relative)).is_ok() { fs::remove_file(safe_existing(root, &relative)?).map_err(|_| "io_failed")?; }
+        if fs::symlink_metadata(history_path(&root, &relative)?).is_ok() { fs::remove_file(safe_existing(root, &relative)?).map_err(|_| "io_failed")?; }
     }
     let folder = format!("{BASE}/objects");
-    if root.join(&folder).exists() {
+    if history_path(&root, &folder)?.exists() {
         let files: Vec<_> = fs::read_dir(safe_existing(root, &folder)?).map_err(|_| "io_failed")?.collect();
         if files.len() > MAX_ENTRIES * 4 { return Err("quota_exceeded".into()); }
         for file in files { let name = file.map_err(|_| "io_failed")?.file_name().to_string_lossy().to_string(); if valid_hash(&name) && !kept.contains(&name) { fs::remove_file(safe_existing(root, &format!("{folder}/{name}"))?).map_err(|_| "io_failed")?; } }
@@ -427,7 +556,7 @@ fn relocation(root: &Path, snapshot: &Snapshot) -> Result<BTreeMap<String, Strin
         let ext = if r.mime.as_deref() == Some("image/png") { "png" } else { "jpg" };
         let prefix = if r.role == "source" { "assets/.originals" } else { "assets" };
         let candidate = format!("{prefix}/img-history-{hash}.{ext}");
-        let path = if fs::symlink_metadata(root.join(&candidate)).is_ok() && bounded(root, &candidate, 20 * 1024 * 1024).is_ok_and(|b| digest(&b) != hash) { format!("{prefix}/img-history-{hash}-{}.{ext}", uuid::Uuid::new_v4()) } else { candidate };
+        let path = if fs::symlink_metadata(history_path(&root, &candidate)?).is_ok() && bounded(root, &candidate, 20 * 1024 * 1024).is_ok_and(|b| digest(&b) != hash) { format!("{prefix}/img-history-{hash}-{}.{ext}", uuid::Uuid::new_v4()) } else { candidate };
         map.insert(r.path.clone(), path);
     }
     Ok(map)
@@ -463,7 +592,7 @@ fn check_revision(path: &Path, expected: &str) -> Result<(), String> {
 fn recover_history(root: &Path, index: &mut Index, path: &Path) -> Result<(), String> {
     let Some(identity) = index.documents.get(&key(path)?).filter(|e| e.enabled).cloned() else { return Ok(()); };
     let relative_folder = format!("{BASE}/documents/{}", identity.document_id);
-    if !root.join(&relative_folder).exists() { return Ok(()); }
+    if !history_path(&root, &relative_folder)?.exists() { return Ok(()); }
     let files: Vec<_> = fs::read_dir(safe_existing(root, &relative_folder)?).map_err(|_| "io_failed")?.collect();
     if files.len() > MAX_ENTRIES { return Err("quota_exceeded".into()); }
     for file in files {
@@ -493,7 +622,7 @@ pub(crate) fn separate_destination(path: &Path) -> Result<(), String> {
     if let Some(old) = index.documents.remove(&key) {
         // Retain the overwritten destination's former timeline under an explicitly orphaned mapping.
         let mut orphan = format!("history-previous-{}.md", old.document_id);
-        while index.documents.contains_key(&orphan) || root.join(&orphan).exists() { orphan = format!("history-previous-{}-{}.md", old.document_id, uuid::Uuid::new_v4()); }
+        while index.documents.contains_key(&orphan) || history_path(&root, &orphan)?.exists() { orphan = format!("history-previous-{}-{}.md", old.document_id, uuid::Uuid::new_v4()); }
         index.documents.insert(orphan, old);
         index.documents.insert(key, Entry { document_id: uuid::Uuid::new_v4().to_string(), enabled: false, snapshots: vec![], annotations: BTreeMap::new() });
         index_write(&root, &index)?;
@@ -534,7 +663,7 @@ fn batch_log(root: &Path, index: &Index, path: &Path, operation: &str, value: &V
     let bytes = serde_json::to_vec(value).map_err(|_| "invalid_data")?;
     if bytes.len() > MAX_JSON as usize { return Err("quota_exceeded".into()); }
     let relative = format!("{BASE}/documents/{doc}/batch-{operation}.json");
-    let previous = if root.join(&relative).exists() { let old = bounded(root, &relative, MAX_JSON)?; let old_value: Value = serde_json::from_slice(&old).map_err(|_| "history_invalid")?; if old_value["schemaVersion"] != 1 { return Err("history_read_only".into()); } old.len() as u64 } else { 0 };
+    let previous = if history_path(&root, &relative)?.exists() { let old = bounded(root, &relative, MAX_JSON)?; let old_value: Value = serde_json::from_slice(&old).map_err(|_| "history_invalid")?; if old_value["schemaVersion"] != 1 { return Err("history_read_only".into()); } old.len() as u64 } else { 0 };
     if size(root)?.saturating_sub(previous) + bytes.len() as u64 > index.budget_bytes { return Err("history_quota".into()); }
     atomic(root, &relative, &bytes, false)
 }
@@ -559,7 +688,7 @@ enum BatchPhase { Snapshot, Prepared, Body }
 fn commit_batch_with(root: &Path, index: &mut Index, path: &Path, operation: &str, expected: &str, mut current: Input, next: Input, options: BatchOptions, items: Vec<BatchItem>, mut fault: impl FnMut(BatchPhase) -> Result<(), String>) -> Result<Value, String> {
     uuid(operation)?; batch_options(&options)?; entry(index, path)?;
     let record_path = format!("{BASE}/documents/{}/batch-{operation}.json", entry(index, path)?.document_id);
-    if root.join(&record_path).exists() {
+    if history_path(&root, &record_path)?.exists() {
         let record: Value = json_read(root, &record_path)?;
         if record["schemaVersion"] != 1 { return Err("history_read_only".into()); }
         if record["committed"] == true {
@@ -580,7 +709,7 @@ fn commit_batch_with(root: &Path, index: &mut Index, path: &Path, operation: &st
         if transaction::hash(&source.bytes) != item.before_hash || transaction::hash(&display.bytes) != item.after_hash { return Err("history_corrupt".into()); }
         let old = match current.assets.iter().find(|a| a.path == item.before_path) { Some(asset) => asset.bytes.clone(), None => bounded(root, &item.before_path, 20 * 1024 * 1024)? };
         if old != source.bytes { return Err("revision_conflict".into()); }
-        if root.join(&item.before_path).exists() && bounded(root, &item.before_path, 20 * 1024 * 1024)? != source.bytes { return Err("revision_conflict".into()); }
+        if history_path(&root, &item.before_path)?.exists() && bounded(root, &item.before_path, 20 * 1024 * 1024)? != source.bytes { return Err("revision_conflict".into()); }
         let instance = next.metadata.instances.iter().find(|i| i["instanceId"] == item.instance_id && i["sourcePath"] == item.source_path && i["displayPath"] == item.display_path && i["sourceHash"] == item.before_hash).ok_or("invalid_data")?;
         resources::validate_instance(instance)?;
     }
@@ -607,7 +736,7 @@ fn commit_batch_with(root: &Path, index: &mut Index, path: &Path, operation: &st
 fn recover_batches(root: &Path, index: &mut Index, path: &Path) -> Result<(), String> {
     let Ok(doc_entry) = entry(index, path) else { return Ok(()); };
     let folder = format!("{BASE}/documents/{}", doc_entry.document_id);
-    if !root.join(&folder).exists() { return Ok(()); }
+    if !history_path(&root, &folder)?.exists() { return Ok(()); }
     for (count, file) in fs::read_dir(safe_existing(root, &folder)?).map_err(|_| "io_failed")?.enumerate() {
         if count > MAX_ENTRIES { return Err("quota_exceeded".into()); }
         let name = file.map_err(|_| "io_failed")?.file_name().to_string_lossy().to_string();
@@ -639,7 +768,7 @@ fn execute(path: &Path, sessions: &BTreeSet<PathBuf>, request: Request) -> Resul
             if let Some(error) = recovery { value["warning"] = json!(format!("历史后处理待恢复（{error}）；当前正文未改写。")); }
             else if let Some(warning) = transaction_warning { value["warning"] = json!(warning); }
             // Persist reconciled manifests, but do not create history just by opening the panel.
-            if root.join(format!("{BASE}/index.json")).exists() { index_write(&root, &index)?; }
+            if history_path(&root, format!("{BASE}/index.json"))?.exists() { index_write(&root, &index)?; }
             Ok(value)
         }
         Request::Enable { references, unarchived_references, expected_revision } => {
@@ -717,14 +846,14 @@ fn execute(path: &Path, sessions: &BTreeSet<PathBuf>, request: Request) -> Resul
             if !["started", "cancelled", "failed"].contains(&status.as_str()) { return Err("invalid_data".into()); }
             let doc = &entry(&index, path)?.document_id;
             let relative = format!("{BASE}/documents/{doc}/batch-{operation_id}.json");
-            if root.join(&relative).exists() { let previous: Value = json_read(&root, &relative)?; if previous["status"] == "prepared" || previous["committed"] == true { return Err("revision_conflict".into()); } }
+            if history_path(&root, &relative)?.exists() { let previous: Value = json_read(&root, &relative)?; if previous["status"] == "prepared" || previous["committed"] == true { return Err("revision_conflict".into()); } }
             batch_log(&root, &index, path, &operation_id, &json!({"schemaVersion":1,"operationId":operation_id,"status":status,"options":options,"committed":false}))?; Ok(Value::Null)
         }
         Request::BatchCommit { operation_id, expected_revision, current, next, options, items } => {
             let result = commit_batch(&root, &mut index, path, &operation_id, &expected_revision, current, next, options.clone(), items);
             if result.is_err() {
                 let doc = &entry(&index, path)?.document_id; let relative = format!("{BASE}/documents/{doc}/batch-{operation_id}.json");
-                if uuid(&operation_id).is_ok() && root.join(&relative).exists() {
+                if uuid(&operation_id).is_ok() && history_path(&root, &relative)?.exists() {
                     if let Ok(mut record) = json_read::<Value>(&root, &relative) { if record["committed"] != true && record["status"] != "prepared" { record["status"] = json!("failed"); let _ = batch_log(&root, &index, path, &operation_id, &record); } }
                 }
             }
@@ -750,6 +879,90 @@ pub async fn history_operation(state: State<'_, Storage>, id: String, request: R
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn custom_history_migrates_all_documents_and_survives_restart_and_reset() {
+        let (_temp, root, path, mut index) = setup(b"baseline");
+        let image = include_bytes!("../icons/32x32.png").to_vec();
+        let mut image_input = input(b"![a](assets/img-test.png)");
+        image_input.references = vec!["assets/img-test.png".into()];
+        image_input.assets = vec![Asset { path: "assets/img-test.png".into(), bytes: image.clone() }];
+        capture(&root, &mut index, &path, image_input, "manual", Some("keep".into())).unwrap();
+        let snap = newest(&root, &index, &path);
+        let other = root.join("other.md"); fs::write(&other, b"other").unwrap();
+        execute(&other, &BTreeSet::new(), Request::Enable { references: vec![], unarchived_references: vec![], expected_revision: None }).unwrap();
+        let selected = tempfile::tempdir().unwrap();
+        let result = change_location(&root, Some(selected.path())).unwrap();
+        let custom = PathBuf::from(result["path"].as_str().unwrap());
+        assert!(custom.join("index.json").is_file()); assert!(root.join(format!("{BASE}/index.json")).is_file());
+        assert_eq!(history_location(&root).unwrap(), custom);
+        let mut migrated = index_read(&root).unwrap();
+        assert_eq!(migrated.documents.len(), 2);
+        assert_eq!(verify_snapshot(&root, &snap, true).unwrap(), b"![a](assets/img-test.png)");
+        let map = relocation(&root, &snap).unwrap();
+        let (assets, _) = restored_resources(&root, &snap, &map).unwrap(); assert_eq!(assets[0].bytes, image);
+        let old_count = entry(&migrated, &path).unwrap().snapshots.len();
+        capture(&root, &mut migrated, &path, input(b"after switch"), "manual", None).unwrap();
+        assert_eq!(entry(&index_read(&root).unwrap(), &path).unwrap().snapshots.len(), old_count + 1);
+        assert_eq!(fs::read(&path).unwrap(), b"baseline");
+        let plan = cleanup_preview(&root, &migrated, &path, &[]).unwrap(); cleanup_commit(&root, &mut migrated, plan).unwrap();
+        let reset = change_location(&root, None).unwrap(); assert_eq!(reset["custom"], false); assert!(custom.exists());
+        assert!(Path::new(reset["backupPath"].as_str().unwrap()).is_dir());
+        assert_eq!(entry(&index_read(&root).unwrap(), &path).unwrap().snapshots.len(), old_count + 1);
+        assert_eq!(verify_snapshot(&root, &snap, true).unwrap(), b"![a](assets/img-test.png)");
+    }
+    #[test]
+    fn migration_rejects_corrupt_images_and_unavailable_locations_without_switching() {
+        let (_temp, root, path, mut index) = setup(b"baseline");
+        let mut data = input(b"![a](assets/img-test.png)"); data.references = vec!["assets/img-test.png".into()];
+        data.assets = vec![Asset { path: "assets/img-test.png".into(), bytes: include_bytes!("../icons/32x32.png").to_vec() }];
+        capture(&root, &mut index, &path, data, "manual", None).unwrap();
+        let snap = newest(&root, &index, &path);
+        let hash = snap.resources[0].hash.as_ref().unwrap(); fs::write(root.join(format!("{BASE}/objects/{hash}")), b"broken").unwrap();
+        let selected = tempfile::tempdir().unwrap(); assert_eq!(change_location(&root, Some(selected.path())).unwrap_err(), "history_corrupt");
+        assert!(!root.join(LOCATION).exists()); assert_eq!(fs::read(path).unwrap(), b"baseline");
+        fs::write(directory(&root, ".easym").unwrap().join("history-location.json"), br#"{"schemaVersion":1,"path":"relative"}"#).unwrap();
+        assert_eq!(history_location(&root).unwrap_err(), "history_location_invalid");
+        assert!(index_read(&root).is_err());
+    }
+    #[test]
+    fn chosen_directory_is_namespaced_and_does_not_enable_history() {
+        let temp = tempfile::tempdir().unwrap(); let root = temp.path().canonicalize().unwrap();
+        let path = root.join("new.md"); fs::write(&path, b"new").unwrap();
+        let selected = tempfile::tempdir().unwrap(); fs::write(selected.path().join("keep.txt"), b"unrelated").unwrap();
+        change_location(&root, Some(selected.path())).unwrap();
+        assert_eq!(execute(&path, &BTreeSet::new(), Request::Status).unwrap()["enabled"], false);
+        assert_eq!(fs::read(selected.path().join("keep.txt")).unwrap(), b"unrelated");
+        execute(&path, &BTreeSet::new(), Request::Enable { references: vec![], unarchived_references: vec![], expected_revision: None }).unwrap();
+        assert!(history_location(&root).unwrap().join("index.json").is_file()); assert!(!root.join(BASE).exists());
+        assert!(change_location(&root, Some(&history_location(&root).unwrap())).is_err());
+    }
+    #[test]
+    fn custom_archive_supports_batch_recovery_save_capture_and_restore_transactions() {
+        let (_temp, root, path, _index, current, next, items, options) = batch_fixture();
+        let baseline = current.bytes.clone(); let proposed = next.bytes.clone();
+        let selected = tempfile::tempdir().unwrap(); change_location(&root, Some(selected.path())).unwrap();
+        let mut index = index_read(&root).unwrap();
+        let operation = uuid::Uuid::new_v4().to_string();
+        let result = commit_batch_with(&root, &mut index, &path, &operation, &transaction::hash(&baseline), current, next, options, items,
+            |phase| if phase == BatchPhase::Body { Err("injected".into()) } else { Ok(()) }).unwrap();
+        assert!(result["warning"].is_string());
+        execute(&path, &BTreeSet::new(), Request::Status).unwrap();
+        index = index_read(&root).unwrap();
+        let doc = entry(&index, &path).unwrap().document_id.clone();
+        let record: Value = json_read(&root, &format!("{BASE}/documents/{doc}/batch-{operation}.json")).unwrap();
+        assert_eq!(record["status"], "recovered"); assert_eq!(fs::read(&path).unwrap(), proposed);
+        before_save(&path, vec!["assets/img-new.png".into()], vec![], Some(&transaction::hash(&proposed))).unwrap();
+        let metadata = resources::read_metadata(&root).0.unwrap();
+        after_save(&path, &proposed, vec!["assets/img-new.png".into()], vec![], metadata).unwrap();
+        let snapshot = newest(&root, &index_read(&root).unwrap(), &path);
+        let plan = relocation(&root, &snapshot).unwrap();
+        let current = disk_input(&path, vec!["assets/img-new.png".into()], vec![]).unwrap();
+        execute(&path, &BTreeSet::new(), Request::Restore { snapshot_id: snapshot.snapshot_id,
+            bytes: proposed.clone(), relocations: plan, current, expected_revision: transaction::hash(&proposed), operation_id: uuid::Uuid::new_v4().to_string(),
+            encoding: "utf-8-bom".into(), line_ending: "crlf".into() }).unwrap();
+        assert_eq!(fs::read(&path).unwrap(), proposed);
+        assert!(entry(&index_read(&root).unwrap(), &path).unwrap().snapshots.len() >= 4);
+    }
     fn setup(bytes: &[u8]) -> (tempfile::TempDir, PathBuf, PathBuf, Index) {
         let temp = tempfile::tempdir().unwrap(); let root = temp.path().canonicalize().unwrap(); let path = root.join("中文 note.md"); fs::write(&path, bytes).unwrap();
         execute(&path, &BTreeSet::new(), Request::Enable { references: vec![], unarchived_references: vec![], expected_revision: None }).unwrap();
