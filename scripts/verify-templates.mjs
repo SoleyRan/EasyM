@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide, selectAppearanceTheme } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser
@@ -25,6 +25,7 @@ try {
     await page.getByRole('menuitem', { name: '从模板新建', exact: true }).click()
   }
   const dialog = page.locator('.template-dialog')
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   await fillSource(page, '当前标签保留正文')
   await open()
@@ -87,9 +88,7 @@ try {
   assert.equal(Buffer.concat(chunks).toString('utf8'), expected)
   await mkdir('test-results', { recursive: true })
   for (const theme of ['清爽浅色', '午夜深色', '暖纸', '护眼绿']) {
-    await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Style · 配色主题' }).click()
-    await page.getByRole('menuitemradio', { name: theme }).click()
+    await selectAppearanceTheme(page, theme)
     await open()
     await dialog.getByLabel('模板', { exact: true }).selectOption('project')
     await dialog.getByLabel('文档标题').fill('项目说明')

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide, selectAppearanceTheme } from './serve-production.mjs'
 import { verifySelection } from './verify-selection.mjs'
 
 const server = await serveProduction()
@@ -12,18 +12,14 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   const fileAction = async (name) => {
     await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
     await page.getByRole('menuitem', { name, exact: true }).click()
   }
-  const selectTheme = async (theme) => {
-    await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-    assert.equal(await page.getByRole('menuitemradio').count(), 0)
-    await page.getByRole('menuitem', { name: 'Style · 配色主题' }).click()
-    const parent = await page.locator('.file-menu').boundingBox(), submenu = await page.getByRole('menu', { name: '配色主题', exact: true }).boundingBox()
-    assert.ok(submenu.x >= parent.x + parent.width, 'Style submenu opens to the right')
-    await page.getByRole('menuitemradio', { name: { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }[theme] }).click()
+  const selectTheme = async theme => {
+    await selectAppearanceTheme(page, theme)
     assert.equal(await page.locator('.application').getAttribute('data-theme'), theme)
   }
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
@@ -263,7 +259,9 @@ try {
   assert.notEqual(hoverScroll.color, hiddenScroll.color)
   assert.equal(hoverScroll.width, hiddenScroll.width)
   await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Style · 配色主题' }).click()
+  await page.getByRole('menuitem', { name: '导出', exact: true }).click()
+  const parent = await page.locator('.file-menu').boundingBox(), submenu = await page.getByRole('menu', { name: '导出格式', exact: true }).boundingBox()
+  assert.ok(submenu.x >= parent.x + parent.width, 'Export submenu opens to the right')
   await page.screenshot({ path: 'test-results/em-menu-tabs.png' })
   await page.keyboard.press('Escape')
   await page.keyboard.press('Escape')
@@ -273,7 +271,7 @@ try {
   await page.getByRole('button', { name: '不保存关闭', exact: true }).click()
   await page.waitForFunction((count) => document.querySelectorAll('[role=tab]').length === count, tabsBeforeClose - 1)
   assert.deepEqual(errors, [])
-  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through EM menu and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Style submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
+  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through settings and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Export submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
   report.checks.push(...selectionChecks)
   await writeFile('test-results/writing-verification.json', JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))

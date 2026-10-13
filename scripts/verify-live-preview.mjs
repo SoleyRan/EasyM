@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide, selectAppearanceTheme } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser, page
@@ -13,6 +13,7 @@ try {
   page.on('pageerror', error => errors.push(error.message))
   page.on('request', request => { if (request.url().startsWith('https://remote.example/')) requests.push(request.url()) })
   page.on('dialog', dialog => { void dialog.dismiss() })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const sourceText = () => editor.evaluate(element => [...element.querySelectorAll('.cm-line')].map(line => line.textContent).join('\n'))
@@ -174,9 +175,7 @@ try {
   await page.locator('.live-block-code').waitFor()
   checks.push('oversized documents and long lines degrade explicitly to source; shortening restores rendering')
   for (const theme of ['清爽浅色', '午夜深色', '暖纸', '护眼绿']) {
-    await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Style · 配色主题' }).click()
-    await page.getByRole('menuitemradio', { name: theme }).click()
+    await selectAppearanceTheme(page, theme)
     const cell = page.locator('.live-block-table td').first()
     assert.equal(await cell.evaluate(element => getComputedStyle(element).borderTopWidth), '1px')
     const colors = await page.locator('.live-block-code pre').evaluate(element => ({ background: getComputedStyle(element).backgroundColor, color: getComputedStyle(element).color }))

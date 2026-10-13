@@ -1,0 +1,54 @@
+{
+  "verifiedAt": "2026-10-13T03:46:48.279Z",
+  "platform": "win32",
+  "release": "10.0.26200",
+  "cpu": "Intel(R) Core(TM) 5 220H",
+  "node": "v24.20.0",
+  "scope": "Actual shipped worker in Node VM. Endpoint process heap/RSS samples, not browser/WebView peak memory; GC may produce negative deltas.",
+  "measurements": [
+    {
+      "name": "5MiB-near-limit-small-edit",
+      "bytesBefore": 5119999,
+      "bytesAfter": 5119999,
+      "durationMs": 40.41,
+      "heapDeltaBytes": -6946696,
+      "rssAfterBytes": 128212992,
+      "additions": 1,
+      "deletions": 1,
+      "fallback": null
+    },
+    {
+      "name": "100KiB-single-line",
+      "bytesBefore": 102400,
+      "bytesAfter": 102400,
+      "durationMs": 0.43,
+      "heapDeltaBytes": 210656,
+      "rssAfterBytes": 128294912,
+      "additions": 1,
+      "deletions": 1,
+      "fallback": null
+    },
+    {
+      "name": "unrelated-10000-lines",
+      "bytesBefore": 58889,
+      "bytesAfter": 58889,
+      "durationMs": 198.98,
+      "heapDeltaBytes": 108145192,
+      "rssAfterBytes": 289116160,
+      "additions": 0,
+      "deletions": 0,
+      "fallback": "差异计算达到时间或内存限制，未生成逐行差异；请查看双方全文。"
+    },
+    {
+      "name": "over-5MiB-fallback",
+      "bytesBefore": 5242881,
+      "bytesAfter": 0,
+      "durationMs": 10.93,
+      "heapDeltaBytes": 5243712,
+      "rssAfterBytes": 299610112,
+      "additions": 0,
+      "deletions": 0,
+      "fallback": "输入超过 5 MiB，未生成逐行差异；请查看双方全文。"
+    }
+  ]
+}

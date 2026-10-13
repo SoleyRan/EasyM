@@ -15,7 +15,9 @@ New-Item -ItemType Directory -Path $stageRoot | Out-Null
 Copy-Item -LiteralPath $exePath -Destination (Join-Path $stageRoot 'easym.exe')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination $stageRoot
 Copy-Item -LiteralPath (Join-Path $repoRoot 'Docs/dependencies') -Destination (Join-Path $stageRoot 'third-party') -Recurse
-Copy-Item -LiteralPath (Join-Path $repoRoot 'Docs/samples/v0.2') -Destination (Join-Path $stageRoot 'samples') -Recurse
+$sampleVersion = 'v' + (($config.version -split '\.')[0..1] -join '.')
+$sampleSource = Join-Path $repoRoot ('Docs/samples/' + $sampleVersion)
+Copy-Item -LiteralPath $sampleSource -Destination (Join-Path $stageRoot 'samples') -Recurse
 Compress-Archive -Path (Join-Path $stageRoot '*') -DestinationPath $archivePath -Force
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -35,5 +37,28 @@ try {
     try { $embeddedHash = [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '') }
     finally { $stream.Dispose(); $sha.Dispose() }
     if ($embeddedHash -ne (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash) { throw 'Embedded executable hash mismatch' }
-    [pscustomobject]@{ archive = $archivePath; entries = $archive.Entries.Count; sha256 = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant() }
+    foreach ($file in Get-ChildItem -LiteralPath $stageRoot -Recurse -File) {
+        $relative = [IO.Path]::GetRelativePath($stageRoot, $file.FullName).Replace('\', '/')
+        $sampleEntry = $archive.GetEntry($relative)
+        if (-not $sampleEntry) { throw "Missing staged file: $relative" }
+        $sampleStream = $sampleEntry.Open()
+        $sampleSha = [Security.Cryptography.SHA256]::Create()
+        try { $sampleHash = [BitConverter]::ToString($sampleSha.ComputeHash($sampleStream)).Replace('-', '') }
+        finally { $sampleStream.Dispose(); $sampleSha.Dispose() }
+        if ($sampleHash -ne (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash) { throw "ZIP bytes mismatch: $relative" }
+    }
+    $report = [ordered]@{
+        verifiedAt = [DateTime]::UtcNow.ToString('o')
+        version = $config.version
+        archive = [IO.Path]::GetRelativePath($repoRoot, $archivePath).Replace('\', '/')
+        bytes = (Get-Item -LiteralPath $archivePath).Length
+        entries = $archive.Entries.Count
+        sha256 = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        executableSha256 = $embeddedHash.ToLowerInvariant()
+        sampleVersion = $sampleVersion
+        allStagedFileHashesVerified = $true
+        passed = $true
+    }
+    $report | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $repoRoot 'test-results/portable-verification.json') -Encoding utf8
+    $report | ConvertTo-Json
 } finally { $archive.Dispose() }

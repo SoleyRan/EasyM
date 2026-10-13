@@ -1,12 +1,10 @@
 import { unified } from 'unified'
-import remarkParse from 'remark-parse'
-import remarkGfm from 'remark-gfm'
-import remarkFrontmatter from 'remark-frontmatter'
 import remarkRehype from 'remark-rehype'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeStringify from 'rehype-stringify'
 import { visit } from 'unist-util-visit'
-import type { Root, Nodes } from 'mdast'
+import type { Nodes } from 'mdast'
+import { parseMarkdownAst } from './markdown-ast'
 import type { Root as HtmlRoot, Element } from 'hast'
 import { createLowlight, common } from 'lowlight'
 import powershell from 'highlight.js/lib/languages/powershell'
@@ -34,7 +32,6 @@ export interface ParsedDocument {
   blocks?: PreviewBlock[]
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml'])
 const renderer = unified().use(remarkRehype, { allowDangerousHtml: false }).use(highlightCode).use(rehypeSanitize, {
   ...defaultSchema,
   attributes: { ...defaultSchema.attributes, '*': [...(defaultSchema.attributes?.['*'] ?? []), 'dataSourceFrom', 'dataSourceTo', 'dataResource'], span: [['className', /^hljs-[\w-]+$/, /^[\w-]+_$/]] },
@@ -47,7 +44,7 @@ function plainText(node: Nodes): string {
 }
 
 export function parseDocument(text: string): ParsedDocument {
-  const tree = parser.parse(text) as Root
+  const tree = parseMarkdownAst(text)
   const headings: ParsedDocument['headings'] = []
   const images: ImageReference[] = []
   const definitions = new Map<string, string>()

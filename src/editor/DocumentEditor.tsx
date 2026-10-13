@@ -9,6 +9,15 @@ import { desktop, openDocument, saveDocument, readImage, readImageBlob, reloadDo
 import { createExport } from '../core/export'
 import { parseForExport, saveHtml } from '../platform/export'
 import { PrintDialog } from './PrintDialog'
+import { DocxDialog, type DocxPhase } from './DocxDialog'
+import { HistoryDialog } from './HistoryDialog'
+import { BatchImageDialog } from './BatchImageDialog'
+import { prepareBatch, type BatchOutput } from '../platform/batch-images'
+import type { BatchOptions } from '../core/batch-images'
+import { historyInput, historyOperation, relocateHistoryImages } from '../platform/history'
+import type { ImageMetadata } from '../core/images'
+import type { PreparedDocx } from '../core/docx-model'
+import type { DocxOptions } from '../core/docx-options'
 import type { ExportDocument } from '../core/export'
 import { drafts, type Draft } from '../platform/drafts'
 import { ImagePanel } from './ImagePanel'
@@ -56,8 +65,8 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'print'
-export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
+export interface DocumentHandle { summary: DocumentSummary; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
@@ -65,8 +74,9 @@ interface Props {
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void
   onNew(): void; onOpen(file: OpenedFile, path: string | null, workspace: Workspace | null, location?: WorkspaceLocation): void
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
+  onReadOther?: () => void
 }
-export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport }: Props) {
+export default function DocumentEditor({ reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, onNew, onOpen, onReport, onReadOther }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -80,6 +90,13 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const [busy, setBusy] = useState(false)
   const [printable, setPrintable] = useState<ExportDocument | null>(null)
   const exporting = useRef(false)
+  const docxTask = useRef<AbortController | null>(null)
+  const docxPhase = useRef<DocxPhase>('preflight')
+  const activeRef = useRef(active)
+  activeRef.current = active
+  const [docx, setDocx] = useState<{ prepared: PreparedDocx | null; source: string; phase: DocxPhase } | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
   const [autoSavePaused, setAutoSavePaused] = useState(false)
   const [status, setStatus] = useState(file ? '文件已打开' : seed?.text ? '已从模板创建，请另存为' : '准备就绪')
@@ -226,7 +243,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       const mixed = snapshot.lineEnding === 'mixed' && nextText !== snapshot.originalText
       if (mixed && !window.confirm('图片应用将保存正文，并将混合换行统一为 LF。是否继续？')) throw new Error('应用已取消，原版本仍保留。')
       const bytes = encodeFile(snapshot, nextText, mixed ? 'lf' : undefined)
-      const result = await saveDocument({ id: fileId, name, revision }, bytes, false, resources, operationId)
+      const result = await saveDocument({ id: fileId, name, revision, originalText: snapshot.originalText }, bytes, false, resources, operationId)
       if (!result) throw new Error('保存已取消，原版本仍保留。')
       await clearDraft().catch((err) => setError(errorMessage(err)))
       setRevision(result.revision); setSnapshot(decodeFile(bytes)); if (result.warning) setError(errorMessage(result.warning))
@@ -238,6 +255,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
   const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session }
   useEffect(() => {
     onReport(id, summary, { summary, canLeave: () => !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
+      canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
       canEdit: () => !disabled && !exporting.current && !saving.current && !editor.current?.composing(),
       run: (action) => {
         if (disabled || exporting.current || saving.current || editor.current?.composing()) return
@@ -245,6 +263,9 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         else if (action === 'open') void open()
         else if (action === 'workspace') void chooseWorkspace()
         else if (action === 'reload') void reloadExternal()
+        else if (action === 'exportDocx') void exportDocxDocument()
+        else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
+        else if (action === 'batchImages') { setBatchOpen(true); setBusy(true) }
         else if (action === 'exportHtml' || action === 'print') void exportDocument(action)
         else void save(true)
       },
@@ -253,6 +274,118 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       resume: () => { discarded.current = false; flushDraft.current() }, save: () => save(),
     })
   })
+  useEffect(() => () => { docxTask.current?.abort(); docxTask.current = null }, [])
+  function closeHistory() {
+    setHistoryOpen(false); setBusy(false)
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
+  }
+  function closeBatch() {
+    setBatchOpen(false); setBusy(false)
+    window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
+  }
+  async function applyBatch(outputs: BatchOutput[], options: BatchOptions, operationId: string) {
+    if (!fileId || !revision || saving.current || editor.current?.composing()) throw new Error('当前文档暂不可提交。')
+    if (snapshot.lineEnding === 'mixed') throw new Error('请先确认并保存混合换行，再进行批量处理。')
+    saving.current = true
+    try {
+      const prepared = await prepareBatch(text, images.resources, outputs)
+      const bytes = encodeFile(snapshot, prepared.text)
+      const result = await historyOperation<{ revision: string; warning?: string }>(fileId, { action: 'batchCommit', operationId, expectedRevision: revision,
+        current: await historyInput(encodeFile(snapshot, text), images.resources, revision), next: await historyInput(bytes, prepared.resources, revision), options,
+        items: outputs.map(output => ({ from: output.reference.from, to: output.reference.to, insert: prepared.patches.find(p => p.from === output.reference.from)!.insert, beforePath: output.reference.path,
+          sourcePath: output.instance.sourcePath, displayPath: output.instance.displayPath, beforeHash: output.beforeHash, afterHash: output.afterHash, instanceId: output.instance.instanceId, previous: output.previous ?? null })) })
+      images.setResources(prepared.resources)
+      if (!editor.current?.patch([...prepared.patches].sort((a, b) => a.from - b.from))) {
+        setRevision(result.revision); setAutoSavePaused(true)
+        throw new Error('磁盘批次已保存，编辑器未完成应用；已保留当前编辑，请重新加载外部版本或另存副本。')
+      }
+      setRevision(result.revision); setSnapshot(decodeFile(bytes)); setDirty(false); setAutoSavePaused(false)
+      persistedTextRevision.current = changeRevision.current
+      try { await clearDraft(changeRevision.current) } catch (e) { setError(errorMessage(e)) }
+      if (result.warning) setError(result.warning)
+      setStatus('批量图片与正文已保存，可整批撤销'); setView(current => current === 'live' ? 'live' : 'split')
+    } finally { saving.current = false }
+  }
+  function historyBytes(): Uint8Array | null {
+    try { return encodeFile(snapshot, text) } catch { return null }
+  }
+  async function restoreHistory(snapshotId: string) {
+    if (!fileId || !revision || saving.current || editor.current?.composing()) throw new Error('当前文档不可恢复，请稍后重试。')
+    if (snapshot.lineEnding === 'mixed') throw new Error('history_mixed')
+    saving.current = true
+    try {
+      const currentBytes = encodeFile(snapshot, text)
+      const detail = await historyOperation<{ bytes: number[] }>(fileId, { action: 'detail', snapshotId })
+      const plan = await historyOperation<{ relocations: Record<string, string>; metadata: ImageMetadata }>(fileId, { action: 'prepare', snapshotId })
+      const nextText = relocateHistoryImages(decodeFile(new Uint8Array(detail.bytes)).text, plan.relocations)
+      const bytes = encodeFile(snapshot, nextText)
+      const result = await historyOperation<{ revision: string; metadata: ImageMetadata; warning?: string }>(fileId, { action: 'restore', snapshotId, bytes: Array.from(bytes), relocations: plan.relocations,
+        current: await historyInput(currentBytes, images.resources, revision), expectedRevision: revision, operationId: crypto.randomUUID(), encoding: snapshot.encoding, lineEnding: snapshot.lineEnding })
+      // One editor transaction keeps undo/redo. Earlier resources remain available for both directions.
+      if (!editor.current?.patch([{ from: 0, to: text.length, insert: nextText }], { anchor: 0, head: 0 })) {
+        setRevision(result.revision); setAutoSavePaused(true)
+        throw new Error('磁盘正文已恢复，编辑器应用未完成；已保留当前编辑与草稿，请重新加载外部版本或另存当前编辑。')
+      }
+      const instances = [...images.resources.instances.filter(i => !result.metadata.instances.some(next => next.displayPath === i.displayPath)), ...result.metadata.instances]
+      images.setResources({ assets: images.resources.assets, instances })
+      setRevision(result.revision); setSnapshot(decodeFile(bytes)); setAutoSavePaused(false); setDirty(false)
+      persistedTextRevision.current = changeRevision.current
+      try { await clearDraft(changeRevision.current) } catch (e) { setError(errorMessage(e)) }
+      if (result.warning) setError(result.warning)
+      setStatus('版本已恢复并保存，可一次撤销'); closeHistory()
+    } finally { saving.current = false }
+  }
+  function finishDocx(controller: AbortController, message: string, offset?: number) {
+    if (docxTask.current !== controller) return
+    controller.abort(); docxTask.current = null; exporting.current = false
+    setDocx(null); setBusy(false); setStatus(message)
+    requestAnimationFrame(() => {
+      if (!activeRef.current) return
+      if (offset !== undefined) jumpTo(offset)
+      else document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
+    })
+  }
+  function cancelDocx(offset?: number) {
+    const controller = docxTask.current
+    if (controller && docxPhase.current !== 'saving') finishDocx(controller, 'DOCX 导出已取消', offset)
+  }
+  async function exportDocxDocument() {
+    if (!active || suspended || disabled || exporting.current || saving.current || autoSaving || images.applying || panelApplying.current || editor.current?.composing()) return
+    const controller = new AbortController()
+    docxTask.current = controller; exporting.current = true
+    docxPhase.current = 'preflight'
+    setBusy(true); setError(''); setStatus('正在预检 DOCX…')
+    setDocx({ prepared: null, source: text, phase: 'preflight' })
+    try {
+      // Load the large inline export Worker only when this command is used.
+      const { preflightDocx } = await import('../platform/docx')
+      if (docxTask.current !== controller) return
+      const prepared = await preflightDocx({ text, name, id: fileId, resources: images.resources }, controller.signal)
+      if (docxTask.current === controller) { docxPhase.current = 'ready'; setDocx({ prepared, source: text, phase: 'ready' }); setStatus('DOCX 预检完成') }
+    } catch (err) {
+      if (docxTask.current === controller) { setError(errorMessage(err)); finishDocx(controller, 'DOCX 导出未完成，请重试') }
+    }
+  }
+  async function generateDocx(options: DocxOptions) {
+    const controller = docxTask.current
+    if (!controller || !docx?.prepared || docxPhase.current !== 'ready') return
+    // Set the phase synchronously in the task guard to prevent double submit.
+    const prepared = docx.prepared
+    docxPhase.current = 'generating'
+    setDocx({ ...docx, phase: 'generating' })
+    try {
+      const { renderDocx, saveDocx } = await import('../platform/docx')
+      if (docxTask.current !== controller) return
+      const bytes = await renderDocx(prepared, options, controller.signal)
+      if (docxTask.current !== controller) return
+      docxPhase.current = 'saving'; setDocx({ ...docx, phase: 'saving' })
+      const saved = await saveDocx(prepared.model.name, bytes, controller.signal)
+      const warnings = Math.max(0, prepared.model.warnings.total - 1)
+      finishDocx(controller, saved ? `DOCX 已导出${warnings ? `，有 ${warnings} 项降级提示` : ''}` : 'DOCX 导出已取消')
+    } catch (err) {
+      if (docxTask.current === controller) { setError(errorMessage(err)); finishDocx(controller, 'DOCX 导出未完成，请重试') }
+    }
+  }
   async function exportDocument(action: 'exportHtml' | 'print') {
     if (disabled || exporting.current || saving.current || editor.current?.composing()) return
     exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
@@ -485,7 +618,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
       if (automatic && mixed) { setAutoSavePaused(true); setStatus('自动保存已暂停'); setError('该文件混合使用 LF/CRLF。请按 Ctrl/Cmd+S 确认换行转换，或通过 EM 菜单另存副本。'); return false }
       if (mixed && !window.confirm('该文件混合使用 LF/CRLF。修改后需统一为 LF；是否继续保存？')) { setStatus('保存已取消'); return false }
       const bytes = encodeFile(snapshot, savingText, mixed ? 'lf' : undefined)
-      const result = await saveDocument({ id: fileId, name, revision }, bytes, saveAs, images.resources)
+      const result = await saveDocument({ id: fileId, name, revision, originalText: snapshot.originalText }, bytes, saveAs, images.resources)
       if (!result) { if (automatic) setAutoSavePaused(true); setStatus('保存已取消'); return false }
       if (result.destination === 'disk') persistedTextRevision.current = savingRevision
       setAutoSavePaused(false)
@@ -605,7 +738,7 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
         {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
-        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.2.0-dev</span></div>
+        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.3.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
         <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => onShowFiles(!showFiles)}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => setShowOutline(!showOutline)}>大纲</button>{!reading && <button disabled={disabled} onClick={() => editor.current?.openSearch()}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => onShowToolbar(!showToolbar)}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => onReading(!reading)}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
@@ -648,5 +781,5 @@ export default function DocumentEditor({ reading, readingBusy, onReading, id, ac
         { label: '复制标题', run: () => navigator.clipboard.writeText(heading.title) },
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
-  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}</>
+  </div>{printable && <PrintDialog output={printable} onClose={closePrint} />}{docx && active && <DocxDialog prepared={docx.prepared} source={docx.source} phase={docx.phase} onGenerate={options => void generateDocx(options)} onCancel={() => cancelDocx()} onLocate={offset => cancelDocx(offset)} onReadOther={onReadOther} />}{historyOpen && active && <HistoryDialog fileId={fileId} text={text} bytes={historyBytes()} snapshot={snapshot} revision={revision} resources={images.resources} onClose={closeHistory} onRestore={restoreHistory} />}{batchOpen && active && <BatchImageDialog text={text} fileId={fileId} resources={images.resources} onClose={closeBatch} onHistory={() => { setBatchOpen(false); setHistoryOpen(true) }} onApply={applyBatch} />}</>
 }

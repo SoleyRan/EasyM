@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser
@@ -37,6 +37,7 @@ try {
       },
     }
   })
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   await page.getByRole('button', { name: 'EM 菜单' }).click()
   await page.getByRole('menuitem', { name: '打开工作区', exact: true }).click()

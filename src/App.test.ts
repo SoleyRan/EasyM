@@ -10,6 +10,8 @@ import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
 
 const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
+const docxApi = vi.hoisted(() => ({ preflight: vi.fn(), render: vi.fn(), save: vi.fn() }))
+vi.mock('./platform/docx', () => ({ preflightDocx: docxApi.preflight, renderDocx: docxApi.render, saveDocx: docxApi.save }))
 vi.mock('./platform/export', async () => ({ parseForExport: async (text: string) => (await import('./core/markdown')).parseDocument(text), saveHtml: native.exportHtml, printDocument: native.print }))
 vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen, searchWorkspace: native.search, cancelWorkspaceSearch: native.cancelSearch }))
 vi.mock('./platform/window', () => ({ listenForClose: async (request: () => void) => { native.requestClose.mockImplementation(request); return () => undefined }, closeWindow: native.close, minimizeWindow: native.minimize, toggleMaximizeWindow: native.maximize, dragWindow: native.drag, setFullscreen: native.fullscreen, windowState: native.state, listenWindowState: async (changed: () => void) => { native.stateListener.mockImplementation(changed); return () => undefined } }))
@@ -26,6 +28,7 @@ vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props
   return createElement('textarea', { 'aria-label': 'Markdown 源码编辑器', value: body, onKeyDown: (event: { key: string; ctrlKey: boolean }) => { if (event.ctrlKey && event.key === 's') props.onSave() }, onChange: (event: { target: { value: string } }) => { setBody(event.target.value); props.onChange(event.target.value) } })
 }) }))
 import App from './App'
+import { appVersion } from './platform/preferences'
 
 let root: Root
 let container: HTMLDivElement
@@ -39,7 +42,10 @@ beforeEach(async () => {
   native.minimize.mockReset(); native.minimize.mockResolvedValue(undefined); native.maximize.mockReset(); native.maximize.mockResolvedValue(undefined); native.drag.mockReset(); native.drag.mockResolvedValue(undefined); native.fullscreen.mockReset(); native.fullscreen.mockResolvedValue(undefined); native.state.mockReset(); native.state.mockResolvedValue({ maximized: false, fullscreen: false }); native.stateListener.mockReset()
   native.composing = false
   native.exportHtml.mockReset(); native.exportHtml.mockResolvedValue(true); native.print.mockReset(); native.print.mockResolvedValue(undefined)
+  docxApi.preflight.mockReset(); docxApi.preflight.mockImplementation(async ({ text, name }) => ({ model: (await import('./core/docx-model')).createDocxModel(text, name), assets: [] }))
+  docxApi.render.mockReset(); docxApi.render.mockResolvedValue(new ArrayBuffer(8)); docxApi.save.mockReset(); docxApi.save.mockResolvedValue(true)
   localStorage.clear()
+  localStorage.setItem('easym-guide-version', appVersion)
   for (const key of await drafts.keys()) await drafts.clear(key)
   container = document.createElement('div'); document.body.append(container); root = createRoot(container)
 })
@@ -47,7 +53,17 @@ afterEach(async () => { await act(async () => root.unmount()); container.remove(
 async function settle() { await act(async () => { await drafts.load(); await new Promise<void>((resolve) => setTimeout(resolve, 10)) }) }
 async function mount() { await act(async () => root.render(createElement(App))); await settle() }
 async function click(label: string) {
-  if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本', '导出 HTML', '打印文档'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
+  if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本', '导出 HTML', '导出 DOCX', '打印文档'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
+  const exportLabels: Record<string, string> = { '导出 HTML': 'HTML', '导出 DOCX': 'DOCX', '打印文档': 'PDF' }
+  if (exportLabels[label]) {
+    if (!container.querySelector('#export-menu')) await click('导出')
+    // A blocked parent intentionally keeps its submenu closed.
+    if (!container.querySelector('#export-menu')) return
+    label = exportLabels[label]
+  }
+  if (label === '开始使用') {
+    while (container.querySelector('[aria-label="下一页"]')) await click('下一页')
+  }
   const button = Array.from(container.querySelectorAll('button')).filter((button) => !button.closest('[hidden]')).find((button) => button.textContent === label || button.getAttribute('aria-label') === label || button.querySelector('span:last-child')?.textContent === label)
   if (!button) throw new Error(`Missing button ${label}`)
   await act(async () => button.click())
@@ -59,6 +75,51 @@ async function edit(text: string) {
   await act(async () => { setter.call(editor, text); editor.dispatchEvent(new Event('input', { bubbles: true })); editor.dispatchEvent(new Event('change', { bubbles: true })) })
 }
 async function requestClose() { await act(async () => native.requestClose()) }
+
+it('shows first-run onboarding, acknowledges Escape and restores menu focus', async () => {
+  localStorage.removeItem('easym-guide-version')
+  await mount()
+  expect(container.querySelector('[aria-label="EasyM 使用导引"]')).not.toBeNull()
+  expect(container.querySelector('.document-panel')?.hasAttribute('inert')).toBe(true)
+  const dialog = container.querySelector('[aria-label="EasyM 使用导引"]')!
+  await act(async () => dialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(container.querySelector('[aria-label="EasyM 使用导引"]')).toBeNull()
+  expect(localStorage.getItem('easym-guide-version')).toBe(appVersion)
+})
+it('shows one guide page at a time, navigates both directions and starts manual guides on page one', async () => {
+  localStorage.removeItem('easym-guide-version'); await mount()
+  const dialog = () => container.querySelector('[aria-label="EasyM 使用导引"]')!
+  expect(dialog().querySelectorAll('section')).toHaveLength(1)
+  expect(dialog().textContent).toContain('开始写作')
+  expect(dialog().textContent).not.toContain('找回以前的内容')
+  expect(dialog().querySelector<HTMLButtonElement>('[aria-label="上一页"]')!.disabled).toBe(true)
+  expect(dialog().querySelector('[aria-label="开始使用"]')).toBeNull()
+  await click('下一页'); expect(dialog().textContent).toContain('编辑与自动保存')
+  await click('下一页'); expect(dialog().textContent).toContain('找回以前的内容')
+  await click('上一页'); expect(dialog().textContent).toContain('2 / 4')
+  await act(async () => dialog().querySelector('[aria-label="下一页"]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
+  expect(dialog().textContent).toContain('3 / 4')
+  await click('下一页'); expect(dialog().textContent).toContain('图片、导出与阅读')
+  expect(dialog().textContent).toContain('4 / 4'); expect(dialog().querySelectorAll('section')).toHaveLength(1)
+  await click('开始使用'); expect(localStorage.getItem('easym-guide-version')).toBe(appVersion)
+  await click('EM 菜单'); await click('设置'); await click('查看使用导引')
+  expect(dialog().textContent).toContain('1 / 4')
+})
+it('shows an update guide and supports manual reopening in settings with persisted appearance', async () => {
+  localStorage.setItem('easym-guide-version', '0.2.0')
+  await mount(); expect(container.textContent).toContain(`已更新到 EasyM ${appVersion}`)
+  await click('开始使用'); await click('EM 菜单'); await click('设置')
+  expect(container.querySelector('[aria-label="设置"]')).not.toBeNull()
+  expect(container.textContent).toContain('请先打开或另存一个文档')
+  const font = container.querySelector<HTMLSelectElement>('[aria-label="编辑字号"]')!
+  await act(async () => { font.value = '20'; font.dispatchEvent(new Event('change', { bubbles: true })) })
+  expect(localStorage.getItem('easym-editor-font-size')).toBe('20')
+  expect(container.querySelector<HTMLElement>('.application')?.style.getPropertyValue('--editor-font-size')).toBe('20px')
+  await click('查看使用导引'); expect(container.querySelector('[aria-label="设置"]')).toBeNull()
+  await click('开始使用'); await act(async () => root.unmount()); root = createRoot(container)
+  await mount(); expect(container.querySelector('[aria-label="EasyM 使用导引"]')).toBeNull()
+  expect(container.querySelector<HTMLElement>('.application')?.style.getPropertyValue('--editor-font-size')).toBe('20px')
+})
 
 async function tabContext(index: number) {
   const tab = container.querySelectorAll('[role=tab]')[index]
@@ -133,6 +194,143 @@ it('exports current source without saving or clearing dirty drafts, including ca
   expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
   await requestClose(); await click('保留草稿并退出')
   expect((await drafts.load())?.text).toBe('# 新正文\n\n**bold**')
+})
+
+it('exports DOCX from unsaved memory with office options and preserves the draft on native cancellation', async () => {
+  await mount(); await edit('# 当前未保存正文\n\n**中文**'); await click('导出 DOCX')
+  expect(docxApi.preflight).toHaveBeenCalledWith(expect.objectContaining({ text: '# 当前未保存正文\n\n**中文**', id: null }), expect.any(AbortSignal))
+  expect(container.querySelector('.docx-dialog')?.textContent).toContain('未命名.docx')
+  for (const [label, value] of [['DOCX 纸张', 'letter'], ['DOCX 办公样式', 'compact']]) {
+    const select = container.querySelector<HTMLSelectElement>(`select[aria-label="${label}"]`)!
+    await act(async () => { select.value = value; select.dispatchEvent(new Event('change', { bubbles: true })) })
+  }
+  docxApi.save.mockResolvedValueOnce(false)
+  await click('生成 DOCX')
+  expect(docxApi.render).toHaveBeenCalledWith(expect.objectContaining({ assets: [] }), { page: 'letter', style: 'compact' }, expect.any(AbortSignal))
+  expect(docxApi.save).toHaveBeenCalledWith('未命名.docx', expect.any(ArrayBuffer), expect.any(AbortSignal))
+  expect(container.textContent).toContain('DOCX 导出已取消')
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  expect(native.save).not.toHaveBeenCalled()
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+  await requestClose(); await click('保留草稿并退出')
+  expect((await drafts.load())?.text).toBe('# 当前未保存正文\n\n**中文**')
+})
+
+it('requires explicit DOCX image placeholders and can locate a warning without changing the source', async () => {
+  const body = '# 图\n\n![remote](https://example.test/a.png)'
+  await mount(); await edit(body); await click('导出 DOCX')
+  const generate = container.querySelector<HTMLButtonElement>('.docx-dialog button[type=submit]')!
+  expect(generate.disabled).toBe(true)
+  expect(container.querySelector('.docx-dialog')?.textContent).toContain('1 项图片无法导出')
+  await click('第 3 行 · 第 1 列 · 定位')
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
+  expect(native.jump).toHaveBeenCalledWith(5)
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  expect(container.querySelector('textarea')?.value).toBe(body)
+  await click('导出 DOCX')
+  await act(async () => container.querySelector<HTMLInputElement>('.docx-dialog input[type=checkbox]')!.click())
+  await click('生成 DOCX')
+  expect(docxApi.render).toHaveBeenCalledWith(expect.anything(), { page: 'a4', style: 'default', allowImagePlaceholders: true }, expect.any(AbortSignal))
+  expect(container.textContent).toContain('DOCX 已导出，有 1 项降级提示')
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('locks DOCX preflight, cancels immediately, ignores late results and recovers from generation failure', async () => {
+  let resolve!: (value: unknown) => void
+  docxApi.preflight.mockImplementationOnce(() => new Promise(value => { resolve = value }))
+  await mount(); await edit('protected'); await click('导出 DOCX')
+  expect(container.querySelector('.app-shell')?.hasAttribute('inert')).toBe(true)
+  await click('EM 菜单')
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].filter(button => ['重新加载外部版本', '导出', '另存为 / 冲突副本'].includes(button.textContent!)).every(button => button.disabled)).toBe(true)
+  await requestClose()
+  expect(native.close).not.toHaveBeenCalled()
+  expect(container.querySelector('.close-dialog')).toBeNull()
+  const signal = docxApi.preflight.mock.calls[0][1] as AbortSignal
+  await click('取消')
+  expect(signal.aborted).toBe(true)
+  await click('导出 DOCX')
+  await act(async () => resolve({ model: { name: 'stale.docx' } })); await settle()
+  expect(container.querySelector('.docx-dialog')?.textContent).toContain('未命名.docx')
+  docxApi.render.mockRejectedValueOnce(new Error('生成失败'))
+  await click('生成 DOCX')
+  expect(container.textContent).toContain('生成失败')
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  expect(container.querySelector('.app-shell')?.hasAttribute('inert')).toBe(false)
+  expect(container.querySelector('[role=tab]')?.textContent).toContain('*')
+  expect(native.save).not.toHaveBeenCalled()
+  await click('导出 DOCX'); await click('生成 DOCX')
+  expect(container.textContent).toContain('DOCX 已导出')
+})
+
+it('keeps other tabs readable during DOCX preparation without unlocking or closing the target', async () => {
+  let prepared!: (value: unknown) => void
+  let generated!: (value: ArrayBuffer) => void
+  await mount(); await edit('export target'); await click('新建文档'); await edit('other readable document')
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('[role=tab]')[0].click()); await settle()
+  docxApi.preflight.mockImplementationOnce(() => new Promise(resolve => { prepared = resolve }))
+  await click('导出 DOCX'); await click('阅读其他文档')
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('other readable document')
+  await requestClose(); expect(native.close).not.toHaveBeenCalled()
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('[role=tab]')[0].click()); await settle()
+  expect(container.querySelector('.docx-dialog')?.textContent).toContain('正在预检')
+  expect(container.querySelector('.document-panel:not([hidden]) .app-shell')?.hasAttribute('inert')).toBe(true)
+  await act(async () => prepared({ model: (await import('./core/docx-model')).createDocxModel('export target', '未命名.md'), assets: [] })); await settle()
+  expect(container.querySelector('.docx-dialog')?.textContent).toContain('预检完成')
+  docxApi.render.mockImplementationOnce(() => new Promise(resolve => { generated = resolve }))
+  await click('生成 DOCX')
+  await click('阅读其他文档')
+  const otherTab = container.querySelectorAll<HTMLButtonElement>('[role=tab]')[1]
+  await act(async () => otherTab.focus())
+  await act(async () => generated(new ArrayBuffer(8))); await settle()
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
+  expect(document.activeElement).toBe(otherTab)
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('other readable document')
+  expect(docxApi.preflight.mock.calls[0][0].text).toBe('export target')
+  expect(docxApi.save).toHaveBeenCalledOnce()
+  expect(native.save).not.toHaveBeenCalled()
+})
+
+it('cancels DOCX generation, traps focus and prevents cancellation after native save is dispatched', async () => {
+  let generated!: (value: ArrayBuffer) => void, saved!: (value: boolean) => void
+  await mount(); await click('导出 DOCX')
+  expect(document.activeElement?.getAttribute('aria-label')).toBe('DOCX 纸张')
+  await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true })))
+  expect(document.activeElement?.textContent).toBe('生成 DOCX')
+  docxApi.render.mockImplementationOnce(() => new Promise(resolve => { generated = resolve }))
+  await click('生成 DOCX')
+  const signal = docxApi.render.mock.calls[0][2] as AbortSignal
+  await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(signal.aborted).toBe(true)
+  await act(async () => generated(new ArrayBuffer(8))); await settle()
+  expect(docxApi.save).not.toHaveBeenCalled()
+  await click('导出 DOCX')
+  docxApi.save.mockImplementationOnce(() => new Promise(resolve => { saved = resolve }))
+  await click('生成 DOCX')
+  expect(container.querySelector<HTMLButtonElement>('.docx-dialog button[type=button]')?.disabled).toBe(true)
+  await act(async () => document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(container.querySelector('.docx-dialog')).not.toBeNull()
+  await act(async () => saved(true)); await settle()
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
+  expect(document.activeElement?.getAttribute('aria-label')).toBe('EM 菜单')
+})
+
+it('refuses DOCX during IME; preflight/save errors release the lock', async () => {
+  await mount()
+  native.composing = true; await click('EM 菜单')
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
+  native.composing = false; await click('EM 菜单')
+  docxApi.preflight.mockRejectedValueOnce(new Error('预检失败'))
+  await click('导出 DOCX')
+  expect(container.textContent).toContain('预检失败')
+  expect(container.querySelector('.docx-dialog')).toBeNull()
+  docxApi.save.mockRejectedValueOnce(new Error('permission_denied'))
+  await click('导出 DOCX'); await click('生成 DOCX')
+  expect(container.textContent).toContain('没有文件访问权限')
+  expect(container.querySelector('.app-shell')?.hasAttribute('inert')).toBe(false)
+  expect(native.save).not.toHaveBeenCalled()
 })
 
 it('prepares a dedicated print root, protects editing, reports missing images and returns with Escape', async () => {
@@ -279,6 +477,9 @@ it('restores pending crop and alt, then retains them when exiting without applyi
   await mount(); await click('恢复草稿')
   const alt = container.querySelector<HTMLInputElement>('.alt-input')!
   expect(alt.value).toBe('原 Alt')
+  await click('EM 菜单')
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
+  expect(docxApi.preflight).not.toHaveBeenCalled()
   await requestClose()
   const saveButton = Array.from(container.querySelectorAll('button')).find((button) => button.textContent === '保存并退出')!
   expect(saveButton.disabled).toBe(true)
@@ -415,7 +616,8 @@ it('shows file commands only in the EM menu and dismisses it on Escape', async (
   await mount()
   expect(container.querySelector('[role=menu]')).toBeNull()
   await click('EM 菜单')
-  expect(container.querySelectorAll('[role=menuitem]')).toHaveLength(9)
+  expect(container.querySelector('.export-menu-trigger')).not.toBeNull()
+  expect(container.querySelector('#export-menu')).toBeNull()
   const trigger = container.querySelector<HTMLButtonElement>('.app-menu-trigger')!
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
   expect(container.querySelector('[role=menu]')).toBeNull()
@@ -464,7 +666,7 @@ it('first saves a template with no disk identity and clears its draft', async ()
   await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
   native.save.mockResolvedValue({ id: 'created', name: '会议纪要.md', revision: 'hash', destination: 'disk' })
   await click('另存为 / 冲突副本')
-  expect(native.save.mock.calls[0][0]).toEqual({ id: null, name: '会议纪要.md', revision: null })
+  expect(native.save.mock.calls[0][0]).toEqual({ id: null, name: '会议纪要.md', revision: null, originalText: '' })
   expect(new TextDecoder().decode(native.save.mock.calls[0][1])).toContain('# 会议纪要')
   expect(native.save.mock.calls[0][2]).toBe(true)
   expect(await drafts.keys()).toEqual([])
@@ -523,6 +725,10 @@ it('serializes automatic writes and preserves edits made while a save is in flig
   let finish!: (result: unknown) => void
   native.save.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve })).mockResolvedValue({ id: 'local', name: 'local.md', revision: 'r2', destination: 'disk' })
   await edit('first'); await waitAuto()
+  await click('EM 菜单')
+  expect([...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.getAttribute('aria-label') === '导出')?.disabled).toBe(true)
+  expect(docxApi.preflight).not.toHaveBeenCalled()
+  await click('EM 菜单')
   await edit('second'); await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
   expect(new TextDecoder().decode(native.save.mock.calls[0][1])).toBe('first')
   await act(async () => finish({ id: 'local', name: 'local.md', revision: 'r1', destination: 'disk' })); await settle()
@@ -610,9 +816,12 @@ it('uses themed custom window controls and protects dirty content on window clos
   expect(native.minimize).toHaveBeenCalledOnce(); expect(native.maximize).toHaveBeenCalledOnce()
   expect(container.querySelector('.theme-picker')).toBeNull()
   await click('EM 菜单')
-  await click('Style · 配色主题')
-  const dark = container.querySelector<HTMLButtonElement>('[role=menuitemradio]:nth-last-child(3)')!
-  await act(async () => dark.click()); await settle()
+  expect(container.querySelector('[role=menuitemradio]')).toBeNull()
+  expect(container.textContent).not.toContain('Style · 配色主题')
+  await click('设置')
+  const picker = container.querySelector<HTMLSelectElement>('[aria-label="设置配色主题"]')!
+  await act(async () => { picker.value = 'dark'; picker.dispatchEvent(new Event('change', { bubbles: true })) }); await settle()
+  await click('完成')
   expect(container.querySelector('.application')?.getAttribute('data-theme')).toBe('dark')
   expect(localStorage.getItem('easym-theme')).toBe('dark')
   await edit('keep'); await click('关闭窗口')
@@ -672,19 +881,21 @@ it('exits with only untouched new documents without prompting or saving', async 
   expect(native.save).not.toHaveBeenCalled(); expect(await drafts.keys()).toEqual([])
 })
 
-it('opens the Style submenu explicitly and handles hierarchical keyboard navigation', async () => {
+it('opens the export submenu explicitly and handles hierarchical keyboard navigation', async () => {
   await mount(); await click('EM 菜单')
-  expect(container.querySelector('#style-menu')).toBeNull()
-  await click('Style · 配色主题')
-  const trigger = container.querySelector<HTMLButtonElement>('.style-menu-trigger')!
-  const selected = container.querySelector<HTMLButtonElement>('[role=menuitemradio][aria-checked=true]')!
+  expect(container.querySelector('#export-menu')).toBeNull()
+  expect(container.textContent).not.toContain('Style · 配色主题')
+  await click('导出')
+  const trigger = container.querySelector<HTMLButtonElement>('.export-menu-trigger')!
+  const selected = container.querySelector<HTMLButtonElement>('#export-menu [role=menuitem]')!
+  expect(Array.from(container.querySelectorAll('#export-menu [role=menuitem]'), item => item.textContent)).toEqual(['HTML', 'DOCX', 'PDF'])
   expect(document.activeElement).toBe(selected)
   await act(async () => selected.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })))
-  expect(document.activeElement?.textContent).toContain('午夜深色')
+  expect(document.activeElement?.textContent).toBe('DOCX')
   await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
-  expect(container.querySelector('#style-menu')).toBeNull(); expect(container.querySelector('#file-menu')).not.toBeNull(); expect(document.activeElement).toBe(trigger)
+  expect(container.querySelector('#export-menu')).toBeNull(); expect(container.querySelector('#file-menu')).not.toBeNull(); expect(document.activeElement).toBe(trigger)
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })))
-  expect(container.querySelector('#style-menu')).not.toBeNull()
+  expect(container.querySelector('#export-menu')).not.toBeNull()
   await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true })))
   expect(document.activeElement).toBe(trigger)
   await act(async () => trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))

@@ -1,0 +1,280 @@
+{
+  "step": "5",
+  "verifiedAt": "2026-10-13T02:41:36.192Z",
+  "baseCommit": "3f6c44ef35c3ab5480d213967dfdea7ad6c2709c",
+  "branch": "feature/v0.3",
+  "sourceState": "uncommitted step 5 on recorded base",
+  "applicationVersion": "0.2.0",
+  "newInstallerBuilt": false,
+  "status": "implementation-and-available-acceptance-passed; manual acceptance remains",
+  "results": {
+    "typecheck": true,
+    "frontendBuild": true,
+    "frontendTestFiles": 31,
+    "frontendUnitTests": 173,
+    "lockedWindowsRustTests": 50,
+    "regressionChecks": 15,
+    "productionWorkers": 5,
+    "windowsReleaseBuild": true,
+    "nativeStartup": true,
+    "diffCheck": true
+  },
+  "unitTestEvidence": {
+    "startedAt": "2026-10-13T02:29:47.671Z",
+    "commands": [
+      "pnpm.cmd test --maxWorkers=2 --reporter=json --outputFile=test-results/v0.3-step5-unit.json",
+      "cargo test --locked --manifest-path src-tauri/Cargo.toml",
+      "pnpm.cmd tauri build --no-bundle",
+      "pnpm.cmd verify:regression --performance",
+      "./scripts/verify-native-startup.ps1"
+    ],
+    "notes": [
+      "An initial full test run alongside Release compilation timed out and cascaded through App tests. The final full run with two workers passed unchanged test assertions.",
+      "Latest full frontend tests include PNG text-carried XMP/EXIF rejection; native sources were unchanged after final 50-test pass."
+    ]
+  },
+  "browserAcceptance": {
+    "stage": "v0.3-step5",
+    "verifiedAt": "2026-10-13T02:36:42.023Z",
+    "passed": true,
+    "checks": [
+      "saved/history capability guards; missing/remote disabled; transparency requires explicit JPEG background; unsafe metadata retention fails; original body preserved",
+      "conflict/quota preserve original; commit blocks Escape; distinct shared-reference instances and titles; original asset bytes unchanged; one undo/redo; EXIF removed",
+      "batch resize followed by single-image crop uses correct immutable 400x200 source geometry, not prior recipe twice",
+      "generation cancellation terminates worker and releases previews; Escape returns EM focus; dialog keyboard cycle; four theme captures",
+      "persisted body and image recipes reload without encoding; 101 shared instances enforce 100 selected; actual 100-worker generation timing recorded",
+      "keyboard EM/style navigation, separator arrows and ARIA width, read-only reading enter/exit focus, prefers-reduced-motion"
+    ],
+    "scope": "Production UI and actual image/history workers; desktop IPC fixture. Native batch persistence and recovery covered separately by Rust filesystem tests.",
+    "machine": {
+      "platform": "win32",
+      "release": "10.0.26200",
+      "cpu": "Intel(R) Core(TM) 5 220H",
+      "memoryGiB": 31.7
+    },
+    "browser": "156.0.8078.4",
+    "workerQuality": {
+      "lowBytes": 22734,
+      "highBytes": 141069
+    },
+    "batchPerformance": {
+      "instances": 100,
+      "sourceWidth": 400,
+      "sourceHeight": 200,
+      "outputWidth": 100,
+      "outputHeight": 50,
+      "generateMs": 3729,
+      "frameSamples": 244,
+      "frameIntervalP95Ms": 26.699999809265137,
+      "memory": {
+        "metric": "sum of Chromium process RSS/Windows working set; sampled peak is a lower bound and shared pages may be counted multiple times",
+        "baselineBytes": 404910080,
+        "peakBytes": 439304192,
+        "samples": 5
+      },
+      "scope": "Wall time for actual serial worker generation, hashes and UI. Fixture input is shared and small; this is not a large-photo/WebView peak guarantee."
+    },
+    "finishedAt": "2026-10-13T02:36:53.243Z"
+  },
+  "regression": {
+    "version": "0.2.0",
+    "startedAt": "2026-10-13T02:35:24.307Z",
+    "browser": "chromium",
+    "passed": true,
+    "checks": [
+      {
+        "script": "workers",
+        "passed": true,
+        "durationMs": 668
+      },
+      {
+        "script": "docx-library",
+        "passed": true,
+        "durationMs": 7642
+      },
+      {
+        "script": "docx",
+        "passed": true,
+        "durationMs": 22466
+      },
+      {
+        "script": "docx-ui",
+        "passed": true,
+        "durationMs": 42047
+      },
+      {
+        "script": "history",
+        "passed": true,
+        "durationMs": 4351
+      },
+      {
+        "script": "batch-images",
+        "passed": true,
+        "durationMs": 11962
+      },
+      {
+        "script": "browser",
+        "passed": true,
+        "durationMs": 7168
+      },
+      {
+        "script": "writing",
+        "passed": true,
+        "durationMs": 80091
+      },
+      {
+        "script": "search",
+        "passed": true,
+        "durationMs": 8858
+      },
+      {
+        "script": "live-preview",
+        "passed": true,
+        "durationMs": 26029
+      },
+      {
+        "script": "workspace",
+        "passed": true,
+        "durationMs": 2564
+      },
+      {
+        "script": "templates",
+        "passed": true,
+        "durationMs": 6833
+      },
+      {
+        "script": "export",
+        "passed": true,
+        "durationMs": 6984
+      },
+      {
+        "script": "context-menu",
+        "passed": true,
+        "durationMs": 7830
+      },
+      {
+        "script": "performance",
+        "passed": true,
+        "durationMs": 15922
+      }
+    ],
+    "distIndexSha256": "0cff293b7d431406f9c2450118a88a4ae4e127e8f3e7f26973a8ca6d6f366101",
+    "finishedAt": "2026-10-13T02:39:35.734Z"
+  },
+  "nativeStartup": {
+    "verifiedAt": "2026-10-13T02:35:36.0505073Z",
+    "version": "0.2.0",
+    "executableSha256": "ec2c60d6f958063310d9bfe6bc066f82df85a3a2a16dbdc3f1e5cba7bfc83ae3",
+    "isolatedProfile": true,
+    "launched": true,
+    "gracefulClose": true,
+    "passed": true,
+    "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+  },
+  "editorPerformance": {
+    "verifiedAt": "2026-10-13T02:39:20.270Z",
+    "machine": {
+      "os": "win32",
+      "release": "10.0.26200",
+      "cpu": "Intel(R) Core(TM) 5 220H",
+      "logicalCpus": 16,
+      "memoryGiB": 31.7
+    },
+    "cases": [
+      {
+        "name": "5 MiB text",
+        "bytes": 5242880,
+        "openMs": 2127,
+        "inputSamples": 40,
+        "inputEventToNextFrameP95Ms": 18.9,
+        "targetMs": 50,
+        "targetMet": true,
+        "sourceHighlightLimited": false
+      },
+      {
+        "name": "100 KiB single line",
+        "bytes": 102400,
+        "openMs": 223,
+        "inputSamples": 40,
+        "inputEventToNextFrameP95Ms": 29,
+        "targetMs": 50,
+        "targetMet": true,
+        "sourceHighlightLimited": true,
+        "fullPreviewAndUndoVerified": true
+      },
+      {
+        "name": "100 local 800×600 images",
+        "restoreAndDecodeMs": 615,
+        "imageCount": 100,
+        "allDecoded": true
+      },
+      {
+        "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+        "boundaryBytes": 20971520,
+        "accepted": {
+          "durationMs": 86.7,
+          "width": 800,
+          "height": 600
+        },
+        "rejected": {
+          "durationMs": 40.2,
+          "error": "图片文件超过 20 MB。"
+        }
+      }
+    ],
+    "browser": "156.0.8078.4"
+  },
+  "manualRemaining": [
+    "Native file dialogs, OS fullscreen and real screen readers on Windows; macOS/Linux GUI and screen readers.",
+    "Large unique photographs/low-memory devices and real external application races.",
+    "New remote three-platform CI, installer and release checks reserved for stage delivery."
+  ],
+  "compatibility": {
+    "metadata": "Only same-format PNG description text/JPEG COM can be retained; EXIF/XMP/ICC/IPTC and cross-format retention rejected. Immutable baselines/history retain exact source bytes.",
+    "history": "Schema 1 adds batch reason and separate schema-1 batch logs. Earlier apps may reject new reasons but preserve history; use new version."
+  },
+  "sourceTree": {
+    "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
+    "files": 456,
+    "sha256": "df9fe81418587dd0a756fb7bcd49f0ba2d6675a83f34ff8878bb0a158ea88b33"
+  },
+  "changedSourceHashes": {
+    ".github/workflows/ci.yml": "a4b321db6ad674de65b6b0a9140e396e5df4aae90540f8a4de1e3934acc58f6c",
+    "package.json": "b522cfe6899066809c58e1a26b2a188871a2eb1e56d0d32d90cfe886ed94e9c3",
+    "scripts/verify-batch-images.mjs": "36ae54dbc879fc4a62ece7f6f0c55f32f4f6260e79c8f45bf346d06368dfe8a0",
+    "scripts/verify-regression.mjs": "632b38ffa52c8aeb377c7b99582601926837fd0f252d9de3f8a48379378a44b0",
+    "src-tauri/src/history.rs": "1ffd84117d901eac32134a8222faf7d5fb73ef3546ceb3cf71111c3a4947889c",
+    "src/App.test.ts": "6ccccc888b994a7c0aaaa91feb1ca3169fa86c5bab9ecf8c0d97b359720a7717",
+    "src/App.tsx": "4592e0429fb8b122d60645844d590596fff52716a53d263271fff39cb58426ad",
+    "src/core/batch-images.test.ts": "d93a693508e47da26670196db055946e0244fd3ed87253397eae0348dc32c1ad",
+    "src/core/batch-images.ts": "5d6632d14852fd95549cef630eacc99dbdf1908257e131b808483c2a529e5bc7",
+    "src/core/batch-options.ts": "df88237b96d49bb27e412649032cefb6a3607ebc72876be41a6cc1c27dab29cb",
+    "src/core/image-metadata.test.ts": "212a9abc500b2a14e740f8747731be9a4e8393b34227551ef70df37b1a5a708e",
+    "src/core/image-metadata.ts": "d8719e8e85137932b133bca36784145af9090c15699c50f91123a5c34c950911",
+    "src/editor/BatchImageDialog.tsx": "9b3c2d73d26d0c1b3a31126f387d6c020c0df8ccb5967348e83ec5e33495e6f4",
+    "src/editor/DocumentEditor.tsx": "8b8aea303a0cd157421531c637be78c57eac6e4ccae0a4bc3165b38f4914883d",
+    "src/editor/HistoryDialog.tsx": "3ade2255d678be9edb259b5a2d5a333452c9a9068d84a77b3a5f7d993d0282d8",
+    "src/editor/ImagePanel.tsx": "5b0eb55256d72653ceceb6967f25e78a2cc57435eee91c38a67ee1aebce703cb",
+    "src/editor/themes.css": "5628443b212ba8bb07a03e46686fa83177e0f913d3b02bd70bb25a9b65a704ff",
+    "src/platform/batch-images.test.ts": "ca0ec3cc2e923089595e774304685a77b4b2f063f4d148d04bcd3c343040c902",
+    "src/platform/batch-images.ts": "a4d8e133bdf1c7112ad6bf52feedc1286257472c97198bbf0806d293ca4b431e",
+    "src/platform/history-diff-worker.ts": "56149fcee42bd0b81a2acb244de2d810d70cdc7bbd9ae5cb460b424fdba91513",
+    "src/platform/image-worker.ts": "780acb024a0e5aafe14aa42cc5103d3f7d3adbed03c57c18f627dfd312022585",
+    "src/platform/images.ts": "d9ae51b3e046a86fa6f5063885c643bffd371b7d27e35a8ab797e3923369092b"
+  },
+  "artifactHashes": {
+    "dist/index.html": "0cff293b7d431406f9c2450118a88a4ae4e127e8f3e7f26973a8ca6d6f366101",
+    "src-tauri/target/release/easym.exe": "ec2c60d6f958063310d9bfe6bc066f82df85a3a2a16dbdc3f1e5cba7bfc83ae3",
+    "pnpm-lock.yaml": "2bdd266a7dae5d1e2828b921cf4d8cd20cb385626af0534dc501117e2d38876c",
+    "src-tauri/Cargo.lock": "fc039aa1e1033f782c63dcf63a6fc05375bb6bccef61735c9695633b80d3c8b9",
+    "test-results/batch-images/light.png": "167cb70377f7ff08c9ff22b80dedc7f56b4dac4bd6307565be568d4ac09b99e8",
+    "test-results/batch-images/dark.png": "ab95c275b1e63ff317338eaa93b44b9d8d2cfc867105e8861d166dbab084783b",
+    "test-results/batch-images/paper.png": "aa674c2772bb3e6a3ffc4b43d6e77f8d94395e9362249b985989e0f96404b4cd",
+    "test-results/batch-images/forest.png": "f5024bc23552e94036abba55ab3404dacb7413092e93afe8b4e23830b9d48796"
+  },
+  "distAssetsTree": {
+    "algorithm": "SHA-256 of JSON sorted [filename, file SHA-256] pairs",
+    "files": 115,
+    "sha256": "092cc635318f528e888e8320e1ff70c8c0a247d3666dd2a357b446e759e4517b"
+  }
+}

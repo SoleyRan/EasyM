@@ -66,13 +66,14 @@ pub async fn open_document(state: State<'_, Storage>) -> Result<Option<OpenedFil
 }
 
 #[tauri::command]
-pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: String, expected_revision: Option<String>, bytes: Vec<u8>, save_as: bool, assets: Vec<Asset>, metadata: Metadata, operation_id: String) -> Result<Option<SavedFile>, String> {
+pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: String, expected_revision: Option<String>, bytes: Vec<u8>, save_as: bool, assets: Vec<Asset>, metadata: Metadata, operation_id: String, history_references: Option<Vec<String>>, history_previous_references: Option<Vec<String>>, history_unarchived_references: Option<Vec<String>>, history_previous_unarchived_references: Option<Vec<String>>, history_collection_error: Option<bool>) -> Result<Option<SavedFile>, String> {
     if bytes.len() > MAX_TEXT { return Err("quota_exceeded".into()); }
     uuid::Uuid::parse_str(&operation_id).map_err(|_| "invalid_data")?;
     let storage = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         // Serializes this application's writers. External tools are checked optimistically.
         let mut sessions = storage.0.lock().map_err(|_| "io_failed")?;
+        let original_path = id.as_ref().and_then(|id| sessions.get(id)).cloned();
         let (session_id, path, expected) = if save_as || id.is_none() {
             let safe_name = Path::new(&name).file_name().unwrap_or_default().to_string_lossy();
             let Some(path) = rfd::FileDialog::new().add_filter("Markdown", &["md", "markdown"]).set_file_name(safe_name.as_ref()).save_file() else { return Ok(None); };
@@ -88,7 +89,17 @@ pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: 
             let path = sessions.get(&session_id).ok_or("permission_denied")?.clone();
             (session_id, path, expected_revision)
         };
-        let warning = transaction::save(&path, expected.as_deref(), &bytes, &assets, metadata, &operation_id)?;
+        let references = history_references.unwrap_or_default();
+        let unarchived = history_unarchived_references.unwrap_or_default();
+        let separate = save_as && original_path.as_ref().is_none_or(|source| source != &path && !source.canonicalize().ok().is_some_and(|p| path.canonicalize().ok().as_ref() == Some(&p)));
+        let history_before = if history_collection_error == Some(true) { Some("history_analysis_failed".into()) } else if !separate { crate::history::before_save(&path, history_previous_references.unwrap_or_else(|| references.clone()), history_previous_unarchived_references.unwrap_or_else(|| unarchived.clone()), expected.as_deref()).err() } else { None };
+        let history_metadata = metadata.clone();
+        let mut warning = transaction::save(&path, expected.as_deref(), &bytes, &assets, metadata, &operation_id)?;
+        let history_after = if separate { crate::history::separate_destination(&path).err() } else if history_collection_error == Some(true) { Some("history_analysis_failed".into()) } else { crate::history::after_save(&path, &bytes, references, unarchived, history_metadata).err() };
+        if let Some(error) = history_before.or(history_after) {
+            let message = format!("正文已保存，版本快照未完成（{error}）；请打开版本历史检查或清理配额。");
+            warning = Some(warning.map(|w| format!("{w}\n{message}")).unwrap_or(message));
+        }
         // The base revision is the body we committed, so later external writes conflict on the next save.
         let revision = hash(&bytes);
         let result = SavedFile { id: session_id.clone(), name: crate::storage::name(&path), revision, warning };

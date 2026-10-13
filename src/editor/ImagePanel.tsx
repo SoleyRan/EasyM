@@ -91,7 +91,7 @@ export function ImagePanel({ image, onCancel, onBusy, onChange, onApply }: Props
     finally { if (!closed.current) setApplying(false) }
   }
 
-  return <div className="modal-backdrop" onKeyDown={(event) => { if (event.key === 'Escape' && !applying) { event.stopPropagation(); cancel() } }}>
+  return <div className="modal-backdrop" onKeyDown={(event) => { if (event.key === 'Escape' && !applying && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); cancel() } }}>
     <div ref={dialog} className="image-dialog" role="dialog" aria-modal="true" aria-labelledby="image-title">
       <div className="panel-title"><div><strong id="image-title">编辑图片副本</strong><span>源副本 {image.width} × {image.height} · 修改只影响当前引用</span></div><button aria-label="取消图片编辑" disabled={applying} onClick={cancel}>×</button></div>
       <fieldset disabled={applying} className="image-controls">

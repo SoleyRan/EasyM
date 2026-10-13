@@ -258,6 +258,7 @@ License texts copied from installed package sources are linked below. Declared l
 | cargo | zerotrie | 0.2.5 | Unicode-3.0 | [LICENSE](licenses/f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2-LICENSE.txt) |
 | cargo | zerovec-derive | 0.11.6 | Unicode-3.0 | [LICENSE](licenses/f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2-LICENSE.txt) |
 | cargo | zerovec | 0.11.8 | Unicode-3.0 | [LICENSE](licenses/f367c1b8e1aa262435251e442901da4607b4650e0e63a026f5044473ecfb90f2-LICENSE.txt) |
+| cargo | zip | 6.0.0 | MIT | [LICENSE](licenses/04dc52136d82400b11df5f474949863a70a5d05d2278dec45b99c479494450a6-LICENSE.txt) |
 | cargo | zlib-rs | 0.6.8 | Zlib | [LICENSE](licenses/e72111c52b7d96ebe25348dee19f0744f444d3c95ae6b1ecb6ccaecc5bce05ba-LICENSE.txt) |
 | cargo | zmij | 1.0.23 | MIT | [LICENSE-MIT](licenses/23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3-LICENSE-MIT.txt) |
 | cargo | zune-core | 0.5.3 | MIT OR Apache-2.0 OR Zlib | [LICENSE-APACHE](licenses/c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4-LICENSE-APACHE.txt), [LICENSE-MIT](licenses/d30047bca3b516639339a3c279bb84c3483124fb5a9dafe3c75056a85090e745-LICENSE-MIT.txt), [LICENSE-ZLIB](licenses/d201d14804d3bcd3b944147173175e4abfbd838b7c8069b6bd3452496bf13e6c-LICENSE-ZLIB.txt) |
@@ -316,6 +317,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | @types/hast | 3.0.5 | MIT | [LICENSE](licenses/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383-LICENSE.txt) |
 | npm | @types/mdast | 4.0.4 | MIT | [LICENSE](licenses/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383-LICENSE.txt) |
 | npm | @types/ms | 2.1.0 | MIT | [LICENSE](licenses/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383-LICENSE.txt) |
+| npm | @types/node | 26.6.4 | MIT | [LICENSE](licenses/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383-LICENSE.txt) |
 | npm | @types/unist | 3.0.3 | MIT | [LICENSE](licenses/c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383-LICENSE.txt) |
 | npm | @ungap/structured-clone | 1.4.0 | ISC | [LICENSE](licenses/dc6d4961d8b6ee747231582ae9c53ce1d66bf76bc9f5a28f554c0e97210953bf-LICENSE.txt) |
 | npm | bail | 2.0.2 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
@@ -324,22 +326,30 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | character-entities-legacy | 3.0.0 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
 | npm | character-entities | 2.0.2 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
 | npm | comma-separated-tokens | 2.0.3 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
+| npm | core-util-is | 1.0.3 | MIT | [LICENSE](licenses/33b734d60042d0fe0c92dd1fc1e874193a1c899ec3e276a2eb935d2d0bf5b710-LICENSE.txt) |
 | npm | crelt | 1.0.7 | MIT | [LICENSE](licenses/23852ebf6aef7fadffc92514b3c5df163a8651f2c3ed0dbb494cb49d93bd5de5-LICENSE.txt) |
 | npm | debug | 4.4.3 | MIT | [LICENSE](licenses/3a61c6c96caf5c1d9b623fb9b04c822b783dfcb78aa7e49c76a3f643e6ed7f95-LICENSE.txt) |
 | npm | decode-named-character-reference | 1.3.0 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | dequal | 2.0.3 | MIT | [license](licenses/306fa513e39b23a6e8747520de761809d206b99800ef41907b530226574c59ae-license.txt) |
 | npm | devlop | 1.1.0 | MIT | [license](licenses/6f296a5eccc1dc96714bb94ebaa9cac25b0a1467d74cc5263ac4d0646ab01f62-license.txt) |
+| npm | docx | 9.10.0 | MIT | [LICENSE](licenses/b5b2364c0c95a26b2a2399d7e706a61acac680be1d5b180b00592ee85830bffb-LICENSE.txt) |
 | npm | escape-string-regexp | 5.0.0 | MIT | [license](licenses/5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3-license.txt) |
 | npm | extend | 3.0.2 | MIT | [LICENSE](licenses/97af7428f93afbab9bf79cd09254da1357161794f4255eb1b4599f04dd2d2e7c-LICENSE.txt) |
 | npm | fault | 2.0.1 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
 | npm | format | 0.2.2 | MIT | [format-MIT.txt](licenses/c2ac933bc58e267006523e6cb995ff8c5cba9ff94f95b202572efe9c8a0340a3-format-MIT.txt) |
+| npm | hash.js | 1.1.7 | MIT | [hash.js-MIT.txt](licenses/7261b3ab93df04c6d8f3398f87275d28f0e87d88cbd0033b788fb50402de03c5-hash.js-MIT.txt) |
 | npm | hast-util-sanitize | 5.0.2 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | hast-util-to-html | 9.0.5 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | hast-util-whitespace | 3.0.0 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 | npm | highlight.js | 11.11.2 | BSD-3-Clause | [LICENSE](licenses/6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490-LICENSE.txt) |
 | npm | highlight.js | 11.12.0 | BSD-3-Clause | [LICENSE](licenses/6c081431591d9df696c82dc598fe1423765b8a299b200ed00b281afd0f64c490-LICENSE.txt) |
 | npm | html-void-elements | 3.0.0 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
+| npm | immediate | 3.0.6 | MIT | [LICENSE.txt](licenses/809e66de579fb7d92503848bbe6d1f348f4f6521a71e5d294fe7cc0c87a3b4ff-LICENSE.txt.txt) |
+| npm | inherits | 2.0.4 | ISC | [LICENSE](licenses/5ffe28e7ade7d8f10d85d5337a73fd793dac5c462fb9a28fbf8c5046c7fbca3b-LICENSE.txt) |
 | npm | is-plain-obj | 4.1.0 | MIT | [license](licenses/5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3-license.txt) |
+| npm | isarray | 1.0.0 | MIT | [isarray-MIT.txt](licenses/a1bd5deadb6a06dd74efa852c1b8b23f63b67f2214fbe9c8bd591da51da69268-isarray-MIT.txt) |
+| npm | jszip | 3.10.2 | (MIT OR GPL-3.0-or-later) | [LICENSE.markdown](licenses/566c953c6090b1218ca6217dd7359d45dde46581968586dc607d59a78af6a9c4-LICENSE.markdown.txt) |
+| npm | lie | 3.3.0 | MIT | [license.md](licenses/5c81b0caa98593408b03125efa25efe622341ed87ae55561968828cd887d64a4-license.md.txt) |
 | npm | longest-streak | 3.1.0 | MIT | [license](licenses/9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10-license.txt) |
 | npm | lowlight | 3.3.0 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | markdown-table | 3.0.4 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
@@ -386,10 +396,15 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | micromark-util-symbol | 2.0.1 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | micromark-util-types | 2.0.3 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | micromark | 4.0.3 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
+| npm | minimalistic-assert | 1.0.1 | ISC | [LICENSE](licenses/136fee1129ea96ce18b41c26a72f5d4ba196ee41bfd73b55d0b8509cdda148e9-LICENSE.txt) |
 | npm | ms | 2.1.3 | MIT | [license.md](licenses/1662fae9b5314d11cf51284e2dcd1f006a354f7343f08712a730fcff9a359801-license.md.txt) |
+| npm | nanoid | 6.0.2 | MIT | [LICENSE](licenses/4383cb2c3608397ce7a4159502614ed66890f8999c2a9c056dd3b1024d6721f0-LICENSE.txt) |
+| npm | pako | 1.0.11 | (MIT AND Zlib) | [LICENSE](licenses/a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539-LICENSE.txt), [pako-Zlib.txt](licenses/d8b499598e43d755ea8918448128259ff01820c50d94d5a48c8883d0a594ddb1-pako-Zlib.txt) |
+| npm | process-nextick-args | 2.0.1 | MIT | [license.md](licenses/ecdccbcf39024f624ded480c01c0b25458e1eca8f26ecf040933865ce56d9a4f-license.md.txt) |
 | npm | property-information | 7.2.0 | MIT | [license](licenses/5d0698266086f217bb11ea0499d33453e401fe479fb9126ad04e625e63d3557b-license.txt) |
 | npm | react-dom | 19.3.0 | MIT | [LICENSE](licenses/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93-LICENSE.txt) |
 | npm | react | 19.3.0 | MIT | [LICENSE](licenses/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93-LICENSE.txt) |
+| npm | readable-stream | 2.3.8 | MIT | [LICENSE](licenses/ec62dc96da0099b87f4511736c87309335527fb7031639493e06c95728dc8c54-LICENSE.txt) |
 | npm | rehype-sanitize | 6.0.0 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 | npm | rehype-stringify | 10.0.1 | MIT | [license](licenses/e18cf5173e928f808f0cd208097fee8fbec9d28fc0255213938e4c559e29ff58-license.txt) |
 | npm | remark-frontmatter | 5.0.0 | MIT | [license](licenses/d8fc337aaf98fc7a0f5498edc18b47a9df8cdfcc1a0f013519105905722c7a4c-license.txt) |
@@ -397,24 +412,32 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | remark-parse | 11.0.0 | MIT | [license](licenses/413654b0a78b98661dce96d2aff2e4d075603d220b8483e28b1aa010ccc138b4-license.txt) |
 | npm | remark-rehype | 11.1.2 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | remark-stringify | 11.0.0 | MIT | [license](licenses/413654b0a78b98661dce96d2aff2e4d075603d220b8483e28b1aa010ccc138b4-license.txt) |
+| npm | safe-buffer | 5.1.2 | MIT | [LICENSE](licenses/c7cc929b57080f4b9d0c6cf57669f0463fc5b39906344dfc8d3bc43426b30eac-LICENSE.txt) |
+| npm | sax | 1.6.1 | BlueOak-1.0.0 | [LICENSE.md](licenses/8a1af140fdfbf5afd3df27f7e662f989c5b963a300020dfafce42033cae9e004-LICENSE.md.txt) |
 | npm | scheduler | 0.28.0 | MIT | [LICENSE](licenses/da6d3703ed11cbe42bd212c725957c98da23cbff1998c05fa4b3d976d1a58e93-LICENSE.txt) |
+| npm | setimmediate | 1.0.5 | MIT | [LICENSE.txt](licenses/c4b4ad3a5746f1f5249a6dd90396ec519264e1bb02e01e48a6522c48a3a97cb4-LICENSE.txt.txt) |
 | npm | space-separated-tokens | 2.0.2 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
+| npm | string_decoder | 1.1.1 | MIT | [LICENSE](licenses/11f2aafb37d06b3ee5bdaf06e9811141d0da05263c316f3d627f45c20d43261b-LICENSE.txt) |
 | npm | stringify-entities | 4.0.4 | MIT | [license](licenses/9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10-license.txt) |
 | npm | style-mod | 4.1.4 | MIT | [LICENSE](licenses/cb4474e26547397169061d3586c00022cda5330a1b64fa13e872319f3b63aff1-LICENSE.txt) |
 | npm | trim-lines | 3.0.1 | MIT | [license](licenses/9f084fac69d8cf1e6ce983ba5a3499c7695ed74a26ec625c38f0fd19fddd5e10-license.txt) |
 | npm | trough | 2.2.0 | MIT | [license](licenses/6c03fd41cfd7c92d8aa8a2fa521b94b2683f059123281dcf921ddea9216b6254-license.txt) |
+| npm | undici-types | 8.9.0 | MIT | [LICENSE](licenses/a6db8096b2707bc0102d256917d4d33f298ba36d8c3f25de067a2b5bb379db27-LICENSE.txt) |
 | npm | unified | 11.0.5 | MIT | [license](licenses/05811400116ed61f1a7693b78fe8ca6598c155a12f3978e609db4df648a4cb3d-license.txt) |
 | npm | unist-util-is | 6.0.1 | MIT | [license](licenses/82974dbf2639d13edab95c32ed9cb6c0867ede272cd2e07ce47ce8548fe55c05-license.txt) |
 | npm | unist-util-position | 5.0.0 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
 | npm | unist-util-stringify-position | 4.0.0 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 | npm | unist-util-visit-parents | 6.0.2 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 | npm | unist-util-visit | 5.1.0 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
+| npm | util-deprecate | 1.0.2 | MIT | [LICENSE](licenses/0154425673db15cdfa80ecba2c9b1f1a867f7197a006764712849bfc3a93cbb7-LICENSE.txt) |
 | npm | vfile-message | 4.0.3 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
 | npm | vfile | 6.0.3 | MIT | [license](licenses/05811400116ed61f1a7693b78fe8ca6598c155a12f3978e609db4df648a4cb3d-license.txt) |
 | npm | w3c-keyname | 2.2.8 | MIT | [LICENSE](licenses/869c30f368eb08735e779027b9f4bc9fea2f39624351856aebe42741f0bc0884-LICENSE.txt) |
+| npm | xml-js | 1.6.11 | MIT | [LICENSE](licenses/8ada61091ef0ef154a69321483e5ffadf5c50693ca945047ffb90a6b4b12b088-LICENSE.txt) |
+| npm | xml | 1.0.1 | MIT | [LICENSE](licenses/d2b3e2f62078f282f21a8c5119a44cc7313fe6aa4a22094c8ad93f4b577b7901-LICENSE.txt) |
 | npm | zwitch | 2.0.4 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 
-Inventory: 407 dependency versions.
+Inventory: 430 dependency versions.
 
 ## Missing license texts
 

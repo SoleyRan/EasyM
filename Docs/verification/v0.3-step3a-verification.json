@@ -1,0 +1,239 @@
+{
+  "stage": "v0.3-step-3A",
+  "verifiedAt": "2026-10-12T07:50:26.060Z",
+  "branch": "feature/v0.3",
+  "baseCommit": "9a559b3",
+  "sourceState": "working-tree",
+  "applicationVersion": "0.2.0",
+  "passed": true,
+  "unitTests": {
+    "files": 23,
+    "total": 136,
+    "passed": 136,
+    "failed": 0,
+    "success": true
+  },
+  "libraryProbe": {
+    "verifiedAt": "2026-10-12T07:47:31.403Z",
+    "library": "docx",
+    "version": "9.10.0",
+    "node": "v24.19.0",
+    "browser": "chromium",
+    "passed": true,
+    "browserVersion": "156.0.8078.4",
+    "generationMs": 309,
+    "bundleBytes": 570295,
+    "outputBytes": 13644,
+    "outputSha256": "84af9b94e03cde8511bc3b4e44678d5b099b5d9e0a6f186fd920b18029f09b20",
+    "bundleSha256": "62326d24ec8986c240389d2e48cfedbd594900e5b71cbd3251d5e6a5149534b5",
+    "zipEntries": 24,
+    "checks": [
+      "real Worker with application CSP",
+      "shared AST/model/resource preflight of frozen office fixture in Worker",
+      "no external bundle imports or network requests",
+      "UTF-8 Chinese/emoji",
+      "heading and inline styles",
+      "numbering start=3",
+      "native table/repeating header",
+      "embedded PNG exact bytes",
+      "safe hyperlink",
+      "CRC32 and valid XML",
+      "no macros/OLE/remote image relationships"
+    ],
+    "transitiveNodeEngine": {
+      "package": "nanoid",
+      "version": "6.0.2",
+      "engine": "^22 || ^24 || >=26"
+    }
+  },
+  "dependencyNotices": {
+    "target": "x86_64-pc-windows-msvc",
+    "dependencies": 429,
+    "missingLicenseTexts": [],
+    "completeLicenseTexts": true,
+    "verifiedLicenseFiles": 233,
+    "strict": true
+  },
+  "checks": [
+    "typecheck",
+    "build",
+    "production workers",
+    "browser editor/image/draft flows",
+    "writing selection/format/scroll/theme flows",
+    "live preview",
+    "HTML export and browser PDF",
+    "strict license hashes and provenance",
+    "git diff --check"
+  ],
+  "sourceSha256": {
+    "src/core/markdown-ast.ts": "b79d7192a3ebb1c4601cca77876c561401335ee5578d37961711828852ba6fc3",
+    "src/core/markdown.ts": "a4530a1648d453b2fd1ec02c462983ad06bb961e6f1206c47b5c52325dfe48b7",
+    "src/core/export-resource.ts": "bb46ebbd5bc99923a289b35fa9e5ad910749c9e8f9ecc930c6491923bd259665",
+    "src/core/export.ts": "b8a726534fa0ad3e59b0ca87b6a45a36e473b3efe8541fe32fe198021cd25738",
+    "src/core/docx-model.ts": "b0738015d1eee5c755eb5dbe086735e66822c2bd627ff24f2b5849303f52604d",
+    "src/core/docx-model.test.ts": "b0728770c99b6c0eb9b573fda415ff42fdcf5c785d5a63f63dd615023aba1af1",
+    "scripts/verify-docx-library.mjs": "cef4b645ea0d3c9cc971afe2d376e7235bf5100ae4456383905c0ae97bae03b3",
+    "scripts/fixtures/docx-library-worker.ts": "82d8eeced91fcc47d6ff7b6fc1434102abe22379982fa7f80a46a35a0af34158",
+    "package.json": "9fcd27381e90afb65b44299ab61279eaac384d2dfb56ffdbb70c786c5e7cef91",
+    "pnpm-lock.yaml": "2bdd266a7dae5d1e2828b921cf4d8cd20cb385626af0534dc501117e2d38876c"
+  },
+  "regressions": {
+    "browser": {
+      "verifiedAt": "2026-10-12T07:47:41.853Z",
+      "browser": "156.0.8078.4",
+      "passed": true,
+      "checks": [
+        "PNG pixels, crop, rotation, flips, resize",
+        "JPEG EXIF orientations 1–8 and normalisation",
+        "PNG transparency and JPEG white background",
+        "invalid input rejection",
+        "Chinese/emoji text and preview",
+        "image cancel/apply/undo/redo",
+        "two instances and isolated edit",
+        "real IndexedDB body, assets and pending recipe recovery"
+      ]
+    },
+    "writing": {
+      "verifiedAt": "2026-10-12T07:48:52.380Z",
+      "browser": "156.0.8078.4",
+      "passed": true,
+      "checks": [
+        "code contrast and language-specific source/preview highlighting",
+        "language insertion/change/removal and undo/redo",
+        "bidirectional scrolling at middle/top/bottom without caret movement or feedback",
+        "resize and tab scroll retention",
+        "multiple files, independent edits and undo histories, draft restart recovery",
+        "four themes through EM menu and persistent preference",
+        "1440/960 writing area and optional outline",
+        "outline jumps both panes after preview scrolling and repeated selection",
+        "both sidebar pointer resizing and width persistence",
+        "long filename ellipsis",
+        "EM file menu and wheel navigation of overflowing tabs",
+        "discard dirty tab without saving",
+        "untouched new tab closes without confirmation",
+        "3px tab scrollbar transparent until hover without layout shift",
+        "Style submenu opens only on click to the right",
+        "save header removed; hideable formatting toolbar and persistent visibility",
+        "file panel remains open on import into a new tab",
+        "visible table cell borders and column alignment in all four themes",
+        "fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention",
+        "native mouse selection visible in four themes and source/split views",
+        "forward/reverse Chinese and emoji selection; multiline and soft-wrapped selection",
+        "selected-range toolbar toggles, keyboard activation and undo/redo",
+        "bold/italic/link/heading/lists/quote/code cancel without stacking; pressed/mixed state follows selection and undo"
+      ]
+    },
+    "live-preview": {
+      "verifiedAt": "2026-10-12T07:49:21.370Z",
+      "browser": "156.0.8078.4",
+      "passed": true,
+      "checks": [
+        "headings/inline formatting, language highlighting, tables, remote images blocked",
+        "active heading and code source reveal; exact source roundtrip",
+        "forward/reverse native mouse selection across hidden markers; format state/toggle; shared editor and undo across three views",
+        "Chinese/emoji cross-line and soft-wrap pointer selections apply only selected text",
+        "table click and keyboard entry expose source; live search reveals hidden code and replaces with undo",
+        "synthetic composition pauses presentation and guards mode changes (native IME still requires desktop testing)",
+        "local image blob resource, correct double-click edit, cancel/apply and source reveal; live view retained",
+        "front matter, unknown syntax and raw HTML preserve source without execution",
+        "oversized documents and long lines degrade explicitly to source; shortening restores rendering",
+        "four theme table/code styles; tab view and text independence"
+      ]
+    },
+    "export": {
+      "verifiedAt": "2026-10-12T07:49:33.862Z",
+      "browser": "156.0.8078.4",
+      "passed": true,
+      "checks": [
+        "exact current Markdown exported without mutating source/dirty state",
+        "standalone HTML file rendering with strict CSP",
+        "no scripts, unsafe href or remote resource requests",
+        "missing image placeholders/warnings",
+        "real imported PNG embedded as data URL",
+        "print entry, Ctrl+P, focus cycling and Escape",
+        "system print call exercised via browser stub",
+        "print media hides app and displays only body",
+        "Chinese, headings, bordered tables and code styles",
+        "multi-page A4 PDF generation"
+      ],
+      "pageCount": 12
+    }
+  },
+  "pending": [
+    "complete model-to-OOXML generator",
+    "production Worker timeouts/cancellation and resource authorization",
+    "full image decode validation",
+    "DOCX native binary save and atomic overwrite",
+    "DOCX menu/preflight UI",
+    "Word/LibreOffice/WPS layout and editing",
+    "three-platform CI for this working tree",
+    "native IME and previously recorded desktop acceptance gaps"
+  ],
+  "notes": [
+    "The library probe generates a dedicated API fixture, not the entire frozen office fixture.",
+    "The complete office Markdown fixture is parsed/mapped/preflighted in the probe Worker.",
+    "No application version bump, release package or push in this step.",
+    "Build retains existing large-chunk warning; unit tests retain existing React act warnings.",
+    "No Rust source changed."
+  ],
+  "regressionSuite": {
+    "version": "0.2.0",
+    "startedAt": "2026-10-12T07:47:30.533Z",
+    "browser": "chromium",
+    "passed": true,
+    "checks": [
+      {
+        "script": "workers",
+        "passed": true,
+        "durationMs": 200
+      },
+      {
+        "script": "docx-library",
+        "passed": true,
+        "durationMs": 5098
+      },
+      {
+        "script": "browser",
+        "passed": true,
+        "durationMs": 6234
+      },
+      {
+        "script": "writing",
+        "passed": true,
+        "durationMs": 70467
+      },
+      {
+        "script": "search",
+        "passed": true,
+        "durationMs": 6922
+      },
+      {
+        "script": "live-preview",
+        "passed": true,
+        "durationMs": 22073
+      },
+      {
+        "script": "workspace",
+        "passed": true,
+        "durationMs": 2252
+      },
+      {
+        "script": "templates",
+        "passed": true,
+        "durationMs": 5278
+      },
+      {
+        "script": "export",
+        "passed": true,
+        "durationMs": 4923
+      },
+      {
+        "script": "context-menu",
+        "passed": true,
+        "durationMs": 6355
+      }
+    ],
+    "distIndexSha256": "813f8467564afce8d9d3f0c1b79c3ef5f617c6e337e63a8a16009a2a90166cbf",
+    "finishedAt": "2026-10-12T07:49:40.350Z"
+  }
+}

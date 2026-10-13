@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { productionWorkers } from './production-workers.mjs'
-import { serveProduction } from './serve-production.mjs'
+import { productionWorkers, workerKind } from './production-workers.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 
 const server = await serveProduction()
 const { url } = server
@@ -16,11 +16,12 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   page.on('dialog', (dialog) => { void (dialog.type() === 'beforeunload' ? dialog.accept() : dialog.dismiss()) })
+  await acknowledgeGuide(page)
   await page.goto(url)
   await page.getByRole('button', { name: '分屏', exact: true }).click()
   await page.getByRole('heading', { name: '欢迎使用 EasyM', exact: true }).waitFor()
 
-  const worker = (await productionWorkers()).find((source) => source.includes('createImageBitmap'))
+  const worker = (await productionWorkers()).find((source) => workerKind(source) === 'image')
   assert.ok(worker, 'Image worker exists in production bundle')
   const pixels = await page.evaluate(async (source) => {
     const colors = [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 0], [0, 255, 255], [255, 0, 255]]

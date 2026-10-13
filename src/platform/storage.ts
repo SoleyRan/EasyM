@@ -4,6 +4,7 @@ import type { ImageMetadata } from '../core/images'
 import type { ImageResources } from './images'
 import { MAX_ASSET_BYTES } from '../core/images'
 import { parseDocument } from '../core/markdown'
+import { collectHistoryResources } from './history-resources'
 
 export interface OpenedFile { id: string | null; name: string; bytes: Uint8Array; revision: string | null; metadata?: ImageMetadata; warning?: string }
 export interface SavedFile { id: string | null; name: string; revision: string | null; destination: 'disk' | 'download'; warning?: string }
@@ -40,7 +41,7 @@ export async function openDocument(): Promise<OpenedFile | null> {
   })
 }
 
-export async function saveDocument(file: { id: string | null; name: string; revision: string | null }, bytes: Uint8Array, saveAs = false, resources?: ImageResources, operationId: string = crypto.randomUUID()): Promise<SavedFile | null> {
+export async function saveDocument(file: { id: string | null; name: string; revision: string | null; originalText?: string }, bytes: Uint8Array, saveAs = false, resources?: ImageResources, operationId: string = crypto.randomUUID()): Promise<SavedFile | null> {
   if (desktop) {
     const copied = saveAs ? await materializeResources(file.id, resources ?? { assets: {}, instances: [] }) : resources
     if (saveAs) {
@@ -48,9 +49,13 @@ export async function saveDocument(file: { id: string | null; name: string; revi
       if (references.some((image) => !/^https?:\/\//i.test(image.url) && !copied?.assets[decodeURI(image.url)])) throw new Error('另存为包含未托管或缺失图片，请先导入这些图片的本地副本，再另存整个文档。')
     }
     const assets = await Promise.all(Object.entries(copied?.assets ?? {}).map(async ([path, blob]) => ({ path, bytes: Array.from(new Uint8Array(await blob.arrayBuffer())) })))
+    let historyCollectionError = false
+    const [currentReferences, previousReferences] = await collectHistoryResources([new TextDecoder().decode(bytes), ...(file.originalText === undefined ? [] : [file.originalText])]).catch(() => { historyCollectionError = true; return [] })
     const saved = await invoke<Omit<SavedFile, 'destination'> | null>('save_document', {
       id: file.id, name: file.name, expectedRevision: file.revision, bytes: Array.from(bytes), saveAs,
       assets, metadata: { schemaVersion: 1, instances: resources?.instances ?? [] }, operationId,
+      historyReferences: currentReferences?.references, historyUnarchivedReferences: currentReferences?.unarchivedReferences,
+      historyPreviousReferences: previousReferences?.references, historyPreviousUnarchivedReferences: previousReferences?.unarchivedReferences, historyCollectionError,
     })
     if (saved && file.id && saved.id !== file.id) void releaseDocument(file.id).catch(() => undefined)
     return saved ? { ...saved, destination: 'disk' } : null

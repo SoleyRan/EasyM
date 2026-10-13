@@ -16,7 +16,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm test
+      - run: pnpm verify:release
+      - run: pnpm test --maxWorkers=2
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify:regression
@@ -30,6 +31,15 @@ jobs:
           name: browser-verification
           path: |
             test-results/browser-verification.json
+            test-results/docx-library-verification.json
+            test-results/docx-verification.json
+            test-results/docx-ui-verification.json
+            test-results/docx-ui/*.png
+            test-results/history-verification.json
+            test-results/history-diff-performance.json
+            test-results/history/*.png
+            test-results/batch-images-verification.json
+            test-results/batch-images/*.png
             test-results/writing-verification.json
             test-results/search-verification.json
             test-results/search-slow-verification.json
@@ -76,7 +86,12 @@ jobs:
           cargo metadata --manifest-path src-tauri/Cargo.toml --locked --filter-platform "$target" --format-version 1 > test-results/cargo-metadata.json
           node scripts/generate-notices.mjs test-results/npm-licenses.json test-results/cargo-metadata.json Docs/dependencies "$target"
           node scripts/verify-notices.mjs Docs/dependencies
+          node scripts/verify-release-metadata.mjs
       - run: pnpm tauri build --no-bundle
+      - name: Verify Windows native startup and close
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/verify-native-startup.ps1
       - name: Build Windows installer
         if: runner.os == 'Windows'
         run: pnpm tauri bundle --bundles nsis --no-binary-patching
@@ -84,12 +99,19 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/verify-installer.ps1
+      - name: Build and verify Windows portable archive
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/package-portable.ps1
       - name: Upload installer diagnostics
         if: always() && runner.os == 'Windows'
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer-verification
-          path: test-results/installer-verification.json
+          path: |
+            test-results/installer-verification.json
+            test-results/native-startup-verification.json
+            test-results/portable-verification.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
@@ -99,5 +121,8 @@ jobs:
             src-tauri/target/release/easym
             Docs/dependencies/
             test-results/installer-verification.json
+            test-results/native-startup-verification.json
+            test-results/portable-verification.json
             src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/portable/*.zip
           if-no-files-found: error

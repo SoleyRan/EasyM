@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
 import { defaultRecipe } from '../core/images'
 import { materializeResources, saveDocument } from './storage'
+import * as historyResources from './history-resources'
 
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: vi.fn() }))
 const instance = { instanceId: 'img-one', documentId: null, sourcePath: 'assets/.originals/img-one-source.png', displayPath: 'assets/img-one-v1.png', sourceHash: 'sha256:source', recipe: defaultRecipe(), referenceRevision: 1 }
@@ -10,6 +11,14 @@ const file = { id: 'authorized-id', name: 'note.md', revision: 'sha256:old' }
 beforeEach(() => { vi.mocked(invoke).mockReset() })
 
 describe('native resource closure', () => {
+  it('still saves committed text when history resource analysis fails', async () => {
+    vi.spyOn(historyResources, 'collectHistoryResources').mockRejectedValueOnce(new Error('history_analysis_failed'))
+    vi.mocked(invoke).mockResolvedValue({ id: file.id, name: file.name, revision: 'sha256:new', warning: '正文已保存，版本快照未完成' })
+    const result = await saveDocument(file, new TextEncoder().encode('preserved body'))
+    expect(result?.destination).toBe('disk')
+    expect(invoke).toHaveBeenCalledWith('save_document', expect.objectContaining({ historyCollectionError: true, historyReferences: undefined, bytes: Array.from(new TextEncoder().encode('preserved body')) }))
+    vi.restoreAllMocks()
+  })
   it('hydrates source and display bytes for draft recovery and save-as', async () => {
     vi.mocked(invoke).mockResolvedValue({ bytes: [1, 2, 3], mime: 'image/png' })
     const input = { assets: {}, instances: [instance] }

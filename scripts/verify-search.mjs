@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { fillSource } from './source-test-utils.mjs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { chromium } from 'playwright'
-import { serveProduction } from './serve-production.mjs'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 
 const server = await serveProduction()
 let browser
@@ -20,6 +20,7 @@ try {
   page.on('dialog', dialog => { void dialog.dismiss() })
   const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
   const body = () => editor.evaluate((element) => [...element.querySelectorAll('.cm-line')].map((line) => line.textContent).join('\n'))
+  await acknowledgeGuide(page)
   await page.goto(server.url)
   await fillSource(page, '中文 word\nWORD 中文\nwords')
   await page.getByRole('button', { name: '查找 / 替换', exact: true }).click()

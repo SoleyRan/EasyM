@@ -1,0 +1,255 @@
+{
+  "recordedAt": "2026-10-13T04:08:51.353Z",
+  "stage": "v0.3-step7",
+  "version": "0.3.0",
+  "source": {
+    "branch": "feature/v0.3",
+    "baseCommit": "67d45fd9179e935d58c420a5383cf6564aee8878",
+    "uncommittedStep7Changes": true,
+    "sourceTree": {
+      "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
+      "files": 467,
+      "sha256": "51ab6eb3e9529cae2f15ee0142a6784eab84cd70381074ad743d853b404480f5"
+    }
+  },
+  "localDevelopmentAcceptancePassed": true,
+  "formalReleaseReady": false,
+  "checks": {
+    "versionAgreement": true,
+    "typecheck": true,
+    "productionBuild": true,
+    "frontend": {
+      "files": 31,
+      "tests": 173,
+      "maxWorkers": 2
+    },
+    "windowsRust": {
+      "tests": 50,
+      "locked": true,
+      "offline": true
+    },
+    "regression": {
+      "passed": true,
+      "groups": 15,
+      "distIndexSha256": "64175a6202a5e8e69c888fbd2c6532d2154b1506c860bf29eaf54424dc65d7f4"
+    },
+    "slowInitialization": {
+      "search-slow-verification.json": {
+        "stage": "v0.2-step-1",
+        "verifiedAt": "2026-10-13T03:51:14.679Z",
+        "browser": "156.0.8078.4",
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "Chinese and emoji source offsets",
+          "literal query and replacement",
+          "case and whole word",
+          "forward/reverse wraparound",
+          "single/all replacement undo",
+          "Ctrl+F/Enter/Shift+Enter/Escape",
+          "search input composition guard (synthetic events)",
+          "independent tab queries",
+          "bounded and superseded worker counts",
+          "split source and preview navigation"
+        ]
+      },
+      "templates-slow-verification.json": {
+        "stage": "v0.2-step-4",
+        "verifiedAt": "2026-10-13T03:51:45.323Z",
+        "browser": "156.0.8078.4",
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "EM template entry",
+          "initial focus, focus trap, Escape/cancel and return focus",
+          "blank/meeting/project templates",
+          "literal Chinese/emoji/dollar/nested placeholder substitutions",
+          "script text does not execute",
+          "independent tabs and preserved source",
+          "untouched blank closes without prompt",
+          "generated draft survives reload",
+          "first browser download preserves exact Markdown",
+          "four themes and compact dialog layout"
+        ]
+      }
+    },
+    "word": {
+      "version": "16.0.20430.20146",
+      "samples": 5,
+      "passed": true,
+      "scope": "COM open/repaginate/edit/reopen checks; not WPS/LibreOffice visual acceptance"
+    },
+    "nativeStartup": {
+      "verifiedAt": "2026-10-13T03:53:15.4507082Z",
+      "version": "0.3.0",
+      "executableSha256": "b008ef54f3a533b75178c12aac6f0b87fdc757ea2e2a13697fb168982eb6b98c",
+      "isolatedProfile": true,
+      "launched": true,
+      "gracefulClose": true,
+      "passed": true,
+      "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+    },
+    "portable": {
+      "verifiedAt": "2026-10-13T03:54:13.8592582Z",
+      "version": "0.3.0",
+      "archive": "src-tauri/target/release/bundle/portable/EasyM-0.3.0-windows-x64-dev.zip",
+      "bytes": 4936349,
+      "entries": 245,
+      "sha256": "cb9ab148734608efb452a54034064e103bb0b2b92e201338801ff2c7357f8f41",
+      "executableSha256": "b008ef54f3a533b75178c12aac6f0b87fdc757ea2e2a13697fb168982eb6b98c",
+      "sampleVersion": "v0.3",
+      "allStagedFileHashesVerified": true,
+      "passed": true
+    },
+    "packageMetadata": {
+      "verifiedAt": "2026-10-13T04:07:35.6088133Z",
+      "artifacts": [
+        {
+          "path": "src-tauri/target/release/easym.exe",
+          "bytes": 11938304,
+          "productName": "EasyM",
+          "productVersion": "0.3.0",
+          "signature": "NotSigned",
+          "sha256": "b008ef54f3a533b75178c12aac6f0b87fdc757ea2e2a13697fb168982eb6b98c"
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/EasyM_0.3.0_x64-setup.exe",
+          "bytes": 3572719,
+          "productName": "EasyM",
+          "productVersion": "0.3.0",
+          "signature": "NotSigned",
+          "sha256": "b321da5ae0d2b751f16356b3cdefe226d4fe87d6aeec1f3de0775f19a24906fb"
+        }
+      ],
+      "installerInstallationTested": false,
+      "localNSISTools": true,
+      "cacheSourceSha1": "EF7FF767E5CBD9EDD22ADD3A32C9B8F4500BB10D",
+      "pluginSourceSha1": "75197FEE3C6A814FE035788D1C34EAD39349B860"
+    }
+  },
+  "licenses": [
+    {
+      "target": "x86_64-pc-windows-msvc",
+      "dependencies": 430,
+      "missingLicenseTexts": [],
+      "completeLicenseTexts": true
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "dependencies": 526,
+      "missingLicenseTexts": [],
+      "completeLicenseTexts": true
+    },
+    {
+      "target": "aarch64-apple-darwin",
+      "dependencies": 425,
+      "missingLicenseTexts": [
+        "cargo:block2@0.6.2",
+        "cargo:dispatch2@0.3.1",
+        "cargo:objc2-app-kit@0.3.2",
+        "cargo:objc2-core-foundation@0.3.2",
+        "cargo:objc2-core-graphics@0.3.2",
+        "cargo:objc2-encode@4.1.0",
+        "cargo:objc2-exception-helper@0.1.1",
+        "cargo:objc2-foundation@0.3.2",
+        "cargo:objc2-io-surface@0.3.2",
+        "cargo:objc2-quartz-core@0.3.2",
+        "cargo:objc2-web-kit@0.3.2",
+        "cargo:objc2@0.6.5"
+      ],
+      "completeLicenseTexts": false
+    }
+  ],
+  "logHashes": {
+    "typecheck": {
+      "bytes": 180,
+      "sha256": "a98d1fcff22d2f53f8280646f522c9c25524be7903d0e7eef2597402745fba08"
+    },
+    "frontend-tests": {
+      "bytes": 5773,
+      "sha256": "07649a583bc7eb91453dd9b6a8c9d4d69a9e70dd7cd8a263b77ef871adc08148"
+    },
+    "build": {
+      "bytes": 8750,
+      "sha256": "7326a21fe31d60db1686ac82806ea3d71cb7a770bf2b077445219f88493ff982"
+    },
+    "regression": {
+      "bytes": 8370,
+      "sha256": "8e858ed2d21e459761ed644ec7286a2f70b78843f47e6eeda85cdb4f0a3c5d89"
+    },
+    "rust-tests": {
+      "bytes": 5157,
+      "sha256": "b3e59903ec2e583fb073a7d77470a7b9c5df0e3a69ec199c76cfbd9894dd0ac5"
+    },
+    "release": {
+      "bytes": 119,
+      "sha256": "66c306015a2da2cc7f9c223db2e2b76ccdea585e118a7dcdc94ae0f017e34faf"
+    },
+    "search-slow": {
+      "bytes": 115,
+      "sha256": "9458f4868147eb2d45cf0a5ce463ba4fb2d30218ac0e01aaa99910ede076d6af"
+    },
+    "templates-slow": {
+      "bytes": 107,
+      "sha256": "120c3d2c82fb1688c93df0a498a166d2c28b46b89d17fd8a7bc6fd1537ab5152"
+    },
+    "native-startup": {
+      "bytes": 368,
+      "sha256": "319e19e308486833e212062411cb56525850b6d39192cf9a262edf67d6cd789d"
+    },
+    "bundle": {
+      "bytes": 504,
+      "sha256": "177fa57de6172fd6a2b68e47f0831203e1b42375670a8791676f99f72038c197"
+    },
+    "portable": {
+      "bytes": 554,
+      "sha256": "e62ebc7fd78aabc0575019a509a1fbe2104bc0bef3d060758aebef7bfed9ec6f"
+    }
+  },
+  "evidenceFiles": [
+    "batch-images-verification.json",
+    "browser-verification.json",
+    "context-menu-verification.json",
+    "dependency-inventory-linux.json",
+    "dependency-inventory-macos.json",
+    "dependency-inventory-windows.json",
+    "docx-library-verification.json",
+    "docx-ui-verification.json",
+    "docx-verification.json",
+    "export-verification.json",
+    "history-diff-performance.json",
+    "history-verification.json",
+    "live-preview-verification.json",
+    "native-startup-verification.json",
+    "performance-verification.json",
+    "portable-verification.json",
+    "regression-verification.json",
+    "search-slow-verification.json",
+    "search-verification.json",
+    "templates-slow-verification.json",
+    "templates-verification.json",
+    "windows-build.json",
+    "word-verification.json",
+    "workspace-verification.json",
+    "writing-verification.json"
+  ],
+  "ci": {
+    "latestStep7Run": null,
+    "status": "pending_commit_and_push",
+    "configured": [
+      "Linux frontend and production regression",
+      "Windows/macOS/Linux locked Rust tests and desktop build",
+      "platform license inventories and version agreement",
+      "Windows isolated startup, installer install/remove, portable byte verification"
+    ]
+  },
+  "pending": [
+    "Latest remote CI and Windows isolated install/remove",
+    "Windows real IME and native open/save/export/print dialogs",
+    "Native end-to-end history and batch images on user hardware",
+    "WPS/LibreOffice specified versions",
+    "macOS/Linux GUI and assistive technology",
+    "macOS 12 missing full license texts and Apple SDK distribution review",
+    "distribution license review, signing and notarization"
+  ]
+}

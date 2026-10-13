@@ -1,0 +1,341 @@
+{
+  "step": "3C",
+  "verifiedAt": "2026-10-12T10:05:41.238Z",
+  "baseCommit": "3bca0a3",
+  "branch": "feature/v0.3",
+  "sourceState": "uncommitted step 3C on recorded base",
+  "applicationVersion": "0.2.0",
+  "newInstallerBuilt": false,
+  "status": "implementation-and-available-acceptance-passed; manual acceptance remains",
+  "results": {
+    "typecheck": true,
+    "build": true,
+    "frontendTestFiles": 25,
+    "frontendUnitTests": 152,
+    "regressionChecks": 13,
+    "diffCheck": true,
+    "rustRerun": false,
+    "rustEvidence": "v0.3-step3b-verification.json: 27 passed; no Rust or dependency changes in 3C"
+  },
+  "browserAcceptance": {
+    "stage": "v0.3-step3c",
+    "verifiedAt": "2026-10-12T10:00:22.938Z",
+    "platform": "win32",
+    "passed": true,
+    "checks": [
+      "lazy loading; real Worker export; Letter/compact; current unsaved source, dirty and undo preserved; focus trap",
+      "missing/remote image block; explicit placeholder consent; source warning navigation; no remote fetch",
+      "other tabs remain readable during preflight; returning resumes dialog; target stays locked",
+      "preflight/generation cancellation terminates Worker; generation error releases lock; Escape restores EM focus",
+      "real imported current display PNG embedded; source unchanged",
+      "frozen office sample exported through production menu using imported display image",
+      "preflight layout in all four themes",
+      "large document and 100 image references; export time and sampled browser-tree memory recorded",
+      "unsaved source/image draft recoverable after reload"
+    ],
+    "machine": {
+      "osRelease": "10.0.26200",
+      "cpu": "Intel(R) Core(TM) 5 220H",
+      "logicalCpus": 16,
+      "memoryGiB": 31.7
+    },
+    "browser": "156.0.8078.4",
+    "performance": {
+      "sourceUtf8Bytes": 3652113,
+      "imageReferences": 100,
+      "preflightMs": 4067,
+      "generateAndDownloadMs": 1984,
+      "memory": {
+        "metric": "summed browser-tree RSS/Windows working set; sampled peak is a lower bound, shared pages may be counted twice",
+        "baselineBytes": 406446080,
+        "peakBytes": 753537024,
+        "samples": 16,
+        "sampleIntervalMs": 500
+      }
+    },
+    "pending": [
+      "native save-dialog UI overwrite/cancel and occupied targets",
+      "Word/WPS/LibreOffice pagination and editability",
+      "macOS/Linux GUI and assistive technology"
+    ]
+  },
+  "wordAcceptance": {
+    "verifiedAt": "2026-10-12T10:03:47.0764642Z",
+    "passed": true,
+    "application": "Microsoft Word",
+    "version": "16.0",
+    "checks": [
+      {
+        "sample": "letter-compact",
+        "pages": 1,
+        "tables": 1,
+        "inlineImages": 0,
+        "opened": true,
+        "editedAndReopened": true,
+        "pdfBytes": 194255
+      },
+      {
+        "sample": "placeholders",
+        "pages": 1,
+        "tables": 0,
+        "inlineImages": 0,
+        "opened": true,
+        "editedAndReopened": true,
+        "pdfBytes": 178791
+      },
+      {
+        "sample": "display-image",
+        "pages": 1,
+        "tables": 0,
+        "inlineImages": 1,
+        "opened": true,
+        "editedAndReopened": true,
+        "pdfBytes": 145028
+      },
+      {
+        "sample": "office",
+        "pages": 2,
+        "tables": 1,
+        "inlineImages": 2,
+        "opened": true,
+        "editedAndReopened": true,
+        "pdfBytes": 4313131
+      },
+      {
+        "sample": "multipage",
+        "pages": 25,
+        "tables": 2,
+        "inlineImages": 12,
+        "opened": true,
+        "editedAndReopened": true,
+        "pdfBytes": 437152
+      }
+    ],
+    "build": "16.0.20430",
+    "fileVersion": "16.0.20430.20146"
+  },
+  "regression": {
+    "version": "0.2.0",
+    "startedAt": "2026-10-12T10:00:10.417Z",
+    "browser": "chromium",
+    "passed": true,
+    "checks": [
+      {
+        "script": "workers",
+        "passed": true,
+        "durationMs": 196
+      },
+      {
+        "script": "docx-library",
+        "passed": true,
+        "durationMs": 4802
+      },
+      {
+        "script": "docx",
+        "passed": true,
+        "durationMs": 7183
+      },
+      {
+        "script": "docx-ui",
+        "passed": true,
+        "durationMs": 27208
+      },
+      {
+        "script": "browser",
+        "passed": true,
+        "durationMs": 5717
+      },
+      {
+        "script": "writing",
+        "passed": true,
+        "durationMs": 61341
+      },
+      {
+        "script": "search",
+        "passed": true,
+        "durationMs": 6255
+      },
+      {
+        "script": "live-preview",
+        "passed": true,
+        "durationMs": 17065
+      },
+      {
+        "script": "workspace",
+        "passed": true,
+        "durationMs": 2174
+      },
+      {
+        "script": "templates",
+        "passed": true,
+        "durationMs": 4798
+      },
+      {
+        "script": "export",
+        "passed": true,
+        "durationMs": 4139
+      },
+      {
+        "script": "context-menu",
+        "passed": true,
+        "durationMs": 5590
+      },
+      {
+        "script": "performance",
+        "passed": true,
+        "durationMs": 13348
+      }
+    ],
+    "distIndexSha256": "cf2d9301e0e741a338d267f3be1afb320703a36271a3aaf339241b84085c16d5",
+    "finishedAt": "2026-10-12T10:02:50.239Z"
+  },
+  "performance": {
+    "verifiedAt": "2026-10-12T10:02:37.252Z",
+    "machine": {
+      "os": "win32",
+      "release": "10.0.26200",
+      "cpu": "Intel(R) Core(TM) 5 220H",
+      "logicalCpus": 16,
+      "memoryGiB": 31.7
+    },
+    "cases": [
+      {
+        "name": "5 MiB text",
+        "bytes": 5242880,
+        "openMs": 1730,
+        "inputSamples": 40,
+        "inputEventToNextFrameP95Ms": 18,
+        "targetMs": 50,
+        "targetMet": true,
+        "sourceHighlightLimited": false
+      },
+      {
+        "name": "100 KiB single line",
+        "bytes": 102400,
+        "openMs": 94,
+        "inputSamples": 40,
+        "inputEventToNextFrameP95Ms": 23.4,
+        "targetMs": 50,
+        "targetMet": true,
+        "sourceHighlightLimited": true,
+        "fullPreviewAndUndoVerified": true
+      },
+      {
+        "name": "100 local 800×600 images",
+        "restoreAndDecodeMs": 400,
+        "imageCount": 100,
+        "allDecoded": true
+      },
+      {
+        "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+        "boundaryBytes": 20971520,
+        "accepted": {
+          "durationMs": 41.9,
+          "width": 800,
+          "height": 600
+        },
+        "rejected": {
+          "durationMs": 16,
+          "error": "图片文件超过 20 MB。"
+        }
+      }
+    ],
+    "browser": "156.0.8078.4"
+  },
+  "visualReview": {
+    "tool": "Poppler rasterization and direct PNG inspection",
+    "uiThemes": [
+      "light",
+      "dark",
+      "paper",
+      "forest"
+    ],
+    "officePages": [
+      1,
+      2
+    ],
+    "multipageContactSheetPages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25
+    ],
+    "multipageDetailPages": [
+      15,
+      19,
+      23
+    ],
+    "result": "No visible clipping, missing glyphs, unexpected blank pages or missing table borders in reviewed fixtures; repeated table headers, code indentation and image proportions retained",
+    "extractedMultipageCodeLines": 200,
+    "extractedMultipageTableRows": 80,
+    "officePdfTextLengths": [
+      274,
+      214
+    ]
+  },
+  "pending": [
+    "WPS and LibreOffice: explicit versions, pagination and editability",
+    "native save dialog UI: overwrite, cancel and occupied target",
+    "macOS/Linux GUI, real IME and assistive technology",
+    "final packaging and three-platform CI"
+  ],
+  "knownLimits": [
+    "COM/structure and fixed-fixture visual checks are not universal layout guarantees.",
+    "Browser memory sums working sets/RSS; shared pages can be double-counted and sampled peak is a lower bound.",
+    "Raw browser report lists all office applications as pending; the separate Word report completes Word only.",
+    "Existing React act and large chunk warnings remain.",
+    "Native overwrite retains the already documented final-check/replace race window."
+  ],
+  "sourceSha256": {
+    "src/App.tsx": "91bec9f56da7bd206b250cad86501c8b23cc59ce4b3af1b921e243935410031f",
+    "src/App.test.ts": "7d5d4175e2e541146094c503971c887a7b84008e3d3d226500270e69ddad4e1f",
+    "src/editor/DocumentEditor.tsx": "ddf5f1dd8ba5bc82d4e7e4e84521d5b4b597c2cc5349a927ae8e388050ce66e9",
+    "src/editor/DocxDialog.tsx": "77d79ec99ca20f978485f4cff40fd4a06f592e1a23da486335e05f58e22c95fc",
+    "src/editor/themes.css": "1abaf413e7c7e9eb3abc438b13b5d7d0035c52c5c08003a7ea354c463bea3f3a",
+    "src/platform/docx.ts": "a018d075548db3f91fb59076a315e10ea63c856386a20bd122068916d5fc4139",
+    "src/platform/docx-worker.ts": "2261f40377f5c08c03cc2cbe97e3294d9f1544d4d34ca1f31acda17b09338525",
+    "scripts/verify-docx-ui.mjs": "41bf0bad0a95ee158277ec6840a5fb2e37f69c0e1b0c416f5c62023422bc094d",
+    "scripts/verify-docx-word.ps1": "f9aa3d00e52fddd5844ec215a27087b606885bbcc6cea1221a77a1df3c1b6fd0",
+    "scripts/production-workers.mjs": "d803dcf6359e3fe17c562b7150c481618949c5197f1e9161847f6a685fe74389",
+    "scripts/verify-workers.mjs": "e744bccb668eadfcbd21d4302071a021dbc94e1488ea99fa2b36445c8aa6e233",
+    "scripts/verify-browser.mjs": "378b1749766cb33fdabca9088049522755c2ef7302d5d1a4ad5445b7aa5e2da0",
+    "scripts/verify-performance.mjs": "285889d4d8b7f317a35fcf6fed092fb2531f443031bebdc1f136d82f9051b440",
+    "scripts/verify-regression.mjs": "61fd21d370225fe8eb51109285feb9aa3f73ddd46f1ce0fc82e9a160533e18e6",
+    "package.json": "c277716f19f618afe64b105d0783c4ea4fc3bfcde70d1159d9f7b8fc787cd697",
+    "pnpm-lock.yaml": "2bdd266a7dae5d1e2828b921cf4d8cd20cb385626af0534dc501117e2d38876c",
+    ".github/workflows/ci.yml": "995812f18d0360a9edca9433dd5ec36656b2fdee1a46163eceed7ed6e636c5ba"
+  },
+  "artifactSha256": {
+    "test-results/docx-ui/letter-compact.docx": "ec9ecc7e65355622825578990f9bdc0634604aed0f660a87d0d507657fe72f4c",
+    "test-results/docx-ui/letter-compact-word.pdf": "5e3b4f0814e2b7c76c7507892231247bf7f4d534ccc7eac405d88e543f10612b",
+    "test-results/docx-ui/placeholders.docx": "fd3a53bb23780f71adaa3fe6c8ab5fdbd7ae11334f05683a798bf2345c409c81",
+    "test-results/docx-ui/placeholders-word.pdf": "150fa84659a8b474d6c55fc2346ff42cde632c8438b7d2100995f934f5a8a627",
+    "test-results/docx-ui/display-image.docx": "1d3571362c2552462cd04e06cc8bc54efaba38883e659d0146a988a00113dfec",
+    "test-results/docx-ui/display-image-word.pdf": "0bc44467015ac54cc3fb71f7fde4c32f9235cad9fafd6827bd9971ac56300c5d",
+    "test-results/docx-ui/office.docx": "2029fe347f1b372a359051ead28565a05ddea9d0ccca9a2d8db05688ec4052dd",
+    "test-results/docx-ui/office-word.pdf": "3e0e45bd90c2429e0035db607eefe2840f50a87372630a7e10b45662f32d5a7e",
+    "test-results/docx-ui/multipage.docx": "4b8a7ddc888af3c2f30a368580ee93fcd67dfac098c4cf31aa5a230eb44cc580",
+    "test-results/docx-ui/multipage-word.pdf": "56fa36ffa514480daf35e5c2e312a5c49c9f9fa5f435342bd32d30ec81e84a7d"
+  }
+}
