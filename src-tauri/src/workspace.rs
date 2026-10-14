@@ -53,6 +53,62 @@ fn root(workspaces: &Workspaces, id: &str) -> Result<PathBuf, String> {
     workspaces.0.lock().map_err(|_| "io_failed")?.get(id).cloned().ok_or_else(|| "permission_denied".into())
 }
 
+#[derive(Default, Serialize)]
+pub struct FilenameReport { pub paths: Vec<String>, pub scanned: usize, pub skipped: usize, pub limited: bool, pub cancelled: bool }
+
+fn ignored_directory(name: &str) -> bool {
+    name.starts_with('.') || matches!(name, "node_modules" | "target" | "dist" | "build" | "coverage" | "test-results")
+}
+
+// Filename-only discovery: count every directory entry, never read document bytes.
+fn search_filenames(root: &Path, query: &str, cancelled: &AtomicBool) -> Result<FilenameReport, String> {
+    if query.len() > 1024 || query.contains(['\n', '\r', '\0']) { return Err("invalid_data".into()); }
+    let needles: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
+    let mut report = FilenameReport::default();
+    let mut stack = vec![(String::new(), 0usize)];
+    'scan: while let Some((relative, depth)) = stack.pop() {
+        if cancelled.load(Ordering::Relaxed) { report.cancelled = true; break; }
+        let directory = if relative.is_empty() { root.to_path_buf() } else { match safe_existing(root, &relative) { Ok(value) => value, Err(_) => { report.skipped += 1; continue; } } };
+        let entries = match fs::read_dir(directory) { Ok(value) => value, Err(_) => { report.skipped += 1; continue; } };
+        for item in entries {
+            if cancelled.load(Ordering::Relaxed) { report.cancelled = true; break 'scan; }
+            if report.scanned >= 10_000 { report.limited = true; break 'scan; }
+            report.scanned += 1;
+            let item = match item { Ok(item) => item, Err(_) => { report.skipped += 1; continue; } };
+            let name = item.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') { continue; }
+            let info = match item.file_type() { Ok(value) => value, Err(_) => { report.skipped += 1; continue; } };
+            if info.is_symlink() { report.skipped += 1; continue; }
+            let path = if relative.is_empty() { name.clone() } else { format!("{relative}/{name}") };
+            if info.is_dir() && ignored_directory(&name) { continue; }
+            if !info.is_dir() && (!info.is_file() || kind(&item.path()) != Some("document")) { continue; }
+            if safe_existing(root, &path).is_err() { report.skipped += 1; continue; }
+            if info.is_dir() {
+                if depth >= 32 { report.limited = true; continue; }
+                stack.push((path, depth + 1));
+            } else if needles.iter().all(|needle| path.to_lowercase().contains(needle)) {
+                if report.paths.len() >= 100 { report.limited = true; break 'scan; }
+                report.paths.push(path);
+            }
+        }
+    }
+    report.paths.sort_by_key(|path| path.to_lowercase());
+    Ok(report)
+}
+
+#[tauri::command]
+pub async fn search_workspace_filenames(state: State<'_, Workspaces>, id: String, query: String, request_id: String) -> Result<FilenameReport, String> {
+    let workspaces = state.inner().clone();
+    let directory = root(&workspaces, &id)?;
+    let cancel = Arc::new(AtomicBool::new(false));
+    { let mut tasks = workspaces.1.lock().map_err(|_| "io_failed")?;
+      if request_id.is_empty() || request_id.len() > 128 || tasks.contains_key(&request_id) || tasks.len() >= 8 { return Err("quota_exceeded".into()); }
+      tasks.insert(request_id.clone(), cancel.clone()); }
+    let result = tauri::async_runtime::spawn_blocking(move || search_filenames(&directory, &query, &cancel)).await.map_err(|_| "io_failed".to_string());
+    workspaces.1.lock().map_err(|_| "io_failed")?.remove(&request_id);
+    result?
+}
+
 #[tauri::command]
 pub async fn open_workspace(state: State<'_, Workspaces>) -> Result<Option<Workspace>, String> {
     let workspaces = state.inner().clone();
@@ -163,6 +219,55 @@ pub async fn read_workspace_image(state: State<'_, Workspaces>, id: String, rela
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn filename_search_uses_paths_only_and_ignores_build_private_and_non_markdown() {
+        let temp = tempfile::tempdir().unwrap(); let root = temp.path().canonicalize().unwrap();
+        fs::create_dir(root.join("中文 notes")).unwrap();
+        // Invalid UTF-8 body is still discoverable: filename search never reads it.
+        fs::write(root.join("中文 notes/同名.MARKDOWN"), [0xff, 0x00]).unwrap();
+        fs::write(root.join("同名.md"), "unrelated body").unwrap();
+        fs::write(root.join("body.md"), "同名").unwrap();
+        fs::write(root.join("同名.txt"), "").unwrap();
+        for name in [".private", "node_modules", "target", "dist", "build", "coverage", "test-results"] {
+            fs::create_dir(root.join(name)).unwrap(); fs::write(root.join(name).join("同名.md"), "").unwrap();
+        }
+        let report = search_filenames(&root, "同名", &AtomicBool::new(false)).unwrap();
+        assert_eq!(report.paths, vec!["中文 notes/同名.MARKDOWN", "同名.md"]);
+        assert_eq!(search_filenames(&root, "中文 NOTES", &AtomicBool::new(false)).unwrap().paths, vec!["中文 notes/同名.MARKDOWN"]);
+        assert_eq!(fs::read(root.join("中文 notes/同名.MARKDOWN")).unwrap(), vec![0xff, 0x00]);
+        assert!(search_filenames(&root, "\0", &AtomicBool::new(false)).is_err());
+        assert!(search_filenames(&root, &"a".repeat(1025), &AtomicBool::new(false)).is_err());
+    }
+
+    #[test]
+    fn filename_search_bounds_results_entries_depth_and_cancels() {
+        let temp = tempfile::tempdir().unwrap(); let root = temp.path().canonicalize().unwrap();
+        for index in 0..101 { fs::write(root.join(format!("note{index}.md")), "").unwrap(); }
+        let report = search_filenames(&root, "note", &AtomicBool::new(false)).unwrap();
+        assert_eq!(report.paths.len(), 100); assert!(report.limited);
+        let report = search_filenames(&root, "", &AtomicBool::new(true)).unwrap();
+        assert!(report.cancelled); assert_eq!(report.scanned, 0);
+        let mut deep = root.clone();
+        for _ in 0..33 { deep.push("d"); fs::create_dir(&deep).unwrap(); }
+        fs::write(deep.join("deep.md"), "").unwrap();
+        let report = search_filenames(&root, "deep", &AtomicBool::new(false)).unwrap();
+        assert!(report.limited); assert!(report.paths.is_empty());
+        for index in 0..10_001 { fs::write(root.join(format!("f{index}.txt")), "").unwrap(); }
+        let report = search_filenames(&root, "absent", &AtomicBool::new(false)).unwrap();
+        assert_eq!(report.scanned, 10_000); assert!(report.limited);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn filename_search_does_not_follow_directory_or_file_links() {
+        let temp = tempfile::tempdir().unwrap(); let outside = tempfile::tempdir().unwrap();
+        fs::write(outside.path().join("secret.md"), "").unwrap();
+        std::os::unix::fs::symlink(outside.path(), temp.path().join("directory")).unwrap();
+        std::os::unix::fs::symlink(outside.path().join("secret.md"), temp.path().join("secret.md")).unwrap();
+        let report = search_filenames(&temp.path().canonicalize().unwrap(), "", &AtomicBool::new(false)).unwrap();
+        assert!(report.paths.is_empty()); assert_eq!(report.skipped, 2);
+    }
 
     #[test]
     fn lists_supported_files_lazily_and_excludes_private_directories() {

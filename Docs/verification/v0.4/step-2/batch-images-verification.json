@@ -1,0 +1,43 @@
+{
+  "stage": "v0.3-step5",
+  "verifiedAt": "2026-10-13T12:26:07.730Z",
+  "passed": true,
+  "checks": [
+    "saved/history capability guards; missing/remote disabled; transparency requires explicit JPEG background; unsafe metadata retention fails; original body preserved",
+    "conflict/quota preserve original; commit blocks Escape; distinct shared-reference instances and titles; original asset bytes unchanged; one undo/redo; EXIF removed",
+    "batch resize followed by single-image crop uses correct immutable 400x200 source geometry, not prior recipe twice",
+    "generation cancellation terminates worker and releases previews; Escape returns EM focus; dialog keyboard cycle; four theme captures",
+    "persisted body and image recipes reload without encoding; 101 shared instances enforce 100 selected; actual 100-worker generation timing recorded",
+    "keyboard EM/export navigation, separator arrows and ARIA width, read-only reading enter/exit focus, prefers-reduced-motion"
+  ],
+  "scope": "Production UI and actual image/history workers; desktop IPC fixture. Native batch persistence and recovery covered separately by Rust filesystem tests.",
+  "machine": {
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) 5 220H",
+    "memoryGiB": 31.7
+  },
+  "browser": "156.0.8078.4",
+  "workerQuality": {
+    "lowBytes": 22734,
+    "highBytes": 141069
+  },
+  "batchPerformance": {
+    "instances": 100,
+    "sourceWidth": 400,
+    "sourceHeight": 200,
+    "outputWidth": 100,
+    "outputHeight": 50,
+    "generateMs": 3225,
+    "frameSamples": 200,
+    "frameIntervalP95Ms": 22.799999952316284,
+    "memory": {
+      "metric": "sum of Chromium process RSS/Windows working set; sampled peak is a lower bound and shared pages may be counted multiple times",
+      "baselineBytes": 373952512,
+      "peakBytes": 403623936,
+      "samples": 4
+    },
+    "scope": "Wall time for actual serial worker generation, hashes and UI. Fixture input is shared and small; this is not a large-photo/WebView peak guarantee."
+  },
+  "finishedAt": "2026-10-13T12:26:19.028Z"
+}

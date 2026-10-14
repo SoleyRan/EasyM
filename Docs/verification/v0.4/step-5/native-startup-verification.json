@@ -1,0 +1,10 @@
+{
+  "verifiedAt": "2026-10-14T02:43:54.0245197Z",
+  "version": "0.4.0",
+  "executableSha256": "7fbfe385e12579013a8ad043202cc04ecef028cd8a726bf7dc18fa3959372835",
+  "isolatedProfile": true,
+  "launched": true,
+  "gracefulClose": true,
+  "passed": true,
+  "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+}

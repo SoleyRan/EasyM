@@ -1,22 +1,37 @@
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+import { OverlayPortal, useOverlays } from './Overlay'
+import type { OverlayLease } from '../core/overlays'
+import { positionOverlay } from '../core/overlays'
 
-export interface ContextAction { label: string; disabled?: boolean; checked?: boolean; run(): void | Promise<void> }
+export interface ContextAction { label: string; disabled?: boolean; checked?: boolean | 'mixed'; run(): void | Promise<void> }
 type OpenMenu = (event: { preventDefault(): void; stopPropagation(): void; clientX: number; clientY: number }, actions: ContextAction[]) => void
 const MenuContext = createContext<OpenMenu>(() => undefined)
 export const useContextMenu = () => useContext(MenuContext)
 
 export function ContextMenuProvider({ children }: { children: ReactNode }) {
+  const { manager } = useOverlays()
+  const lease = useRef<OverlayLease | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; actions: ContextAction[] } | null>(null)
   const [error, setError] = useState('')
   const element = useRef<HTMLDivElement>(null)
   const returnFocus = useRef<HTMLElement | null>(null)
-  const restore = () => { const target = returnFocus.current; if (target?.isConnected) target.focus({ preventScroll: true }) }
+  const restore = () => {
+    if (manager.top() && manager.top()?.id !== lease.current?.id) return
+    const target = returnFocus.current
+    if (target?.isConnected && !target.closest('[inert], [hidden]')) target.focus({ preventScroll: true })
+  }
   const open = useCallback<OpenMenu>((event, actions) => {
     event.preventDefault(); event.stopPropagation(); setError('')
+    const modal = (event as unknown as { target?: HTMLElement }).target?.closest?.('[role=dialog]')
+    const parent = modal ? Number(modal.getAttribute('data-overlay-id')) : undefined
+    lease.current?.release()
+    lease.current = manager.open('menu', () => { setMenu(null); restore() }, parent)
+    if (!lease.current) { setMenu(null); return }
     returnFocus.current = document.activeElement as HTMLElement | null
     setMenu(actions.length ? { x: event.clientX, y: event.clientY, actions } : null)
-  }, [])
+  }, [manager])
+  useLayoutEffect(() => { if (!menu) { lease.current?.release(); lease.current = null } }, [menu])
+  useEffect(() => () => { lease.current?.release() }, [])
   // Suppress WebView/browser menus everywhere. Text fields retain useful edit
   // actions, even inside dialogs or the CodeMirror search panel.
   useEffect(() => {
@@ -63,9 +78,9 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
   useLayoutEffect(() => {
     const node = element.current
     if (!menu || !node) return
-    const box = node.getBoundingClientRect(), gap = 6
-    node.style.left = `${Math.max(gap, Math.min(menu.x, window.innerWidth - box.width - gap))}px`
-    node.style.top = `${Math.max(gap, Math.min(menu.y, window.innerHeight - box.height - gap))}px`
+    const position = positionOverlay({ left: menu.x, right: menu.x, top: menu.y, bottom: menu.y }, node.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight })
+    node.style.left = `${position.left}px`
+    node.style.top = `${position.top}px`
     ;(node.querySelector<HTMLButtonElement>('button:not(:disabled)') ?? node).focus({ preventScroll: true })
   }, [menu])
   useEffect(() => {
@@ -82,7 +97,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     }
   }, [menu])
   return <MenuContext.Provider value={open}>{children}
-    {menu && createPortal(<div ref={element} className="context-menu" role="menu" aria-label="右键菜单" tabIndex={-1} style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onKeyDown={event => {
+    {menu && <OverlayPortal><div ref={element} className="context-menu" role="menu" aria-label="右键菜单" tabIndex={-1} style={{ left: menu.x, top: menu.y }} onContextMenu={event => event.preventDefault()} onKeyDown={event => {
       if (event.key === 'Escape' || event.key === 'Tab') { if (event.key === 'Escape') event.preventDefault(); event.stopPropagation(); setMenu(null); restore(); return }
       if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
       event.preventDefault(); event.stopPropagation()
@@ -92,7 +107,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     }}>{menu.actions.map(action => <button key={action.label} role={action.checked === undefined ? 'menuitem' : 'menuitemcheckbox'} aria-checked={action.checked} disabled={action.disabled} onClick={() => {
       setMenu(null); restore()
       void Promise.resolve().then(action.run).catch(err => setError(`右键操作失败：${String(err)}`))
-    }}>{action.checked && <span aria-hidden="true">✓ </span>}{action.label}</button>)}</div>, document.querySelector('.application') ?? document.body)}
-    {error && createPortal(<div className="context-error" role="alert">{error}<button aria-label="关闭右键操作提示" onClick={() => setError('')}>×</button></div>, document.querySelector('.application') ?? document.body)}
+    }}>{action.checked && <span aria-hidden="true">{action.checked === "mixed" ? "− " : "✓ "}</span>}{action.label}</button>)}</div></OverlayPortal>}
+    {error && <OverlayPortal><div className="context-error" role="alert">{error}<button aria-label="关闭右键操作提示" onClick={() => setError('')}>×</button></div></OverlayPortal>}
   </MenuContext.Provider>
 }

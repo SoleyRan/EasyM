@@ -1,3 +1,4 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useRef, useState } from 'react'
 import type { BatchOptions } from '../core/batch-images'
 import { inspectBatch, generateBatch, type BatchItem, type BatchOutput } from '../platform/batch-images'
@@ -14,6 +15,7 @@ export function BatchImageDialog({ text, fileId, resources, onClose, onHistory, 
   const [error, setError] = useState(''), [message, setMessage] = useState('正在预检…'), [progress, setProgress] = useState(0)
   const [preview, setPreview] = useState(0), [urls, setUrls] = useState<string[]>([])
   const dialog = useRef<HTMLDivElement>(null), task = useRef<AbortController | null>(null), operation = useRef<string | null>(null), live = useRef(true)
+  useModalOverlay(dialog)
   const committing = useRef(false), processing = useRef(false)
   useEffect(() => {
     live.current = true; const controller = new AbortController(); task.current = controller

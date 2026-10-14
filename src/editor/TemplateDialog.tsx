@@ -1,3 +1,4 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useRef, useState } from 'react'
 import { createFromTemplate, localDate, templates, type NewDocument, type TemplateId } from '../core/templates'
 
@@ -5,6 +6,7 @@ interface Props { onCreate(document: NewDocument): void; onCancel(): void }
 
 export function TemplateDialog({ onCreate, onCancel }: Props) {
   const dialog = useRef<HTMLFormElement>(null)
+  useModalOverlay(dialog)
   const [selected, setSelected] = useState<TemplateId>('blank')
   const [title, setTitle] = useState('')
   const [date, setDate] = useState(localDate)

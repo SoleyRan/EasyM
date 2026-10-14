@@ -3,6 +3,7 @@ import type { EditCommandResult, Selection } from './document'
 export interface FencedBlock { from: number; to: number; language: string }
 
 export function codeBlockCommand(revision: number, text: string, selection: Selection, language: string, block: FencedBlock | null): EditCommandResult {
+  if (block && block.language === language) return { baseTextRevision: revision, patches: [], selection }
   if (!/^[\w+#.-]*$/.test(language)) throw new Error('代码语言标记无效')
   if (block) {
     const end = text.indexOf('\n', block.from)

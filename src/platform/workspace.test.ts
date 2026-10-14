@@ -1,9 +1,18 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
-import { listWorkspace, openWorkspaceDocument, readWorkspaceImage, workspaceImageData, searchWorkspace, cancelWorkspaceSearch } from './workspace'
+import { listWorkspace, openWorkspaceDocument, readWorkspaceImage, workspaceImageData, searchWorkspace, searchWorkspaceFilenames, cancelWorkspaceSearch } from './workspace'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
 beforeEach(() => vi.mocked(invoke).mockReset())
+
+it('searches filenames with workspace authorization and preserves bounded/cancelled reports', async () => {
+  const report = { paths: ['中文 notes/同名.md', 'other/同名.md'], scanned: 10000, skipped: 2, limited: true, cancelled: false }
+  vi.mocked(invoke).mockResolvedValue(report)
+  expect(await searchWorkspaceFilenames('authorized-workspace', '同名', 'filename-request')).toEqual(report)
+  expect(invoke).toHaveBeenCalledWith('search_workspace_filenames', { id: 'authorized-workspace', query: '同名', requestId: 'filename-request' })
+  vi.mocked(invoke).mockResolvedValue({ ...report, cancelled: true })
+  expect((await searchWorkspaceFilenames('authorized-workspace', '', 'cancelled-request')).cancelled).toBe(true)
+})
 
 it('passes search authorization and request identity and preserves partial report metadata', async () => {
   const report = { results: [{ path: '中文.md', line: 2, preview: 'needle', revision: 'hash' }], scanned: 3, skipped: 1, limited: true, cancelled: false }

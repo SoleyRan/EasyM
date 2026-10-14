@@ -5,7 +5,7 @@ import type { PreviewBlock } from '../core/markdown'
 import { activeSourceRanges, frontmatterEnd, liveTokens, MAX_LIVE_BLOCK, MAX_LIVE_DOCUMENT, touches } from '../core/live-preview'
 import { largeLines } from './large-lines'
 
-interface Host { image(resource: string): Promise<string | null>; editImage(from: number): void }
+interface Host { image(resource: string): Promise<string | null>; editImage(from: number): void; editTable?(from: number): void; editLanguage?(from: number): void }
 interface Phase { composing?: boolean; dragging?: boolean }
 interface LiveValue { enabled: boolean; composing: boolean; dragging: boolean; headerEnd: number; blocks: PreviewBlock[]; context: unknown; decorations: DecorationSet }
 export const setLiveEnabled = StateEffect.define<boolean>()
@@ -47,10 +47,26 @@ class BlockWidget extends WidgetType {
     button.addEventListener('mousedown', event => event.preventDefault())
     button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); reveal() })
     node.append(button, body)
+    if (this.block.type === 'table') {
+      const edit = document.createElement('button'); edit.type = 'button'; edit.className = 'live-table-button'; edit.textContent = '编辑表格'
+      edit.addEventListener('mousedown', event => event.preventDefault())
+      edit.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); if (current()) this.host.editTable?.(this.block.from) })
+      node.prepend(edit)
+    }
+    if (this.block.type === 'code') {
+      const language = document.createElement('button'); language.type = 'button'; language.className = 'live-language-button'
+      const tag = /^[`~]{3,}[^\S\n]*(\S*)/.exec(this.doc.lineAt(this.block.from).text)?.[1] ?? ''
+      language.textContent = `语言：${tag || '无语言'}`
+      language.addEventListener('mousedown', event => event.preventDefault())
+      language.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); if (current()) this.host.editLanguage?.(this.block.from) })
+      node.prepend(language)
+    }
     node.addEventListener('click', event => {
       if ((event.target as HTMLElement).closest('button')) return
       event.preventDefault()
       if (this.block.type === 'image') { node.classList.toggle('live-image-selected'); return }
+      const cell = (event.target as HTMLElement).closest<HTMLElement>('th,td')
+      if (this.block.type === 'table' && cell && current()) { this.host.editTable?.(Number(cell.dataset.sourceFrom ?? this.block.from)); return }
       const target = (event.target as HTMLElement).closest<HTMLElement>('[data-source-from]')
       reveal(Number(target?.dataset.sourceFrom ?? this.block.from))
     })

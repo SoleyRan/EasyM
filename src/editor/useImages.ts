@@ -24,10 +24,10 @@ export function useImages(host: Host) {
   const operation = useRef<AbortController | null>(null)
   const latest = useRef(host); latest.current = host
 
-  async function importFiles(input: File[] | (() => Promise<File[]>)) {
+  async function importFiles(input: File[] | (() => Promise<File[]>), replacement?: Selection) {
     if (busy || operation.current || host.blocked || session) return
     const controller = new AbortController(); operation.current = controller; setBusy(true)
-    const baseText = host.text, selection = host.selection()
+    const baseText = host.text, selection = replacement ?? host.selection()
     try {
       const files = typeof input === 'function' ? await input() : input
       if (!files[0] || controller.signal.aborted) return

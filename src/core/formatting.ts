@@ -2,23 +2,50 @@ import type { Text } from '@codemirror/state'
 import type { syntaxTree } from '@codemirror/language'
 import { codeBlockCommand } from './code-block'
 import type { EditCommandResult, Selection, TextPatch } from './document'
+import { frontmatterEnd } from './live-preview'
 
 type Tree = ReturnType<typeof syntaxTree>
 type Node = Tree['topNode']
-export type Format = 'bold' | 'italic' | 'heading' | 'bullet' | 'ordered' | 'task' | 'quote' | 'code' | 'link'
+export type Format = 'bold' | 'italic' | 'strike' | 'inlineCode' | 'heading' | 'bullet' | 'ordered' | 'task' | 'quote' | 'code' | 'link'
 export type FormatState = Record<Format, boolean | 'mixed'>
-export const emptyFormats = (): FormatState => ({ bold: false, italic: false, heading: false, bullet: false, ordered: false, task: false, quote: false, code: false, link: false })
+export const emptyFormats = (): FormatState => ({ bold: false, italic: false, strike: false, inlineCode: false, heading: false, bullet: false, ordered: false, task: false, quote: false, code: false, link: false })
 interface Span { from: number; to: number; start: number; end: number }
 
-function inlineSpans(tree: Tree, from: number, to: number, kind: 'bold' | 'italic' | 'link'): Span[] {
+export function inlineFormatStatus(doc: Text, selection: Selection, tree: Tree, kind: InlineFormat): { enabled: boolean; reason?: string } {
+  const from = Math.min(selection.anchor, selection.head), to = Math.max(selection.anchor, selection.head)
+  if (to - from > 10000 || doc.sliceString(from, to).includes('\n')) return { enabled: false, reason: '请选择单个逻辑行内的文字；跨段格式请分段操作。' }
+  if (from < frontmatterEnd(doc)) return { enabled: false, reason: 'Front matter 请使用源码编辑。' }
+  let unsafe = false
+  tree.iterate({ from, to, enter(ref) {
+    if (/^(FencedCode|CodeBlock|Table|HTMLBlock|HTMLTag|LinkReferenceDefinition|Image|ImageReference)$/.test(ref.name)) unsafe = true
+    if (from !== to && /^(HeaderMark|QuoteMark|ListMark|TaskMarker)$/.test(ref.name) && ref.from < to && ref.to > from) unsafe = true
+    if (from !== to && ref.name === 'URL' && ref.from < to && ref.to > from && kind !== 'link') unsafe = true
+    if (ref.name === 'InlineCode') {
+      if (kind !== 'inlineCode') unsafe = true
+      else {
+        const span = inlineSpans(tree, from, to, 'inlineCode').find(span => span.from === ref.from)
+        if (span) {
+          const body = doc.sliceString(span.start, span.end)
+          if (body.startsWith(' ') && body.endsWith(' ') && !/^ +$/.test(body)) { span.start++; span.end-- }
+        }
+        if (span && from !== to && !(from <= span.start && to >= span.end)) unsafe = true
+      }
+    }
+  } })
+  return unsafe ? { enabled: false, reason: '代码、表格、图片和复杂语法选区请使用源码编辑。' } : { enabled: true }
+}
+
+type InlineFormat = 'bold' | 'italic' | 'strike' | 'inlineCode' | 'link'
+function inlineSpans(tree: Tree, from: number, to: number, kind: InlineFormat): Span[] {
   const spans: Span[] = []
   tree.iterate({ from, to, enter(ref) {
     const node = ref.node
-    if (/^(FencedCode|CodeBlock|InlineCode)$/.test(node.name)) return false
-    if (kind === 'link' ? node.name !== 'Link' && node.name !== 'LinkReference' : node.name !== (kind === 'bold' ? 'StrongEmphasis' : 'Emphasis')) return
+    if (/^(FencedCode|CodeBlock)$/.test(node.name) || (node.name === 'InlineCode' && kind !== 'inlineCode')) return false
+    const target = kind === 'link' ? /^(Link|LinkReference)$/ : kind === 'bold' ? /^StrongEmphasis$/ : kind === 'italic' ? /^Emphasis$/ : kind === 'strike' ? /^Strikethrough$/ : /^InlineCode$/
+    if (!target.test(node.name)) return
     const marks: Node[] = []
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === (kind === 'link' ? 'LinkMark' : 'EmphasisMark')) marks.push(child)
+      if (child.name === (kind === 'link' ? 'LinkMark' : kind === 'strike' ? 'StrikethroughMark' : kind === 'inlineCode' ? 'CodeMark' : 'EmphasisMark')) marks.push(child)
     }
     if (marks.length < 2) return
     const span = { from: node.from, to: node.to, start: marks[0].to, end: marks[1].from }
@@ -75,7 +102,7 @@ function lineParts(text: string) {
 export function formatState(doc: Text, selection: Selection, tree: Tree): FormatState {
   const from = Math.min(selection.anchor, selection.head), to = Math.max(selection.anchor, selection.head)
   const state = emptyFormats()
-  for (const kind of ['bold', 'italic', 'link'] as const) state[kind] = inlineCoverage(doc, inlineSpans(tree, from, to, kind), from, to)
+  for (const kind of ['bold', 'italic', 'strike', 'inlineCode', 'link'] as const) state[kind] = inlineCoverage(doc, inlineSpans(tree, from, to, kind), from, to)
   state.code = !!enclosing(tree, from, to, /^FencedCode$/)
   const selected = lines(doc, from, to)
   for (const kind of ['heading', 'bullet', 'ordered', 'task', 'quote'] as const) {
@@ -108,20 +135,23 @@ function result(revision: number, patches: TextPatch[], selection: Selection): E
   return { baseTextRevision: revision, patches, selection: { anchor: mapped(selection.anchor, patches), head: mapped(selection.head, patches) } }
 }
 
-function inlineCommand(revision: number, doc: Text, selection: Selection, tree: Tree, kind: 'bold' | 'italic' | 'link'): EditCommandResult {
+function inlineCommand(revision: number, doc: Text, selection: Selection, tree: Tree, kind: InlineFormat): EditCommandResult {
   let from = Math.min(selection.anchor, selection.head), to = Math.max(selection.anchor, selection.head)
   const spans = inlineSpans(tree, from, to, kind), active = inlineCoverage(doc, spans, from, to) === true
+  if (kind === 'inlineCode') for (const span of spans) {
+    const body = doc.sliceString(span.start, span.end)
+    if (body.startsWith(' ') && body.endsWith(' ') && !/^ +$/.test(body)) { span.start++; span.end-- }
+  }
   if (kind === 'link') {
     if (active) return result(revision, spans.flatMap(span => [{ from: span.from, to: span.start, insert: '' }, { from: span.end, to: span.to, insert: '' }]), selection)
-    // Preserve existing labels rather than nesting links inside another link.
-    if (spans.length) { from = Math.min(from, ...spans.map(span => span.from)); to = Math.max(to, ...spans.map(span => span.to)) }
+    throw new Error('请使用链接工具输入显示文字和地址。')
   }
   if (from === to && active) { from = Math.min(...spans.map(span => span.start)); to = Math.max(...spans.map(span => span.end)) }
   const originalFrom = from, originalTo = to
-  if (active && kind !== 'link') {
+  if (active) {
     // Nested delimiters are not visible text. If their entire label is selected,
     // cancel the outer format around those delimiters as well (***both***).
-    for (const other of ['bold', 'italic', 'link'] as const) {
+    for (const other of ['bold', 'italic', 'strike', 'inlineCode', 'link'] as const) {
       if (other === kind) continue
       for (const nested of inlineSpans(tree, from, to, other)) {
         if (nested.start >= from && nested.end <= to && spans.some(span => span.start <= nested.from && span.end >= nested.to)) {
@@ -135,7 +165,7 @@ function inlineCommand(revision: number, doc: Text, selection: Selection, tree: 
   let plain = doc.sliceString(start, end)
   for (const patch of [...deletions].reverse()) plain = plain.slice(0, patch.from - start) + plain.slice(patch.to - start)
   let selectedFrom = mapped(from, deletions) - start, selectedTo = mapped(to, deletions) - start
-  if (from === to && !active) { plain = plain.slice(0, selectedFrom) + (kind === 'link' ? '链接文字' : '文本') + plain.slice(selectedFrom); selectedTo += kind === 'link' ? 4 : 2 }
+  if (from === to && !active) { plain = plain.slice(0, selectedFrom) + '文本' + plain.slice(selectedFrom); selectedTo += 2 }
   const ranges: Array<[number, number]> = []
   for (const span of spans) {
     const a = mapped(span.start, deletions) - start, b = mapped(span.end, deletions) - start
@@ -149,14 +179,21 @@ function inlineCommand(revision: number, doc: Text, selection: Selection, tree: 
     if (merged.length && merged.at(-1)![1] >= a) merged.at(-1)![1] = Math.max(b, merged.at(-1)![1])
     else merged.push([a, b])
   }
-  const marker = kind === 'bold' ? '**' : kind === 'italic' ? '*' : '['
+  const marker = kind === 'bold' ? '**' : kind === 'italic' ? '*' : kind === 'strike' ? '~~' : kind === 'inlineCode' ? '`' : '['
   const inserts: TextPatch[] = []
   for (let [a, b] of merged) {
     // CommonMark delimiters cannot enclose leading/trailing whitespace.
     while (a < b && /\s/.test(plain[a])) a++
     while (b > a && /\s/.test(plain[b - 1])) b--
     if (a === b) continue
-    inserts.push({ from: a, to: a, insert: marker }, { from: b, to: b, insert: kind === 'link' ? '](https://example.com)' : marker })
+    let startMarker = marker, endMarker = marker
+    if (kind === 'inlineCode') {
+      let longest = 0
+      for (const match of plain.slice(a, b).matchAll(/`+/g)) longest = Math.max(longest, match[0].length)
+      startMarker = endMarker = '`'.repeat(longest + 1)
+      if (plain[a] === '`' || plain[b - 1] === '`') { startMarker += ' '; endMarker = ' ' + endMarker }
+    }
+    inserts.push({ from: a, to: a, insert: startMarker }, { from: b, to: b, insert: endMarker })
   }
   inserts.sort((a, b) => a.from - b.from)
   const selectionFrom = from === originalFrom ? selectedFrom : mapped(originalFrom, deletions) - start
@@ -169,7 +206,11 @@ function inlineCommand(revision: number, doc: Text, selection: Selection, tree: 
 }
 
 export function toggleFormat(revision: number, doc: Text, selection: Selection, tree: Tree, kind: Format, language = ''): EditCommandResult {
-  if (kind === 'bold' || kind === 'italic' || kind === 'link') return inlineCommand(revision, doc, selection, tree, kind)
+  if (kind === 'bold' || kind === 'italic' || kind === 'strike' || kind === 'inlineCode' || kind === 'link') {
+    const status = inlineFormatStatus(doc, selection, tree, kind)
+    if (!status.enabled) throw new Error(status.reason)
+    return inlineCommand(revision, doc, selection, tree, kind)
+  }
   const from = Math.min(selection.anchor, selection.head), to = Math.max(selection.anchor, selection.head)
   if (kind === 'code') {
     const node = enclosing(tree, from, to, /^FencedCode$/)

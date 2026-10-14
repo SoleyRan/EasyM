@@ -1,0 +1,110 @@
+{
+  "phase": "v0.4 step 2",
+  "verifiedAt": "2026-10-13T12:29:50.599Z",
+  "branch": "feature/v0.4",
+  "parentCommit": "ae3e216d05bcd3464020d9320918dc392f9df94e",
+  "implementation": "Uncommitted workspace snapshot; independent implementation",
+  "version": "0.3.0",
+  "passed": true,
+  "checks": {
+    "typecheck": true,
+    "build": true,
+    "releaseMetadata": true,
+    "unitFiles": 36,
+    "unitTests": 204,
+    "productionGroups": 17,
+    "tableCheckGroups": 9,
+    "productionBrowser": "chromium",
+    "diffCheck": true
+  },
+  "distIndexSha256": "627d713975297818b46083e2e0620df9147a51bf0e3033ff5ce1fb0e339f17a3",
+  "sourceFiles": [
+    {
+      "path": "Docs/Easy-Markdown-v0.4-第二步-可视化表格编辑.md",
+      "sha256": "3e92ff083342a53c570364f3ddaa081f5338cb84e2f49828bb4d9cb2f6968086"
+    },
+    {
+      "path": "scripts/verify-tables.mjs",
+      "sha256": "ff5de9c7a66c1113ee6c8fb97d476608d1b0b247e008516becd8fe2e4d760fdb"
+    },
+    {
+      "path": "src/core/tables.test.ts",
+      "sha256": "6a297620030e5feb478cb5cbbad3f277f0fb104de5259be29b62e164a709423f"
+    },
+    {
+      "path": "src/core/tables.ts",
+      "sha256": "8cc5aaf416627205ba800dbacca58bf46222a5ac91a2e732d02f718222ce0b86"
+    },
+    {
+      "path": "src/editor/TablePanel.test.ts",
+      "sha256": "bdc3cd4c1aa07721dd8352572c6fd7e4b585986adff510412a93b9e8c76ea756"
+    },
+    {
+      "path": "src/editor/TablePanel.tsx",
+      "sha256": "3553b5708970f4ac11c03fabd690066c1ac6615bb45e7b33ec6db20a1c5da86c"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "5d83afd1a518b9901020210ce8ace2fe080368736b4e6c6c749be335c147cee5"
+    },
+    {
+      "path": "Docs/Easy-Markdown-v0.4-设计与实施计划.md",
+      "sha256": "19fa5d047698b504eeb57fef3f2d7585d0d711c20c1020449189d1889ef23a38"
+    },
+    {
+      "path": "README.md",
+      "sha256": "ae7d5125585dfec2c383b1d89198c7120359fdc08868b101686046a42f43bc4d"
+    },
+    {
+      "path": "package.json",
+      "sha256": "09e6a1e98891de7324e652d24207689546a6d02a9d18791b177e3bb64a57f35e"
+    },
+    {
+      "path": "scripts/verify-live-preview.mjs",
+      "sha256": "f1673fa606fa42400d5f555ca66eb1be7d77213d7c3385140552ac9013656eea"
+    },
+    {
+      "path": "scripts/verify-regression.mjs",
+      "sha256": "2ea5c6b29546e756528b4765873e9a6b93e665f733238e2a3f2068cf19e60449"
+    },
+    {
+      "path": "src/App.test.ts",
+      "sha256": "dc934681eaedaa0bb95ac32db2667aef0f2eeb4e03bf5bfc681c775d50afe837"
+    },
+    {
+      "path": "src/App.tsx",
+      "sha256": "91af568e342124f67adaf1199fdd5be9ad1e627ac37bace679700075cd167e65"
+    },
+    {
+      "path": "src/core/commands.ts",
+      "sha256": "1f8a305559bfe4971b5ba41c86c448da9c5374350884bf0b78928eff5f766466"
+    },
+    {
+      "path": "src/editor/DocumentEditor.tsx",
+      "sha256": "4fa7f98b8da45037b2ff17543e32a06e8fc388893ae298c89496ce35dd418c46"
+    },
+    {
+      "path": "src/editor/Editor.tsx",
+      "sha256": "733f6af5ec16e97ea3fefd529d1cf4aabd36913834318eefed3932ba70ff3f7a"
+    },
+    {
+      "path": "src/editor/Overlay.tsx",
+      "sha256": "e662196c2671e7ab0d6c8ff007a9f3c9cf7903590a72c012c2aae1603fdbc5bc"
+    },
+    {
+      "path": "src/editor/live-decoration.ts",
+      "sha256": "66a74403d7da1b063e9ff02ce40c7ef2a72410b443f3d130301776cc5bcbb578"
+    },
+    {
+      "path": "src/editor/themes.css",
+      "sha256": "4d803fb527acae432814ce57342e8f85165329784bb61a47fb5afd2311983f24"
+    }
+  ],
+  "limitations": [
+    "Real IME candidate interaction remains manual.",
+    "Desktop IPC is simulated; native dialogs and macOS/Linux GUI remain unverified.",
+    "No Rust changes, native build, package, push or remote CI run in this step.",
+    "Unsubmitted cell input is session memory only, not a persistent recovery format.",
+    "Existing build chunk size warning remains."
+  ]
+}

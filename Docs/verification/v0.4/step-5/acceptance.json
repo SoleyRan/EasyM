@@ -1,0 +1,57 @@
+{
+  "version": "0.4.0",
+  "verifiedAt": "2026-10-14T02:49:58.8780365Z",
+  "sourceCommit": "78480fac452b29bfe407d8a0a9515786bbe6e87e",
+  "sourceDirty": true,
+  "frontend": {
+    "passed": true,
+    "files": 42,
+    "tests": 231
+  },
+  "windowsRust": {
+    "locked": true,
+    "passed": true,
+    "tests": 57
+  },
+  "releaseMetadata": true,
+  "productionBuild": true,
+  "regression": {
+    "passed": true,
+    "performanceIncluded": true,
+    "groups": 21
+  },
+  "slowCpu": {
+    "templates": true,
+    "search": true,
+    "rate": 6
+  },
+  "word": {
+    "editedAndReopened": true,
+    "passed": true,
+    "samples": 5,
+    "fileVersion": "16.0.20430.20146"
+  },
+  "notices": {
+    "target": "x86_64-pc-windows-msvc",
+    "missingTexts": 0,
+    "dependencies": 430,
+    "licenseFiles": 234
+  },
+  "nativeWindow": {
+    "startup": true,
+    "isolatedProfile": true,
+    "gracefulClose": true
+  },
+  "package": {
+    "portableEntries": 246,
+    "portable": true,
+    "allStagedFileHashesVerified": true,
+    "nsis": true
+  },
+  "pending": [
+    "Current-source remote CI and isolated Windows installation/removal",
+    "Real IME, native file/export dialogs, system PDF save/cancel, native history and batch workflow",
+    "macOS/Linux GUI and screen readers; WPS/LibreOffice; remaining license/signing review"
+  ],
+  "scope": "Local Windows development acceptance. Browser IPC/composition fixtures do not substitute native interaction. Artifacts match the recorded dirty source tree and dist; no push or main merge."
+}

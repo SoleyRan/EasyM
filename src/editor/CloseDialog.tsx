@@ -1,12 +1,14 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useRef } from 'react'
 
 interface Props { scope?: 'window' | 'tab' | 'tabs'; busy: boolean; pendingImage: boolean; error: string; onSave(): void; onRetain(): void; onDiscard(): void; onCancel(): void }
 
 export function CloseDialog({ scope = 'window', busy, pendingImage, error, onSave, onRetain, onDiscard, onCancel }: Props) {
   const dialog = useRef<HTMLDivElement>(null)
+  useModalOverlay(dialog)
   useEffect(() => { dialog.current?.querySelector<HTMLButtonElement>('button')?.focus() }, [])
   return <div className="modal-backdrop close-backdrop" onKeyDown={(event) => {
-    if (event.key === 'Escape' && !busy) onCancel()
+    if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); if (!busy) onCancel() }
     if (event.key === 'Tab') {
       const buttons = Array.from(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? [])
       const first = buttons[0], last = buttons.at(-1)

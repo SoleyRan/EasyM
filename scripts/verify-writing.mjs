@@ -260,7 +260,7 @@ try {
   assert.equal(hoverScroll.width, hiddenScroll.width)
   await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
   await page.getByRole('menuitem', { name: '导出', exact: true }).click()
-  const parent = await page.locator('.file-menu').boundingBox(), submenu = await page.getByRole('menu', { name: '导出格式', exact: true }).boundingBox()
+  const parent = await page.getByRole('menu', { name: '文件菜单', exact: true }).boundingBox(), submenu = await page.getByRole('menu', { name: '导出格式', exact: true }).boundingBox()
   assert.ok(submenu.x >= parent.x + parent.width, 'Export submenu opens to the right')
   await page.screenshot({ path: 'test-results/em-menu-tabs.png' })
   await page.keyboard.press('Escape')

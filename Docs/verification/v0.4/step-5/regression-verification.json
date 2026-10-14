@@ -1,0 +1,115 @@
+{
+  "version": "0.4.0",
+  "startedAt": "2026-10-14T02:42:47.010Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 509
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 4164
+    },
+    {
+      "script": "docx",
+      "passed": true,
+      "durationMs": 6684
+    },
+    {
+      "script": "docx-ui",
+      "passed": true,
+      "durationMs": 26728
+    },
+    {
+      "script": "history",
+      "passed": true,
+      "durationMs": 3008
+    },
+    {
+      "script": "batch-images",
+      "passed": true,
+      "durationMs": 10089
+    },
+    {
+      "script": "settings",
+      "passed": true,
+      "durationMs": 2720
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 5502
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 63517
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 6082
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 15890
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 1951
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 4907
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 3491
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 5654
+    },
+    {
+      "script": "commands",
+      "passed": true,
+      "durationMs": 1728
+    },
+    {
+      "script": "tables",
+      "passed": true,
+      "durationMs": 9932
+    },
+    {
+      "script": "content-tools",
+      "passed": true,
+      "durationMs": 12785
+    },
+    {
+      "script": "quick-entry",
+      "passed": true,
+      "durationMs": 10072
+    },
+    {
+      "script": "appearance",
+      "passed": true,
+      "durationMs": 7392
+    },
+    {
+      "script": "performance",
+      "passed": true,
+      "durationMs": 20528
+    }
+  ],
+  "distIndexSha256": "bb5bc00d49fef07ff0e7fef4a2b5bade8c6f3bd2452b27d89f6e11278514d24d",
+  "finishedAt": "2026-10-14T02:46:30.351Z"
+}

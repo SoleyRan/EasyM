@@ -1,3 +1,4 @@
+import { useModalOverlay } from './Overlay'
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import { defaultRecipe, imageGeometry, type ImageRecipe } from '../core/images'
 import { processImage, type ImageResult } from '../platform/images'
@@ -23,6 +24,7 @@ export function ImagePanel({ image, onCancel, onBusy, onChange, onApply }: Props
   const [preview, setPreview] = useState('')
   const [sourceUrl, setSourceUrl] = useState('')
   const dialog = useRef<HTMLDivElement>(null)
+  useModalOverlay(dialog)
   const pointer = useRef<{ x: number; y: number } | null>(null)
   const operation = useRef<AbortController | null>(null)
   const closed = useRef(false)

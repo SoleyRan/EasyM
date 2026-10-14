@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import DocumentEditor, { type DocumentHandle, type DocumentSummary, type FileAction } from './editor/DocumentEditor'
 import { CloseDialog } from './editor/CloseDialog'
 import { TemplateDialog } from './editor/TemplateDialog'
@@ -10,18 +10,29 @@ import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
 import { ContextMenuProvider, useContextMenu } from './editor/ContextMenu'
 import { SettingsDialog, GuideDialog } from './editor/ApplicationDialogs'
-import { themes, type Theme, storedPreference, storePreference, editorFontSize, needsGuide, completeGuide } from './platform/preferences'
+import { type Appearance, type Theme, defaultAppearance, loadAppearance, saveAppearance, appearanceTheme, storedPreference, needsGuide, completeGuide } from './platform/preferences'
+import { OverlayProvider, OverlayHost, PositionedOverlay, useOverlays } from './editor/Overlay'
+import type { OverlayLease } from './core/overlays'
+import { CommandRegistry, commandDefinitions, type CommandContext } from './core/commands'
 import type { CSSProperties } from 'react'
+import { CommandPalette, QuickOpen } from './editor/QuickEntry'
+import { openWorkspaceDocument } from './platform/workspace'
+import { decodeFile } from './core/codec'
 
 interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 
 export default function App() {
-  return <ContextMenuProvider><Application /></ContextMenuProvider>
+  return <OverlayProvider><ContextMenuProvider><Application /></ContextMenuProvider></OverlayProvider>
 }
 
 function Application() {
   const contextMenu = useContextMenu()
+  const { manager } = useOverlays()
+  const menuLease = useRef<OverlayLease | null>(null)
+  const exportLease = useRef<OverlayLease | null>(null)
+  const menuSurface = useRef<HTMLDivElement>(null)
+  const exportSurface = useRef<HTMLDivElement>(null)
   const [tabs, setTabs] = useState<Tab[]>([first])
   const [active, setActive] = useState(first.id)
   const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
@@ -34,7 +45,24 @@ function Application() {
   const [templateOpen, setTemplateOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(needsGuide)
-  const [fontSize, setFontSize] = useState(editorFontSize)
+  const [appearance, setAppearance] = useState(loadAppearance)
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+  const theme = appearanceTheme(appearance, systemDark), fontSize = appearance.fontSize
+  const updateAppearance = (patch: Partial<Appearance>) => setAppearance(current => ({ ...current, ...patch }))
+  const setTheme = (value: Theme) => updateAppearance(appearance.followSystem ? systemDark ? { darkTheme: value } : { lightTheme: value } : { theme: value })
+  const showToolbar = appearance.toolbar, showSelectionTools = appearance.selectionTools
+  const setShowToolbar = (value: boolean) => updateAppearance({ toolbar: value })
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!query) return
+    const update = () => setSystemDark(query.matches)
+    update(); query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+  const initialAppearance = useRef(appearance)
+  useEffect(() => {
+    if (appearance !== initialAppearance.current && !saveAppearance(appearance)) setError('无法保存外观设置，当前会话仍可使用。')
+  }, [appearance])
   const previousGuideVersion = useRef(storedPreference('easym-guide-version'))
   const appModal = settingsOpen || guideOpen
   const appModalRef = useRef(false)
@@ -49,6 +77,12 @@ function Application() {
   const restoreTemplateFocus = useRef(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
+  const [quickEntry, setQuickEntry] = useState<{ kind: 'commands' | 'open'; context: CommandContext } | null>(null)
+  const quickEntryRef = useRef(quickEntry); quickEntryRef.current = quickEntry
+  const quickGeneration = useRef(0), quickOpening = useRef(false)
+  const [quickBusy, setQuickBusy] = useState(false), [quickError, setQuickError] = useState('')
+  const closeQuickEntry = () => { quickGeneration.current++; quickOpening.current = false; setQuickBusy(false); setQuickEntry(null) }
+  useEffect(() => { if (quickEntry) closeQuickEntry() }, [active, workspace?.id])
   const [showFiles, setShowFiles] = useState(false)
   const [reading, setReading] = useState(false)
   const [windowBusy, setWindowBusy] = useState(false)
@@ -58,14 +92,8 @@ function Application() {
   const previousFullscreen = useRef(false)
   const readingFocus = useRef<HTMLElement | null>(null)
   const restoreReadingFocus = useRef(false)
-  const [showToolbar, setShowToolbar] = useState(() => {
-    try { return localStorage.getItem('easym-toolbar') !== 'hidden' } catch { return true }
-  })
   const menu = useRef<HTMLDivElement>(null)
   const tablist = useRef<HTMLDivElement>(null)
-  const [theme, setTheme] = useState<Theme>(() => {
-    try { const stored = localStorage.getItem('easym-theme'); return stored && Object.hasOwn(themes, stored) ? stored as Theme : 'light' } catch { return 'light' }
-  })
   const report = useCallback((id: string, summary: DocumentSummary, handle: DocumentHandle) => {
     handles.current.set(id, handle)
     setSummaries((previous) => JSON.stringify(previous[id]) === JSON.stringify(summary) ? previous : { ...previous, [id]: summary })
@@ -102,24 +130,32 @@ function Application() {
     update()
     listenWindowState(update).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => { if (!disposed) setError(String(err)) })
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && readingRef.current && !appModalRef.current) { event.preventDefault(); exitReading.current() }
+      if (event.key === 'Escape' && !event.defaultPrevented && !event.isComposing && readingRef.current && !appModalRef.current) { event.preventDefault(); exitReading.current() }
     }
     window.addEventListener('keydown', escape)
     return () => { disposed = true; stop?.(); window.removeEventListener('keydown', escape) }
   }, [])
-  useEffect(() => { try { localStorage.setItem('easym-theme', theme) } catch { /* Theme remains usable without persistence. */ } }, [theme])
-  useEffect(() => { try { localStorage.setItem('easym-toolbar', showToolbar ? 'visible' : 'hidden') } catch { /* Visibility remains usable without persistence. */ } }, [showToolbar])
-  useEffect(() => { if (!storePreference('easym-editor-font-size', String(fontSize))) setError('无法保存编辑字号，当前会话仍可使用。') }, [fontSize])
-  useEffect(() => {
-    if (!menuOpen) { setExportMenuOpen(false); return }
-    menu.current?.querySelector<HTMLButtonElement>('[role^=menuitem]:not(:disabled)')?.focus()
-    const outside = (event: PointerEvent) => { if (!menu.current?.contains(event.target as Node)) setMenuOpen(false) }
+  useLayoutEffect(() => {
+    if (!menuOpen) { menuLease.current?.release(); menuLease.current = null; setExportMenuOpen(false); return }
+    menuLease.current = manager.open('menu', () => {
+      setMenuOpen(false)
+      if (!manager.top()) menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus({ preventScroll: true })
+    })
+    if (!menuLease.current) { setMenuOpen(false); return }
+    menuSurface.current?.querySelector<HTMLButtonElement>('[role^=menuitem]:not(:disabled)')?.focus()
+    const outside = (event: PointerEvent) => { if (![menu.current, menuSurface.current, exportSurface.current].some(node => node?.contains(event.target as Node))) setMenuOpen(false) }
     document.addEventListener('pointerdown', outside)
-    return () => document.removeEventListener('pointerdown', outside)
-  }, [menuOpen])
-  useEffect(() => {
-    if (exportMenuOpen) menu.current?.querySelector<HTMLButtonElement>('#export-menu [role=menuitem]:not(:disabled)')?.focus()
-  }, [exportMenuOpen])
+    return () => { document.removeEventListener('pointerdown', outside); menuLease.current?.release() }
+  }, [menuOpen, manager])
+  useLayoutEffect(() => {
+    if (!exportMenuOpen || !menuLease.current?.current()) return
+    exportLease.current = manager.open('menu', () => {
+      setExportMenuOpen(false)
+      if (manager.top()?.id === menuLease.current?.id) menuSurface.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus()
+    }, menuLease.current.id)
+    exportSurface.current?.querySelector<HTMLButtonElement>('[role=menuitem]:not(:disabled)')?.focus()
+    return () => { exportLease.current?.release(); exportLease.current = null }
+  }, [exportMenuOpen, manager])
   useEffect(() => {
     if (!templateOpen && restoreTemplateFocus.current) {
       restoreTemplateFocus.current = false
@@ -158,13 +194,14 @@ function Application() {
     if (remaining.length) { setTabs(remaining); if (ids.includes(active)) setActive(remaining.at(-1)!.id) }
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
-  const requestClose = (id: string | string[] | 'window') => {
+  const requestClose = (id: string | string[] | 'window', prepared = false) => {
     if (appModal) return
     if (templateOpen) { cancelTemplate(); return }
     const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
     if (!ids.length) return
     const targets = ids.map(target => handles.current.get(target)).filter((h): h is DocumentHandle => !!h)
     if (closing || closeBusy || closeOperation.current || targets.length !== ids.length || targets.some((handle) => handle.summary.busy || !handle.canLeave())) { setError('正在处理、输入或恢复草稿，请完成后再关闭。'); return }
+    if (!prepared) { void (async () => { for (const handle of targets) if (handle.prepareLeave && !await handle.prepareLeave()) return; requestClose(id, true) })(); return }
     setError('')
     setMenuOpen(false)
     if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id === 'window' ? 'window' : ids); return }
@@ -197,22 +234,82 @@ function Application() {
     setTemplateOpen(false)
   }
   const blocked = appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
-  const fileAction = (action: FileAction) => {
-    setMenuOpen(false)
-    handles.current.get(active)?.run(action)
+  const appRuntime = useRef<{ context(): CommandContext; run(id: string): void; ready(): boolean }>(null!)
+  const appCommands = useMemo(() => {
+    const registry = new CommandRegistry(() => appRuntime.current.context())
+    for (const definition of commandDefinitions.filter(item => item.id.startsWith('app.'))) registry.register({ ...definition,
+      status: () => ({ enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }), run: () => appRuntime.current.run(definition.id) })
+    return registry
+  }, [])
+  appRuntime.current = {
+    context: () => handles.current.get(active)?.commandContext() ?? ({ documentId: active, fileId: summaries[active]?.fileId ?? null, textRevision: 0, selection: { anchor: 0, head: 0 }, active: true, reading, composing: false, lockReason: blocked ? '请先完成当前文档操作。' : undefined }),
+    ready: () => !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
+    run: commandId => {
+      setMenuOpen(false)
+      if (commandId === 'app.template') setTemplateOpen(true)
+      else if (commandId === 'app.commands' || commandId === 'app.quickOpen') { setQuickError(''); setQuickEntry({ kind: commandId === 'app.commands' ? 'commands' : 'open', context: appCommands.capture() }) }
+      else setSettingsOpen(true)
+    },
   }
-  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties}>
-    <div className="document-strip" hidden={reading} inert={templateOpen || appModal}>
+  const executeApp = (commandId: string) => { const handle = handles.current.get(active); if (handle?.prepareLeave) { void handle.prepareLeave().then(proceed => { if (proceed) runApp(commandId) }); return } runApp(commandId) }
+  const runApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(String(err))) }
+  const quickRuntime = useRef({ blocked, executeApp }); quickRuntime.current = { blocked, executeApp }
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      const id = event.key === 'F1' && !event.ctrlKey && !event.metaKey && !event.altKey ? 'app.commands' : (event.ctrlKey || event.metaKey) && event.altKey && !event.shiftKey && event.key.toLowerCase() === 'o' ? 'app.quickOpen' : null
+      if (!id || event.defaultPrevented || event.isComposing || manager.modal() || quickEntryRef.current || quickRuntime.current.blocked) return
+      event.preventDefault(); quickRuntime.current.executeApp(id)
+    }
+    window.addEventListener('keydown', keydown)
+    return () => window.removeEventListener('keydown', keydown)
+  }, [manager])
+  function chooseQuickCommand(commandId: string) {
+    const session = quickEntryRef.current, handle = handles.current.get(active)
+    if (!session || !handle) return
+    const status = commandId.startsWith('app.') ? appCommands.status(commandId, session.context) : handle.commandStatus(commandId, session.context)
+    if (!status.enabled) { setQuickError(status.reason ?? '操作暂不可用。'); return }
+    closeQuickEntry()
+    requestAnimationFrame(() => { if (commandId.startsWith('app.')) void appCommands.execute(commandId, undefined, session.context); else handle.execute(commandId, undefined, session.context) })
+  }
+  async function chooseQuickFile(target: { tabId: string } | { workspaceId: string; path: string }) {
+    const session = quickEntryRef.current, handle = handles.current.get(active)
+    if (!session || !handle || quickOpening.current) return
+    if (!handle.commandStatus('file.open', session.context).enabled) { setQuickError('当前文档暂不可切换，请完成编辑或重新打开面板。'); return }
+    if ('tabId' in target) { if (!tabs.some(tab => tab.id === target.tabId)) return; closeQuickEntry(); setActive(target.tabId); return }
+    if (!desktop || workspace?.id !== target.workspaceId) return
+    quickOpening.current = true; setQuickBusy(true); setQuickError('')
+    const generation = ++quickGeneration.current
+    let opened: OpenedFile | null = null, accepted = false
+    try {
+      opened = await openWorkspaceDocument(target.workspaceId, target.path)
+      if (generation !== quickGeneration.current || quickEntryRef.current !== session) return
+      if (!handle.commandStatus('file.open', session.context).enabled) throw new Error('目标文档或选区已变化，请重新打开面板。')
+      decodeFile(opened.bytes)
+      accepted = true; closeQuickEntry(); add(opened, target.path, workspace)
+    } catch (err) { if (generation === quickGeneration.current) setQuickError(`打开文件失败：${String(err)}`) }
+    finally {
+      if (opened?.id && !accepted && ![...handles.current.values()].some(value => value.summary.fileId === opened!.id)) await releaseDocument(opened.id).catch(() => undefined)
+      if (generation === quickGeneration.current) { quickOpening.current = false; setQuickBusy(false) }
+    }
+  }
+  const fileAction = (action: FileAction) => {
+    const handle = handles.current.get(active)
+    if (blocked || !handle?.commandStatus('file.' + action).enabled) return
+    setMenuOpen(false)
+    handle.run(action)
+  }
+  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} data-code-wrap={appearance.codeWrap} style={{ '--editor-font-size': `${fontSize}px`, '--body-line-height': appearance.lineHeight, '--content-width': appearance.contentWidth ? `${appearance.contentWidth}px` : '100%', '--code-font-size': `${appearance.codeFontSize}px` } as CSSProperties}>
+    <div className="document-strip" hidden={reading} inert={templateOpen || appModal || !!summaries[active]?.tableDecision}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
         const inExportMenu = !!(event.target as HTMLElement).closest('#export-menu')
         if ((inExportMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && exportMenuOpen)) {
-          event.preventDefault(); event.stopPropagation(); setExportMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus(); return
+          event.preventDefault(); event.stopPropagation(); setExportMenuOpen(false); menuSurface.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus(); return
         }
         if (event.key === 'ArrowRight' && (event.target as HTMLButtonElement).closest('.export-menu-trigger') && !(event.target as HTMLButtonElement).disabled) { event.preventDefault(); setExportMenuOpen(true); return }
-        if (event.key === 'Escape') { event.preventDefault(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
+        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setMenuOpen(false); menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus() }
         if (menuOpen && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
           event.preventDefault()
-          const currentMenu = (event.target as HTMLElement).closest('[role=menu]') ?? menu.current?.querySelector('[role=menu]')
+          const currentMenu = (event.target as HTMLElement).closest('[role=menu]') ?? menuSurface.current
           const items = Array.from(currentMenu?.querySelectorAll<HTMLButtonElement>('[role^=menuitem]:not(:disabled)') ?? []).filter((item) => item.closest('[role=menu]') === currentMenu)
           const index = items.indexOf(document.activeElement as HTMLButtonElement)
           items[event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus()
@@ -220,27 +317,33 @@ function Application() {
         if (event.key === 'Tab') setMenuOpen(false)
       }}>
         <button className="app-menu-trigger brand-mark" aria-label="EM 菜单" title="EasyM · 文件菜单" aria-haspopup="menu" aria-expanded={menuOpen} aria-controls="file-menu" disabled={closeBusy || !!closing} onClick={() => setMenuOpen(!menuOpen)}>EM</button>
-        {menuOpen && <div className="file-menu" id="file-menu" role="menu" aria-label="文件菜单">
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('new')}>新建文档</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => { setMenuOpen(false); setTemplateOpen(true) }}>从模板新建</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('open')}>打开文件</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('workspace')}>打开工作区</button>
+        {menuOpen && <PositionedOverlay className="file-menu" id="file-menu" label="文件菜单" element={menuSurface} lease={menuLease} anchor={() => menu.current?.querySelector('.app-menu-trigger')?.getBoundingClientRect() ?? null}>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.new').enabled} onClick={() => fileAction('new')}>新建文档</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => executeApp('app.template')}>从模板新建</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.open').enabled} onClick={() => fileAction('open')}>打开文件</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.workspace').enabled} onClick={() => fileAction('workspace')}>打开工作区</button>
+          <button role="menuitem" disabled={blocked || !appCommands.status('app.quickOpen').enabled} onClick={() => executeApp('app.quickOpen')}>快速打开 <kbd>Ctrl/⌘+Alt+O</kbd></button>
+          <button role="menuitem" disabled={blocked || !appCommands.status('app.commands').enabled} onClick={() => executeApp('app.commands')}>命令面板 <kbd>F1</kbd></button>
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('saveAs')}>{desktop ? '另存为 / 冲突副本' : '下载副本'}</button>
           <button role="menuitem" disabled={blocked || !desktop || !summaries[active]?.fileId || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('reload')}>重新加载外部版本</button>
           <div className="export-menu">
             <button className="export-menu-trigger" role="menuitem" aria-label="导出" aria-haspopup="menu" aria-expanded={exportMenuOpen} aria-controls="export-menu" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => setExportMenuOpen(!exportMenuOpen)}>导出 <span aria-hidden="true">›</span></button>
-            {exportMenuOpen && <div className="export-submenu" id="export-menu" role="menu" aria-label="导出格式">
+            {exportMenuOpen && <PositionedOverlay className="file-menu export-submenu" id="export-menu" label="导出格式" element={exportSurface} lease={exportLease} side="right" anchor={() => {
+              const row = menuSurface.current?.querySelector('.export-menu-trigger')?.getBoundingClientRect()
+              const parent = menuSurface.current?.getBoundingClientRect()
+              return row && parent ? new DOMRect(row.left, row.top, parent.right - row.left, row.height) : null
+            }}>
               <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportHtml')}>HTML</button>
               <button role="menuitem" title="导出当前正文（含未保存编辑）；请先完成输入法组合输入" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('exportDocx')}>DOCX</button>
               <button role="menuitem" title="通过系统打印窗口另存为 PDF" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('print')}>PDF</button>
-            </div>}
+            </PositionedOverlay>}
           </div>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('history')}>版本历史</button>
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => fileAction('batchImages')}>批量处理图片</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.history').enabled} onClick={() => fileAction('history')}>版本历史</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.batchImages').enabled} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
-          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => { setMenuOpen(false); setSettingsOpen(true) }}>设置</button>
-        </div>}
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => executeApp('app.settings')}>设置</button>
+        </PositionedOverlay>}
       </div>
       <div ref={tablist} className="document-tablist" role="tablist" aria-label="打开的文档" onMouseDown={(event) => {
         if (desktop && event.button === 0 && event.target === event.currentTarget) void dragWindow().catch((err) => setError(String(err)))
@@ -267,11 +370,11 @@ function Application() {
             event.preventDefault()
             const index = tabs.findIndex((item) => item.id === tab.id)
             const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
-            setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus()
-          }} onClick={() => { if (handles.current.get(active)?.canSwitch()) setActive(tab.id) }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
+            void (async () => { const handle = handles.current.get(active); if (!handle?.prepareLeave || await handle.prepareLeave()) { setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus() } })()
+          }} onClick={() => { const handle = handles.current.get(active); if (handle?.canSwitch()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) setActive(tab.id) })() }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
           <button className="tab-close" aria-label={`关闭 ${summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}`} disabled={blocked} onClick={() => requestClose(tab.id)}>×</button>
         </div>)}
-        <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { if (handles.current.get(active)?.canLeave()) add() }}>＋</button>
+        <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { const handle = handles.current.get(active); if (handle?.canLeave()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) add() })() }}>＋</button>
       </div>
       <div className="titlebar-drag" aria-hidden="true" onMouseDown={(event) => { if (event.button === 0) void dragWindow().catch((err) => setError(String(err))) }} onDoubleClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))} />
       {desktop && <div className="window-controls" aria-label="窗口控制">
@@ -280,18 +383,23 @@ function Application() {
         <button className="window-close" aria-label="关闭窗口" title="关闭" disabled={closeBusy || !!closing} onClick={() => requestClose('window')}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m3 3 10 10M13 3 3 13" /></svg></button>
       </div>}
     </div>
+    <OverlayHost />
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReport={report} onReadOther={tabs.length > 1 ? () => {
+    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
+      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
       } : undefined} />
     </section>)}
-    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
+    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} appearance={appearance} onAppearance={updateAppearance} onResetAppearance={() => setAppearance({ ...defaultAppearance })} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
+    {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
+    {quickEntry?.kind === 'open' && <QuickOpen tabs={tabs.map(tab => ({ id: tab.id, name: summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md', path: tab.path }))} workspace={workspace} pending={quickBusy} error={quickError} choose={chooseQuickFile} close={closeQuickEntry} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {
-      if (!handles.current.get(active)?.canEdit()) return
+      const handle = handles.current.get(active)
+      // This confirmed dialog result may create a tab while general commands are suspended.
+      if (!handle?.canLeave() || handle.summary.busy || handle.summary.pendingImage) return
       setTemplateOpen(false); add(undefined, null, null, undefined, seed)
     }} />}
     {closing && <CloseDialog scope={closing === 'window' ? 'window' : closing.length > 1 ? 'tabs' : 'tab'} error={error} busy={closeBusy} pendingImage={targetHandles().some((handle) => handle.summary.pendingImage)} onSave={() => void finish('save')} onRetain={() => void finish('retain')} onDiscard={() => void finish('discard')} onCancel={() => { setClosing(null); setError('') }} />}
