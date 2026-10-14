@@ -10,7 +10,7 @@ import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
 import { ContextMenuProvider, useContextMenu } from './editor/ContextMenu'
 import { SettingsDialog, GuideDialog } from './editor/ApplicationDialogs'
-import { themes, type Theme, storedPreference, storePreference, editorFontSize, needsGuide, completeGuide } from './platform/preferences'
+import { type Appearance, type Theme, defaultAppearance, loadAppearance, saveAppearance, appearanceTheme, storedPreference, needsGuide, completeGuide } from './platform/preferences'
 import { OverlayProvider, OverlayHost, PositionedOverlay, useOverlays } from './editor/Overlay'
 import type { OverlayLease } from './core/overlays'
 import { CommandRegistry, commandDefinitions, type CommandContext } from './core/commands'
@@ -45,7 +45,24 @@ function Application() {
   const [templateOpen, setTemplateOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(needsGuide)
-  const [fontSize, setFontSize] = useState(editorFontSize)
+  const [appearance, setAppearance] = useState(loadAppearance)
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
+  const theme = appearanceTheme(appearance, systemDark), fontSize = appearance.fontSize
+  const updateAppearance = (patch: Partial<Appearance>) => setAppearance(current => ({ ...current, ...patch }))
+  const setTheme = (value: Theme) => updateAppearance(appearance.followSystem ? systemDark ? { darkTheme: value } : { lightTheme: value } : { theme: value })
+  const showToolbar = appearance.toolbar, showSelectionTools = appearance.selectionTools
+  const setShowToolbar = (value: boolean) => updateAppearance({ toolbar: value })
+  useEffect(() => {
+    const query = window.matchMedia?.('(prefers-color-scheme: dark)')
+    if (!query) return
+    const update = () => setSystemDark(query.matches)
+    update(); query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+  const initialAppearance = useRef(appearance)
+  useEffect(() => {
+    if (appearance !== initialAppearance.current && !saveAppearance(appearance)) setError('无法保存外观设置，当前会话仍可使用。')
+  }, [appearance])
   const previousGuideVersion = useRef(storedPreference('easym-guide-version'))
   const appModal = settingsOpen || guideOpen
   const appModalRef = useRef(false)
@@ -75,16 +92,8 @@ function Application() {
   const previousFullscreen = useRef(false)
   const readingFocus = useRef<HTMLElement | null>(null)
   const restoreReadingFocus = useRef(false)
-  const [showToolbar, setShowToolbar] = useState(() => {
-    try { return localStorage.getItem('easym-toolbar') !== 'hidden' } catch { return true }
-  })
-  const [showSelectionTools, setShowSelectionTools] = useState(() => { try { return localStorage.getItem('easym-selection-tools') !== 'hidden' } catch { return true } })
-  useEffect(() => { try { localStorage.setItem('easym-selection-tools', showSelectionTools ? 'visible' : 'hidden') } catch { setError('无法保存选区工具栏设置，当前会话仍可使用。') } }, [showSelectionTools])
   const menu = useRef<HTMLDivElement>(null)
   const tablist = useRef<HTMLDivElement>(null)
-  const [theme, setTheme] = useState<Theme>(() => {
-    try { const stored = localStorage.getItem('easym-theme'); return stored && Object.hasOwn(themes, stored) ? stored as Theme : 'light' } catch { return 'light' }
-  })
   const report = useCallback((id: string, summary: DocumentSummary, handle: DocumentHandle) => {
     handles.current.set(id, handle)
     setSummaries((previous) => JSON.stringify(previous[id]) === JSON.stringify(summary) ? previous : { ...previous, [id]: summary })
@@ -126,9 +135,6 @@ function Application() {
     window.addEventListener('keydown', escape)
     return () => { disposed = true; stop?.(); window.removeEventListener('keydown', escape) }
   }, [])
-  useEffect(() => { try { localStorage.setItem('easym-theme', theme) } catch { /* Theme remains usable without persistence. */ } }, [theme])
-  useEffect(() => { try { localStorage.setItem('easym-toolbar', showToolbar ? 'visible' : 'hidden') } catch { /* Visibility remains usable without persistence. */ } }, [showToolbar])
-  useEffect(() => { if (!storePreference('easym-editor-font-size', String(fontSize))) setError('无法保存编辑字号，当前会话仍可使用。') }, [fontSize])
   useLayoutEffect(() => {
     if (!menuOpen) { menuLease.current?.release(); menuLease.current = null; setExportMenuOpen(false); return }
     menuLease.current = manager.open('menu', () => {
@@ -292,7 +298,7 @@ function Application() {
     setMenuOpen(false)
     handle.run(action)
   }
-  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} style={{ '--editor-font-size': `${fontSize}px` } as CSSProperties}>
+  return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} data-code-wrap={appearance.codeWrap} style={{ '--editor-font-size': `${fontSize}px`, '--body-line-height': appearance.lineHeight, '--content-width': appearance.contentWidth ? `${appearance.contentWidth}px` : '100%', '--code-font-size': `${appearance.codeFontSize}px` } as CSSProperties}>
     <div className="document-strip" hidden={reading} inert={templateOpen || appModal || !!summaries[active]?.tableDecision}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
         const inExportMenu = !!(event.target as HTMLElement).closest('#export-menu')
@@ -386,7 +392,7 @@ function Application() {
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
       } : undefined} />
     </section>)}
-    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} selectionTools={showSelectionTools} onSelectionTools={setShowSelectionTools} toolbar={showToolbar} onToolbar={setShowToolbar} fontSize={fontSize} onFontSize={setFontSize} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
+    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} appearance={appearance} onAppearance={updateAppearance} onResetAppearance={() => setAppearance({ ...defaultAppearance })} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
     {quickEntry?.kind === 'open' && <QuickOpen tabs={tabs.map(tab => ({ id: tab.id, name: summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md', path: tab.path }))} workspace={workspace} pending={quickBusy} error={quickError} choose={chooseQuickFile} close={closeQuickEntry} />}

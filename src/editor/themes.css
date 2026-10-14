@@ -17,6 +17,17 @@
 .application-dialog .apply-button { background: var(--accent-fill); color: white; }
 .application-dialog .apply-button:hover { background: var(--accent-fill); filter: brightness(.94); }
 .setting-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; font-size: 14px; }
+.setting-row select { max-width: 58%; }
+.application .cm-scroller, .application .cm-live-preview .cm-scroller, .application .preview, .application .live-rendered-block { font-size: var(--editor-font-size, 14px); line-height: var(--body-line-height, 1.6); }
+.application .cm-content { flex: 1; min-width: 0; max-width: var(--content-width, 100%); margin-inline: auto; }
+.application .preview { max-width: none; }
+.application .preview > * { max-width: var(--content-width, 100%); margin-inline: auto; }
+.application .preview table { max-width: min(100%, var(--content-width, 100%)); margin-inline: auto; }
+.application .preview pre, .application .live-rendered-block pre { min-width: 0; overflow-x: auto; }
+.application .preview pre code, .application .live-rendered-block pre code { font-size: var(--code-font-size, 14px); line-height: var(--body-line-height, 1.6); white-space: pre-wrap; overflow-wrap: anywhere; }
+.application .cm-source-code, .application .live-code { font-size: var(--code-font-size, 14px); line-height: var(--body-line-height, 1.6); }
+.application[data-code-wrap=false] :is(.preview pre code, .live-rendered-block pre code) { white-space: pre; overflow-wrap: normal; }
+.application[data-code-wrap=false] .cm-source-code { white-space: pre; overflow-x: auto; scrollbar-width: thin; }
 .application .cm-editor { font-size: var(--editor-font-size, 14px); }
 .history-dialog h2 { margin: 0 0 12px; font-size: 20px; }
 .history-dialog p, .history-dialog li { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }

@@ -1,8 +1,33 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { appVersion, needsGuide, completeGuide, editorFontSize, storedPreference, storePreference } from './preferences'
+import { appVersion, needsGuide, completeGuide, editorFontSize, storedPreference, storePreference, defaultAppearance, loadAppearance, saveAppearance, validateAppearance, appearanceTheme } from './preferences'
 beforeEach(() => localStorage.clear())
 afterEach(() => vi.restoreAllMocks())
+it('migrates legacy preferences and validates individual fields without discarding valid settings', () => {
+  localStorage.setItem('easym-theme', 'paper'); localStorage.setItem('easym-editor-font-size', '19'); localStorage.setItem('easym-toolbar', 'hidden')
+  expect(loadAppearance()).toEqual({ ...defaultAppearance, theme: 'paper', fontSize: 19, toolbar: false })
+  localStorage.setItem('easym-appearance', JSON.stringify({ version: 1, fontSize: 30, lineHeight: 1.75, codeFontSize: 21, contentWidth: 800, selectionTools: false, followSystem: 'true', theme: 'unknown', extra: 'ignored' }))
+  expect(loadAppearance()).toEqual({ ...defaultAppearance, theme: 'paper', fontSize: 19, toolbar: false, codeFontSize: 21, selectionTools: false })
+  for (const raw of ['{broken', 'null', '{"version":2,"fontSize":22}']) {
+    localStorage.setItem('easym-appearance', raw); expect(loadAppearance().fontSize).toBe(19)
+  }
+})
+it('persists bounded appearance and independently remembers system light and dark themes', () => {
+  const value = { ...defaultAppearance, fontSize: 24, codeFontSize: 10, lineHeight: 2.2, contentWidth: 1080, followSystem: true, lightTheme: 'forest' as const, darkTheme: 'paper' as const }
+  expect(saveAppearance(value)).toBe(true); expect(loadAppearance()).toEqual(value)
+  expect(appearanceTheme(loadAppearance(), false)).toBe('forest'); expect(appearanceTheme(loadAppearance(), true)).toBe('paper')
+  expect(appearanceTheme({ ...value, followSystem: false }, true)).toBe('light')
+  expect(validateAppearance({ fontSize: NaN, codeFontSize: Infinity, contentWidth: '720', lineHeight: 1.3 }).lineHeight).toBe(1.3)
+})
+it('reset preserves other records and denied writes preserve previously saved preferences', () => {
+  localStorage.setItem('history-directory', 'D:/history'); localStorage.setItem('draft', 'keep'); completeGuide()
+  saveAppearance({ ...defaultAppearance, fontSize: 20 }); const old = localStorage.getItem('easym-appearance')
+  const storage = localStorage
+  vi.stubGlobal('localStorage', { getItem: storage.getItem.bind(storage), setItem: () => { throw new Error('quota') } })
+  expect(saveAppearance(defaultAppearance)).toBe(false); expect(storage.getItem('easym-appearance')).toBe(old)
+  vi.unstubAllGlobals(); expect(saveAppearance(defaultAppearance)).toBe(true); expect(loadAppearance()).toEqual(defaultAppearance)
+  expect(localStorage.getItem('history-directory')).toBe('D:/history'); expect(localStorage.getItem('draft')).toBe('keep'); expect(needsGuide()).toBe(false)
+})
 it('shows first-run and version-change guides until acknowledged and persists completion', () => {
   expect(needsGuide()).toBe(true)
   expect(completeGuide()).toBe(true)

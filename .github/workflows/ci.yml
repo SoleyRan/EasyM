@@ -58,6 +58,9 @@ jobs:
             test-results/content-tools/*.png
             test-results/quick-entry-verification.json
             test-results/quick-entry/*.png
+            test-results/appearance-verification.json
+            test-results/appearance/*.png
+            test-results/settings-verification.json
             test-results/regression-verification.json
           if-no-files-found: warn
 

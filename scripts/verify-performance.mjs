@@ -4,6 +4,7 @@ import { cpus, totalmem, platform, release } from 'node:os'
 import { chromium } from 'playwright'
 import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
 import { productionWorkers, workerKind } from './production-workers.mjs'
+import { fillSource } from './source-test-utils.mjs'
 
 // Local baseline only. Event-to-next-frame measures UI latency, not physical screen/input latency.
 const server = await serveProduction()
@@ -69,6 +70,35 @@ try {
     await context.close()
   }
 
+  // At the simultaneous cell/column limits: 20 columns, 99 body rows.
+  // A separate fixture exercises the 200-body-row limit with 9 columns.
+  const tableContext = await browser.newContext({ viewport: { width: 1440, height: 900 } }), tablePage = await tableContext.newPage()
+  await acknowledgeGuide(tablePage); await tablePage.goto(server.url)
+  const row = count => '| ' + Array.from({ length: count }, (_, i) => `cell ${i}`).join(' | ') + ' |'
+  for (const [rows, columns] of [[100, 20], [201, 9]]) {
+    const text = [row(columns), '| ' + Array(columns).fill('---').join(' | ') + ' |', ...Array(rows - 1).fill(row(columns))].join('\n')
+    await fillSource(tablePage, text); await tablePage.getByRole('textbox', { name: 'Markdown 源码编辑器' }).press('Control+Home')
+    const start = Date.now(); await tablePage.getByRole('button', { name: '编辑表格', exact: true }).click()
+    const input = tablePage.getByRole('textbox', { name: '单元格 Markdown', exact: true }); await input.waitFor()
+    const openMs = Date.now() - start
+    const table = tablePage.getByRole('dialog', { name: '编辑表格', exact: true })
+    const scrollStart = Date.now(); await table.getByRole('button', { name: `正文第 ${rows - 1} 行 第 ${columns} 列`, exact: true }).click()
+    assert.equal(await input.inputValue(), `cell ${columns - 1}`)
+    report.cases.push({ name: 'table limit', rowsIncludingHeader: rows, columns, cells: rows * columns, bytes: Buffer.byteLength(text), openMs, lastCellScrollAndSelectMs: Date.now() - scrollStart, scope: 'wall time includes Playwright interaction; no physical input or native WebView timing' })
+    await table.getByRole('button', { name: '取消输入', exact: true }).click()
+  }
+  await fillSource(tablePage, 'hello world\n\n' + Array.from({ length: 500 }, (_, i) => `paragraph ${i}`).join('\n\n'))
+  const source = tablePage.getByRole('textbox', { name: 'Markdown 源码编辑器' }), floating = tablePage.getByRole('toolbar', { name: '选区格式工具栏', exact: true })
+  const times = []
+  for (let i = 0; i < 10; i++) {
+    await source.press('Control+Home'); await tablePage.waitForTimeout(150); const start = Date.now(); await source.press('Shift+End'); await floating.waitFor()
+    times.push(Date.now() - start)
+    const box = await floating.boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 1440 && box.y >= 0 && box.y + box.height <= 900)
+    const rect = await source.boundingBox(); await tablePage.mouse.move(rect.x + 100, rect.y + 100); await tablePage.mouse.wheel(0, 600); await floating.waitFor({ state: 'detached' })
+  }
+  report.cases.push({ name: 'selection overlay positioning and scroll dismissal', samples: times.length, wallTimeToVisibleP95Ms: times.sort((a,b) => a-b)[Math.ceil(times.length * .95) - 1], intentionalDebounceMs: 160, bounded: true, scrollDismissed: true, scope: 'UI wall time includes debounce and automation; not input-to-frame p95' })
+  await tableContext.close()
+
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const page = await context.newPage()
   page.setDefaultTimeout(60000)
@@ -131,6 +161,8 @@ try {
   assert.ok(boundaries.rejected.error.includes('20 MB'))
   report.cases.push({ name: '20 MiB PNG byte boundary (padded 800×600 fixture)', ...boundaries })
   await context.close()
+  assert.ok(report.cases.filter(item => 'targetMet' in item).every(item => item.targetMet), 'Input-to-next-frame p95 exceeds the frozen 50 ms target')
+  report.passed = true
   console.log(JSON.stringify(report, null, 2))
 } finally {
   await mkdir('test-results', { recursive: true })

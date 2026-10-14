@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前在 `feature/v0.4`，已冻结 [v0.4 设计与实施计划](Docs/Easy-Markdown-v0.4-设计与实施计划.md)。第一步统一命令与浮层已提交为 `ae3e216`，见 [第一步记录](Docs/Easy-Markdown-v0.4-第一步-命令与浮层.md)；第二步可视化表格已提交为 `0da2cdc`，见 [第二步记录](Docs/Easy-Markdown-v0.4-第二步-可视化表格编辑.md)。第三步选区与内容就地工具已提交为 `e0c2981`，见 [第三步记录](Docs/Easy-Markdown-v0.4-第三步-选区与内容工具.md)。第四步快捷插入/命令面板/快速打开已实现，见 [第四步记录](Docs/Easy-Markdown-v0.4-第四步-快捷入口.md)。下一步为排版设置与回归交付。仅借鉴 MarkText 的交互设计，独立实现，不引入其代码或资源；产品版本暂时保持 0.3.0。
+当前在 `feature/v0.4`，按 [v0.4 冻结计划](Docs/Easy-Markdown-v0.4-设计与实施计划.md) 完成五步实现：统一命令与浮层、可视化表格、选区与内容工具、快捷插入/命令面板/快速打开、排版设置与系统主题。第四步已提交为 `78480fa`，第五步和 0.4.0 Windows 开发包已完成，见 [排版与交付记录](Docs/Easy-Markdown-v0.4-第五步-排版与交付.md)。231 项前端、57 项 Windows Rust、21 组生产回归与 Word 样例通过；第五步随本次提交交付；当前源码的远端 CI/安装卸载、真实 IME 与跨平台 GUI 仍待验收。仅借鉴 MarkText 的交互设计，独立实现，没有引入其代码或资源。
 
 v0.3 已合并到 develop，已完成办公增强实现和 [0.3.0 本机验收与开发包交付](Docs/Easy-Markdown-v0.3-验收与交付.md)：DOCX 预检/后台导出、显式启用的持久版本历史与文字/图片差异、恢复/清理、最多 100 实例的安全批图，以及键盘焦点和阅读模式改进。PDF 候选实测评估后保留系统打印，专用引擎延期。173 项前端、50 项 Windows Rust、15 组生产回归、慢速查找/模板、Word 打开编辑再保存与原生窗口启动通过；0.3.0 Windows 安装包/便携包已生成。提交 `efcfe0b` 的 [三平台 CI 第 2 次运行](https://github.com/SoleyRan/EasyM/actions/runs/38367149201/attempts/2) 全部通过，包含 Windows 原生启动、隔离安装/卸载和便携包校验。真实 IME/原生对话框、读屏与跨平台 GUI 等门槛仍待验收，不称为正式发行。范围见 [v0.3 设计计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)。
 
@@ -78,7 +78,9 @@ pnpm verify:commands
 pnpm verify:tables
 pnpm verify:content-tools
 pnpm verify:quick-entry
+pnpm verify:appearance
 pnpm verify:performance
+pnpm verify:regression --performance
 ```
 
 构建后可用 `pnpm verify:regression` 串行执行全部功能回归，添加 `--performance` 同时测量性能。CI 使用统一入口，性能数据在本机单独记录；各项命令仍可独立运行。`pnpm verify:search --slow` 和 `pnpm verify:templates --slow` 使用 6 倍 CPU 降速验证初始化及标签标题更新竞态；正文 fixture 等待草稿初始化后的可用编辑区。依赖清单生成后运行 `node scripts/verify-notices.mjs`，核验 SBOM 版本、许可文件字节哈希、链接大小写和补充文本来源。
@@ -96,9 +98,9 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
-Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.3.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.3 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发候选包，验收状态见 [v0.3 验收与交付](Docs/Easy-Markdown-v0.3-验收与交付.md)，校验值见 [构建记录](Docs/verification/v0.3/acceptance-67d45fd/windows-build.json)。
+Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.4.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.4 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发包，验收状态见 [v0.4 排版与交付](Docs/Easy-Markdown-v0.4-第五步-排版与交付.md)，源码/产物校验值见 [构建记录](Docs/verification/v0.4/step-5/windows-build.json)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.3.0_x64-setup.exe`（附带项目与第三方许可，未签名；`efcfe0b` 的安装/卸载已通过上述 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS，本机复用已校验的缓存工具。只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`；便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
+Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.4.0_x64-setup.exe`（附带项目与第三方许可，未签名；当前源码的安装/卸载待 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS；仅生成 NSIS 可运行 `pnpm.cmd tauri build --bundles nsis`，只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`。便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
 
 ## 许可
 

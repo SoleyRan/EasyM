@@ -24,6 +24,7 @@ vi.mock('./editor/Editor', () => ({ Editor: forwardRef(function MockEditor(props
   const [body, setBody] = useState(props.initialText)
   useImperativeHandle(ref, () => ({
     selection: () => ({ anchor: 0, head: 0 }), composing: () => native.composing,
+    contentStatus: () => ({ enabled: true }),
     patch: (patches: TextPatch[]) => { const next = applyPatches(body, patches); setBody(next); props.onChange(next); return true },
     applyCommand: (result: EditCommandResult, context: CommandContext) => {
       try { if (!validateCommandEdit(body, result, context, props.commandContext())) return true; const next = applyPatches(body, result.patches); setBody(next); props.onChange(next); return true } catch { return false }

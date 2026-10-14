@@ -367,10 +367,10 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     context: () => ({ documentId: id, fileId, textRevision: changeRevision.current, selection: editor.current?.selection() ?? { anchor: 0, head: 0 }, active: activeRef.current,
       reading, editorMode: view, composing: contentComposing.current || cellComposing.current || !!editor.current?.composing(), lockReason: contentToolRef.current ? '请先确认或取消就地内容工具。' : suspended ? '请先关闭当前对话框。' : disabled || autoSaving || saving.current || exporting.current || images.applying || panelApplying.current ? '正在处理或恢复文档，请完成后操作。' : undefined }),
     status: commandId => {
-      if (commandId === 'table.edit') { try { sourceTable(textRef.current, tableCommandOffset.current ?? tableRef.current?.table.from ?? editor.current?.selection().head ?? 0); return { enabled: true } } catch (err) { return { enabled: false, reason: errorMessage(err) } } }
+      if (commandId === 'table.edit') return editor.current?.contentStatus('table', tableCommandOffset.current ?? tableRef.current?.table.from) ?? { enabled: false }
 
       if (commandId.startsWith('format.')) return editor.current?.formatStatus?.(commandId.slice(7) as Format) ?? { enabled: true, checked: formats[commandId.slice(7) as Format] }
-      if (commandId === 'paragraph.convert') { try { paragraphTarget(textRef.current, editor.current?.selection() ?? { anchor: 0, head: 0 }); return { enabled: true } } catch (err) { return { enabled: false, reason: errorMessage(err) } } }
+      if (commandId === 'paragraph.convert') return editor.current?.contentStatus('paragraph') ?? { enabled: false }
       if (commandId === 'content.language') return { enabled: !!editor.current?.fencedCode(), reason: '请将光标放在围栏代码块中。' }
       if (commandId === 'edit.undo' || commandId === 'edit.redo') return { enabled: editor.current?.historyState?.()[commandId.slice(5) as 'undo' | 'redo'] ?? true, reason: '没有可撤销或重做的修改。' }
       if (commandId === 'file.reload' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
@@ -954,7 +954,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
         {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
-        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.3.0-dev</span></div>
+        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.4.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
         <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>

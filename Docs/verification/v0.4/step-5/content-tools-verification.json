@@ -1,0 +1,15 @@
+{
+  "passed": true,
+  "checks": [
+    "real drag is passive until release; selection retained, toggle, pressed state, undo and Alt+F10 navigation",
+    "mixed strike and inline code toggles; typing hides selection tools; multiline/code cannot be misformatted",
+    "link prefill with empty address, cancel, unsafe rejection, nested label, reference unlink and atomic undo",
+    "split link click/edit and heading anchor open; preview/live language tags, Chinese search, unknown preservation, info-only patch and undo",
+    "paragraph target explanation, structural conversion preserving inline syntax, and one undo",
+    "composition guards prevent selection actions and modal cancel until completion",
+    "four theme screenshots, compact positioning and independent persisted selection setting",
+    "desktop IPC fixture: bounded relative path, explicit external open, relative heading navigation, cancelled async result preserves existing tab handle"
+  ],
+  "scope": "Production Chromium mouse/keyboard; synthetic composition events verify guards, real IME/native URL launch require manual testing.",
+  "browser": "156.0.8078.4"
+}

@@ -23,6 +23,8 @@ import type { ParsedDocument } from '../core/markdown'
 import { useContextMenu } from './ContextMenu'
 import { filterCommands, slashTrigger, type SlashTrigger } from '../core/quick-entry'
 import { SlashMenu } from './QuickEntry'
+import { codeAppearance } from './code-appearance'
+import { contentStatus } from './content-status'
 
 export interface EditorHandle {
   selection(): Selection
@@ -33,6 +35,7 @@ export interface EditorHandle {
   composing(): boolean
   formatStatus(kind: Format): CommandStatus
   fencedCode(): FencedBlock | null
+  contentStatus(kind: 'table' | 'paragraph', offset?: number): CommandStatus
   format(kind: Format, language: string, context: CommandContext): boolean
   applyCommand(result: EditCommandResult, context: CommandContext): boolean
   historyState(): { undo: boolean; redo: boolean }
@@ -106,6 +109,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
     formatStatus,
     openSearch: () => { if (view.current && !isComposing(view.current)) openSearchPanel(view.current) },
     fencedCode: () => view.current ? fencedCode(view.current) : null,
+    contentStatus: (kind, offset) => view.current ? contentStatus(view.current.state, kind, offset) : { enabled: false },
     focus: () => view.current?.focus(),
     historyState: () => view.current ? { undo: undoDepth(view.current.state) > 0, redo: redoDepth(view.current.state) > 0 } : { undo: false, redo: false },
     applyCommand,
@@ -194,7 +198,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
         extensions: [
           readOnly.current.of([EditorState.readOnly.of(blocked), EditorView.contentAttributes.of({ 'aria-readonly': String(blocked) })]), lineNumbers(), history(), drawSelection(), highlightActiveLine(), EditorView.lineWrapping,
           search({ top: true, literal: true, createPanel: createSearchPanel, scrollToMatch: range => EditorView.scrollIntoView(range, { y: 'start', yMargin: 8 }) }),
-          largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle),
+          largeLines, language.of(limited ? [] : support), syntaxHighlighting(tokenStyle), codeAppearance,
           liveRendering({ image: resource => callbacks.current.onRenderImage(resource), editImage: offset => callbacks.current.onEditImage(offset), editTable: offset => callbacks.current.onEditTable(offset), editLanguage: offset => callbacks.current.onEditLanguage(offset) }),
           EditorState.transactionExtender.of((transaction) => {
             const before = transaction.startState.field(largeLines) > 0
