@@ -10,6 +10,7 @@ import type { EditCommandResult } from './core/document'
 import { blankSnapshot } from './core/codec'
 import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
+import { SESSION_KEY, saveSession } from './platform/session'
 
 const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
 const docxApi = vi.hoisted(() => ({ preflight: vi.fn(), render: vi.fn(), save: vi.fn() }))
@@ -57,7 +58,7 @@ beforeEach(async () => {
 })
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); for (const key of await drafts.keys()) await drafts.clear(key); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 async function settle() { await act(async () => { await drafts.load(); await new Promise<void>((resolve) => setTimeout(resolve, 10)) }) }
-async function mount() { await act(async () => root.render(createElement(App))); await settle() }
+async function mount() { await act(async () => root.render(createElement(App))); await settle(); await settle() }
 async function click(label: string) {
   if (['新建文档', '打开文件', '打开工作区', '另存为 / 冲突副本', '重新加载外部版本', '导出 HTML', '导出 DOCX', '打印文档'].includes(label) && !container.querySelector('[role=menu]')) await click('EM 菜单')
   const exportLabels: Record<string, string> = { '导出 HTML': 'HTML', '导出 DOCX': 'DOCX', '打印文档': 'PDF' }
@@ -534,10 +535,66 @@ it('retains all dirty tabs on exit and recovers each independently on restart', 
   await act(async () => root.unmount()); root = createRoot(container); await mount()
   expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
   await click('恢复草稿')
-  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('first edit')
-  const tabs = container.querySelectorAll<HTMLButtonElement>('[role=tab]')
-  await act(async () => tabs[1].click()); await settle(); await click('恢复草稿')
   expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('second edit')
+  const tabs = container.querySelectorAll<HTMLButtonElement>('[role=tab]')
+  await act(async () => tabs[0].click()); await settle(); await click('恢复草稿')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('first edit')
+})
+
+it('restores index order and active draft, drops missing entries and recovers orphan drafts', async () => {
+  for (const key of ['document:a', 'document:b', 'document:orphan']) await drafts.save({ version: 1, name: `${key}.md`, text: key, snapshot: blankSnapshot(), updatedAt: 1, fileId: 'expired-native-id' }, key)
+  saveSession({ version: 1, tabs: [{ draftKey: 'document:b', name: 'b.md' }, { draftKey: 'document:gone', name: 'gone.md' }, { draftKey: 'document:a', name: 'a.md' }], activeDraftKey: 'document:a' })
+  await mount()
+  expect([...container.querySelectorAll('[role=tab]')].map(tab => tab.textContent)).toEqual(['document:b.md *', 'document:a.md *', 'document:orphan.md *'])
+  expect(container.querySelector('[role=tab][aria-selected=true]')?.id).toBe('tab-document:a')
+  await click('恢复草稿')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('document:a')
+  expect(native.open).not.toHaveBeenCalled(); expect(native.reload).not.toHaveBeenCalled(); expect(native.save).not.toHaveBeenCalled()
+  expect(localStorage.getItem(SESSION_KEY)).not.toContain('expired-native-id')
+})
+
+it('preserves an incompatible session index while independently recovering and editing drafts', async () => {
+  const raw = '{"version":2,"future":"keep"}'
+  localStorage.setItem(SESSION_KEY, raw)
+  await drafts.save({ version: 1, name: 'draft.md', text: 'safe body', snapshot: blankSnapshot(), updatedAt: 1 })
+  await mount(); expect(container.textContent).toContain('无法读取会话索引')
+  await click('恢复草稿'); await edit('safe changed')
+  await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
+  expect((await drafts.load())?.text).toBe('safe changed')
+  expect(localStorage.getItem(SESSION_KEY)).toBe(raw)
+})
+
+it('reports failed index writes while preserving independently retained draft bodies', async () => {
+  await mount(); const previous = localStorage.getItem(SESSION_KEY)
+  const storage = localStorage
+  vi.stubGlobal('localStorage', { getItem: storage.getItem.bind(storage), setItem: (key: string, value: string) => { if (key === SESSION_KEY) throw new Error('session quota'); storage.setItem(key, value) } })
+  await edit('body survives'); await requestClose(); await click('保留草稿并退出')
+  expect((await drafts.load())?.text).toBe('body survives')
+  expect(storage.getItem(SESSION_KEY)).toBe(previous)
+})
+
+it('waits for the startup draft inventory before mounting editable documents', async () => {
+  const enumerate = vi.spyOn(drafts, 'keys').mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
+  let complete!: (keys: string[]) => void
+  await act(async () => root.render(createElement(App)))
+  expect(container.querySelector('textarea')).toBeNull()
+  expect(container.textContent).toContain('正在检查上次会话与草稿')
+  expect(container.querySelector<HTMLButtonElement>('.new-document')?.disabled).toBe(true)
+  await requestClose(); expect(native.close).not.toHaveBeenCalled()
+  await act(async () => complete([])); await settle(); await settle()
+  expect(container.querySelector('textarea')).not.toBeNull()
+  expect(container.querySelector<HTMLButtonElement>('.new-document')?.disabled).toBe(false)
+  enumerate.mockRestore()
+})
+
+it('retains the original index on failed inventory and still opens the default editor', async () => {
+  saveSession({ version: 1, tabs: [{ draftKey: 'document:untouched', name: 'keep.md' }], activeDraftKey: 'document:untouched' })
+  const raw = localStorage.getItem(SESSION_KEY)
+  vi.spyOn(drafts, 'keys').mockRejectedValueOnce(new Error('inventory unavailable'))
+  await mount(); expect(container.textContent).toContain('inventory unavailable')
+  await edit('safe new draft'); await act(async () => window.dispatchEvent(new Event('blur'))); await settle()
+  expect((await drafts.load())?.text).toBe('safe new draft')
+  expect(localStorage.getItem(SESSION_KEY)).toBe(raw)
 })
 
 it('closing one dirty tab saves only that tab and preserves the other draft', async () => {
@@ -654,14 +711,13 @@ it('keeps a non-empty template as a recoverable draft and closes blank templates
   await requestClose(); expect(container.querySelector('.close-dialog')).not.toBeNull()
   await click('保留草稿并退出'); expect(native.close).toHaveBeenCalledOnce()
   await act(async () => root.unmount()); root = createRoot(container); await mount()
-  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
-  await act(async () => container.querySelectorAll<HTMLButtonElement>('[role=tab]')[1].click()); await settle()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
   await click('恢复草稿')
   expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toContain('# 项目说明')
   await click('EM 菜单'); await click('从模板新建'); await click('创建文档')
-  await act(async () => container.querySelectorAll<HTMLButtonElement>('.tab-close')[2].click()); await settle()
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('.tab-close')[1].click()); await settle()
   expect(container.querySelector('.close-dialog')).toBeNull()
-  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(1)
   expect(native.save).not.toHaveBeenCalled()
 })
 

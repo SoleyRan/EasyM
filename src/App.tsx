@@ -5,6 +5,7 @@ import { TemplateDialog } from './editor/TemplateDialog'
 import type { NewDocument } from './core/templates'
 import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
 import { drafts } from './platform/drafts'
+import { loadSession, saveSession, reconcileSession, MAX_SESSION_TABS } from './platform/session'
 import { releaseDocument, type OpenedFile } from './platform/storage'
 import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
@@ -19,7 +20,7 @@ import { CommandPalette, QuickOpen } from './editor/QuickEntry'
 import { openWorkspaceDocument } from './platform/workspace'
 import { decodeFile } from './core/codec'
 
-interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
+interface Tab { id: string; draftKey: string; restoredName?: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 
 export default function App() {
@@ -35,6 +36,8 @@ function Application() {
   const exportSurface = useRef<HTMLDivElement>(null)
   const [tabs, setTabs] = useState<Tab[]>([first])
   const [active, setActive] = useState(first.id)
+  const [sessionReady, setSessionReady] = useState(false)
+  const sessionWritable = useRef(false)
   const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
   const handles = useRef(new Map<string, DocumentHandle>())
   const [closing, setClosing] = useState<string[] | 'window' | null>(null)
@@ -167,11 +170,28 @@ function Application() {
   }, [active])
   useEffect(() => {
     let alive = true
+    const loaded = loadSession()
     drafts.keys().then((keys) => {
-      if (alive) setTabs((previous) => [...previous, ...keys.filter((key) => key.startsWith('document:') && !previous.some((tab) => tab.draftKey === key)).map((key) => ({ id: key, draftKey: key }))])
-    }).catch((err) => setError(String(err)))
+      if (!alive) return
+      const restored = reconcileSession(loaded.index, keys)
+      if (restored.tabs.length) {
+        const legacyWelcome = !loaded.index && !restored.tabs.some(tab => tab.draftKey === 'current')
+        setTabs([...(legacyWelcome ? [first] : []), ...restored.tabs.map(tab => ({ id: tab.draftKey, draftKey: tab.draftKey, restoredName: tab.name, blank: true }))])
+        setActive(legacyWelcome ? first.id : restored.activeDraftKey!)
+      }
+      sessionWritable.current = !loaded.error
+      if (loaded.error) setError(loaded.error)
+      setSessionReady(true)
+    }).catch((err) => { if (alive) { setError(`无法读取草稿列表：${String(err)}；会话索引已保留。`); setSessionReady(true) } })
     return () => { alive = false }
   }, [])
+  useEffect(() => {
+    if (!sessionReady || !sessionWritable.current) return
+    try {
+      if (tabs.length > MAX_SESSION_TABS) throw new Error('打开标签超过 100 个；草稿继续独立保存，会话索引未更新。')
+      saveSession({ version: 1, tabs: tabs.map(tab => ({ draftKey: tab.draftKey, name: (summaries[tab.id]?.name ?? tab.restoredName ?? tab.file?.name ?? '未命名.md').slice(0, 512) })), activeDraftKey: tabs.find(tab => tab.id === active)?.draftKey ?? null })
+    } catch (err) { setError(`无法保存会话索引：${String(err)}；正文与独立草稿不受影响。`) }
+  }, [sessionReady, tabs, active, summaries])
   const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null, location?: WorkspaceLocation, seed?: NewDocument) => {
     if (nextWorkspace) setWorkspace(nextWorkspace)
     if (file?.id) {
@@ -195,7 +215,7 @@ function Application() {
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
   const requestClose = (id: string | string[] | 'window', prepared = false) => {
-    if (appModal) return
+    if (appModal || !sessionReady) return
     if (templateOpen) { cancelTemplate(); return }
     const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
     if (!ids.length) return
@@ -233,7 +253,7 @@ function Application() {
     restoreTemplateFocus.current = true
     setTemplateOpen(false)
   }
-  const blocked = appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  const blocked = !sessionReady || appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
   const appRuntime = useRef<{ context(): CommandContext; run(id: string): void; ready(): boolean }>(null!)
   const appCommands = useMemo(() => {
     const registry = new CommandRegistry(() => appRuntime.current.context())
@@ -243,7 +263,7 @@ function Application() {
   }, [])
   appRuntime.current = {
     context: () => handles.current.get(active)?.commandContext() ?? ({ documentId: active, fileId: summaries[active]?.fileId ?? null, textRevision: 0, selection: { anchor: 0, head: 0 }, active: true, reading, composing: false, lockReason: blocked ? '请先完成当前文档操作。' : undefined }),
-    ready: () => !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
+    ready: () => sessionReady && !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
     run: commandId => {
       setMenuOpen(false)
       if (commandId === 'app.template') setTemplateOpen(true)
@@ -356,7 +376,7 @@ function Application() {
           setMenuOpen(false)
           const canClose = (ids: string[]) => ids.length > 0 && !appModal && !closing && !closeBusy && !closeOperation.current && !templateOpen && ids.every(id => {
             const handle = handles.current.get(id)
-            return !!handle && !handle.summary.busy && handle.canLeave()
+            return sessionReady && !!handle && !handle.summary.busy && handle.canLeave()
           })
           const all = tabs.map(item => item.id), others = all.filter(id => id !== tab.id)
           contextMenu(event, [
@@ -365,13 +385,13 @@ function Application() {
             { label: '关闭所有其他', disabled: !canClose(others), run: () => requestClose(others) },
           ])
         }}>
-          <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={templateOpen || closeBusy || !!closing || !handles.current.get(active)?.canSwitch()} onKeyDown={(event) => {
+          <button role="tab" title={summaries[tab.id]?.name ?? tab.restoredName ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={!sessionReady || templateOpen || closeBusy || !!closing || !handles.current.get(active)?.canSwitch()} onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canSwitch()) return
             event.preventDefault()
             const index = tabs.findIndex((item) => item.id === tab.id)
             const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
             void (async () => { const handle = handles.current.get(active); if (!handle?.prepareLeave || await handle.prepareLeave()) { setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus() } })()
-          }} onClick={() => { const handle = handles.current.get(active); if (handle?.canSwitch()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) setActive(tab.id) })() }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
+          }} onClick={() => { const handle = handles.current.get(active); if (handle?.canSwitch()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) setActive(tab.id) })() }}>{summaries[tab.id]?.name ?? tab.restoredName ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
           <button className="tab-close" aria-label={`关闭 ${summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}`} disabled={blocked} onClick={() => requestClose(tab.id)}>×</button>
         </div>)}
         <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { const handle = handles.current.get(active); if (handle?.canLeave()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) add() })() }}>＋</button>
@@ -385,8 +405,9 @@ function Application() {
     </div>
     <OverlayHost />
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
+    {!sessionReady && <p role="status">正在检查上次会话与草稿…</p>}
+    {sessionReady && tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
+      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!sessionReady || !!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())

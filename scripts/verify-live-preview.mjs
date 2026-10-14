@@ -74,7 +74,12 @@ try {
   const formatted = '前缀 **加粗文字** 后缀\n\n末尾'
   for (const reverse of [false, true]) {
     await fillSource(page, formatted); await live()
-    await page.locator('.live-strong').waitFor()
+    // Preview parsing is asynchronous; wait for this fixture's formatting,
+    // rather than matching decorations left by the previous document revision.
+    await page.waitForFunction(() => {
+      const spans = [...document.querySelectorAll('.live-strong')]
+      return spans.length === 1 && spans[0].textContent === '加粗文字'
+    })
     const start = await point('前缀 加粗文字 后缀', 3), end = await point('前缀 加粗文字 后缀', 7)
     await drag(reverse ? end : start, reverse ? start : end)
     assert.equal(await bold.getAttribute('aria-pressed'), 'true')

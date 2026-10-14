@@ -1,0 +1,32 @@
+{
+  "stage": "v0.5-step-1",
+  "recordedAt": "2026-10-14T06:58:01.104Z",
+  "source": {
+    "branch": "feature/v0.5",
+    "baseCommit": "4951088955a1411502ccb5f0c78db573d508857e",
+    "uncommitted": true
+  },
+  "unit": {
+    "passed": true,
+    "files": 43,
+    "tests": 240,
+    "passedTests": 240,
+    "failedTests": 0
+  },
+  "checks": {
+    "typecheck": true,
+    "productionBuild": true,
+    "releaseMetadata": true,
+    "regression": {
+      "passed": true,
+      "groups": 21,
+      "performanceIncluded": false
+    },
+    "slowTemplates": {
+      "passed": true,
+      "cpuThrottlingRate": 6
+    }
+  },
+  "distIndexSha256": "96f306c23bf2c34f7a8898f022998886e1792cc64dee6114e5608b2343f3c6bd",
+  "scope": "Frontend session and draft restoration only; no new native IO, installer, remote CI or native crash/IME acceptance."
+}

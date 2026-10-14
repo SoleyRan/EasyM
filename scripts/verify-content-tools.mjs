@@ -73,7 +73,11 @@ try {
   await page.locator('.live-language-button').click(); await language.waitFor(); await language.getByRole('button', { name: '取消', exact: true }).click()
   report.checks.push('split link click/edit and heading anchor open; preview/live language tags, Chinese search, unknown preservation, info-only patch and undo')
 
-  await page.getByRole('button', { name: '源码', exact: true }).click(); await fillSource(page, '## **heading**\n\nkeep'); await source().press('Control+Home')
+  await page.getByRole('button', { name: '源码', exact: true }).click()
+  // Mode changes can redraw CodeMirror's DOM selection. Select through its
+  // keyboard command so this fixture replaces the document in editor state.
+  await source().press('Control+a'); await page.keyboard.insertText('## **heading**\n\nkeep')
+  assert.equal(await body(), '## **heading**\n\nkeep'); await source().press('Control+Home')
   await fixed.getByRole('button', { name: '转换为', exact: true }).click(); const paragraph = page.getByRole('dialog', { name: '转换为', exact: true }); await paragraph.waitFor()
   assert.match(await paragraph.innerText(), /第 1–1 行/); await paragraph.getByLabel('转换段落类型').selectOption('task'); await paragraph.getByRole('button', { name: '应用转换' }).click(); assert.equal(await body(), '- [ ] **heading**\n\nkeep'); await undo(); assert.equal(await body(), '## **heading**\n\nkeep')
   report.checks.push('paragraph target explanation, structural conversion preserving inline syntax, and one undo')
