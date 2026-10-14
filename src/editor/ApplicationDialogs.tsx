@@ -83,9 +83,9 @@ export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearanc
 export function GuideDialog({ previousVersion, onClose }: { previousVersion: string | null; onClose(): void }) {
   const [page, setPage] = useState(0)
   const pages = [
-    <section className="guide-page" key="writing"><h3>开始写作</h3><p>点击 EM 菜单新建、从模板新建、打开文件或工作区。多个文件可以同时打开，右键标签可关闭当前、其他或全部文件。</p><p>按 F1 搜索命令，Ctrl/⌘+Alt+O 快速打开标签或授权工作区文件。EM → 设置可调整行高、宽度、代码外观和跟随系统主题。</p></section>,
-    <section className="guide-page" key="editing"><h3>编辑与自动保存</h3><p>使用源码、分屏或即时渲染模式写作。选中文字后用固定或浮动工具栏切换格式；行首输入 / 快捷插入结构。</p><p>表格支持单元格、行列与对齐编辑；链接、段落和代码语言有就地工具。确认操作可撤销，取消保留原文。已保存文件会自动保存；新文档先保留草稿，需要首次另存为。</p></section>,
-    <section className="guide-page" key="history"><h3>版本历史 · 找回以前的内容</h3><p>桌面版打开已保存文档后，在 EM → 版本历史中显式启用。之后可自动或手动记录正文与本地图片快照、查看差异、命名或固定版本，并恢复或另存旧版本。</p><p>默认历史位于文档目录的 .easym/history/，可在 EM → 设置中更改。历史保存在本地，不能代替备份。</p></section>,
+    <section className="guide-page" key="writing"><h3>开始写作</h3><p>点击 EM 菜单新建、从模板新建、打开文件或工作区。多个文件可以同时打开，右键标签可批量关闭。桌面版通过“最近打开”找回文档和工作区，清空记录不会删除文件。</p><p>按 F1 搜索命令，Ctrl/⌘+Alt+O 快速打开标签或授权工作区文件。EM → 设置可调整行高、宽度、代码外观和跟随系统主题。</p></section>,
+    <section className="guide-page" key="editing"><h3>编辑与自动保存</h3><p>使用源码、分屏或即时渲染模式写作。选中文字后用固定或浮动工具栏切换格式；行首输入 / 快捷插入结构。</p><p>表格支持单元格、行列与对齐编辑；链接、段落和代码语言有就地工具。确认操作可撤销，取消保留原文。已保存文件会自动保存；新文档先保留本机草稿，需要首次另存为。重启按上次标签顺序恢复；未完成草稿需确认恢复并另存，不会覆盖原文件。</p></section>,
+    <section className="guide-page" key="history"><h3>版本历史 · 找回以前的内容</h3><p>桌面版打开已保存文档后，在 EM → 版本历史中显式启用。之后可自动或手动记录正文与本地图片快照、查看差异、命名或固定版本，并恢复或另存旧版本。</p><p>默认历史位于文档目录的 .easym/history/，可在 EM → 设置中更改。切回应用或标签时检查磁盘变化；有冲突会暂停自动保存，可比较双方内容、另存本地副本或确认加载磁盘版本。草稿与历史仅保存在本机，不能代替备份。</p></section>,
     <section className="guide-page" key="reading"><h3>图片、导出与阅读</h3><p>粘贴或拖入 PNG/JPEG，双击预览图片可编辑副本。已启用历史的文档可批量缩小或转换图片。</p><p>EM → 导出提供 HTML、DOCX 和 PDF；PDF 通过系统打印窗口另存。阅读模式隐藏编辑区，按 Esc 退出。</p></section>,
   ]
   return <ApplicationDialog title="EasyM 使用导引" onClose={onClose} onKeyDown={event => {

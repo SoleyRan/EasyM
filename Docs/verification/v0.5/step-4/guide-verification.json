@@ -1,0 +1,50 @@
+{
+  "verifiedAt": "2026-10-14T09:02:11.488Z",
+  "viewport": {
+    "width": 960,
+    "height": 680
+  },
+  "pages": [
+    {
+      "page": 1,
+      "bounds": {
+        "x": 140,
+        "y": 148.953125,
+        "width": 680,
+        "height": 382.09375
+      },
+      "navigationVisible": true
+    },
+    {
+      "page": 2,
+      "bounds": {
+        "x": 140,
+        "y": 148.953125,
+        "width": 680,
+        "height": 382.09375
+      },
+      "navigationVisible": true
+    },
+    {
+      "page": 3,
+      "bounds": {
+        "x": 140,
+        "y": 142.21875,
+        "width": 680,
+        "height": 395.5625
+      },
+      "navigationVisible": true
+    },
+    {
+      "page": 4,
+      "bounds": {
+        "x": 140,
+        "y": 148.953125,
+        "width": 680,
+        "height": 382.09375
+      },
+      "navigationVisible": true
+    }
+  ],
+  "passed": true
+}

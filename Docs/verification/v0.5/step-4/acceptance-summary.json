@@ -1,0 +1,435 @@
+{
+  "recordedAt": "2026-10-14T09:04:08.664Z",
+  "stage": "v0.5-step-4",
+  "version": "0.5.0",
+  "source": {
+    "branch": "feature/v0.5",
+    "baseCommit": "d1abdf601029ac96107491838128282efb0af0ba",
+    "uncommittedStep4Changes": true,
+    "sourceTree": {
+      "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
+      "files": 527,
+      "sha256": "247ca8ccb346bdb559a6592112e9c9f64d7b6ae384992b999c41bdd75653ac0b"
+    }
+  },
+  "localDevelopmentAcceptancePassed": true,
+  "formalReleaseReady": false,
+  "checks": {
+    "typecheck": true,
+    "productionBuild": true,
+    "productionBuildLog": "test-results/v05-step4/desktop-build.log",
+    "versionAgreement": true,
+    "frontend": {
+      "files": 45,
+      "tests": 252,
+      "passed": true
+    },
+    "windowsRust": {
+      "tests": 65,
+      "passed": true,
+      "locked": true,
+      "offline": true
+    },
+    "regression": {
+      "version": "0.5.0",
+      "startedAt": "2026-10-14T08:53:09.167Z",
+      "browser": "chromium",
+      "passed": true,
+      "checks": [
+        {
+          "script": "workers",
+          "passed": true,
+          "durationMs": 530
+        },
+        {
+          "script": "docx-library",
+          "passed": true,
+          "durationMs": 4934
+        },
+        {
+          "script": "docx",
+          "passed": true,
+          "durationMs": 7708
+        },
+        {
+          "script": "docx-ui",
+          "passed": true,
+          "durationMs": 39888
+        },
+        {
+          "script": "history",
+          "passed": true,
+          "durationMs": 3657
+        },
+        {
+          "script": "batch-images",
+          "passed": true,
+          "durationMs": 10532
+        },
+        {
+          "script": "settings",
+          "passed": true,
+          "durationMs": 3414
+        },
+        {
+          "script": "browser",
+          "passed": true,
+          "durationMs": 5937
+        },
+        {
+          "script": "writing",
+          "passed": true,
+          "durationMs": 64704
+        },
+        {
+          "script": "search",
+          "passed": true,
+          "durationMs": 6425
+        },
+        {
+          "script": "live-preview",
+          "passed": true,
+          "durationMs": 16448
+        },
+        {
+          "script": "workspace",
+          "passed": true,
+          "durationMs": 1961
+        },
+        {
+          "script": "templates",
+          "passed": true,
+          "durationMs": 4910
+        },
+        {
+          "script": "export",
+          "passed": true,
+          "durationMs": 3804
+        },
+        {
+          "script": "context-menu",
+          "passed": true,
+          "durationMs": 5118
+        },
+        {
+          "script": "commands",
+          "passed": true,
+          "durationMs": 1698
+        },
+        {
+          "script": "tables",
+          "passed": true,
+          "durationMs": 10056
+        },
+        {
+          "script": "content-tools",
+          "passed": true,
+          "durationMs": 13450
+        },
+        {
+          "script": "quick-entry",
+          "passed": true,
+          "durationMs": 9861
+        },
+        {
+          "script": "appearance",
+          "passed": true,
+          "durationMs": 7976
+        },
+        {
+          "script": "session",
+          "passed": true,
+          "durationMs": 2923
+        },
+        {
+          "script": "recent",
+          "passed": true,
+          "durationMs": 5733
+        },
+        {
+          "script": "external",
+          "passed": true,
+          "durationMs": 11207
+        }
+      ],
+      "distIndexSha256": "ac192ef8fa04159d40ce71063826bda443ef37ad8f56098aeb3bcad932edfc85",
+      "finishedAt": "2026-10-14T08:57:12.049Z"
+    },
+    "performance": {
+      "verifiedAt": "2026-10-14T08:58:04.712Z",
+      "machine": {
+        "os": "win32",
+        "release": "10.0.26200",
+        "cpu": "Intel(R) Core(TM) 5 220H",
+        "logicalCpus": 16,
+        "memoryGiB": 31.7
+      },
+      "cases": [
+        {
+          "name": "5 MiB text",
+          "bytes": 5242880,
+          "openMs": 1720,
+          "inputSamples": 40,
+          "inputEventToNextFrameP95Ms": 17.5,
+          "targetMs": 50,
+          "targetMet": true,
+          "sourceHighlightLimited": false
+        },
+        {
+          "name": "100 KiB single line",
+          "bytes": 102400,
+          "openMs": 85,
+          "inputSamples": 40,
+          "inputEventToNextFrameP95Ms": 17.4,
+          "targetMs": 50,
+          "targetMet": true,
+          "sourceHighlightLimited": true,
+          "fullPreviewAndUndoVerified": true
+        },
+        {
+          "name": "table limit",
+          "rowsIncludingHeader": 100,
+          "columns": 20,
+          "cells": 2000,
+          "bytes": 19321,
+          "openMs": 198,
+          "lastCellScrollAndSelectMs": 139,
+          "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+        },
+        {
+          "name": "table limit",
+          "rowsIncludingHeader": 201,
+          "columns": 9,
+          "cells": 1809,
+          "bytes": 16738,
+          "openMs": 123,
+          "lastCellScrollAndSelectMs": 92,
+          "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+        },
+        {
+          "name": "selection overlay positioning and scroll dismissal",
+          "samples": 10,
+          "wallTimeToVisibleP95Ms": 271,
+          "intentionalDebounceMs": 160,
+          "bounded": true,
+          "scrollDismissed": true,
+          "scope": "UI wall time includes debounce and automation; not input-to-frame p95"
+        },
+        {
+          "name": "100 local 800×600 images",
+          "restoreAndDecodeMs": 377,
+          "imageCount": 100,
+          "allDecoded": true
+        },
+        {
+          "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+          "boundaryBytes": 20971520,
+          "accepted": {
+            "durationMs": 59,
+            "width": 800,
+            "height": 600
+          },
+          "rejected": {
+            "durationMs": 14.7,
+            "error": "图片文件超过 20 MB。"
+          }
+        }
+      ],
+      "browser": "156.0.8078.4",
+      "passed": true
+    },
+    "slowInitialization": {
+      "search": true,
+      "templates": true
+    },
+    "compactGuide": {
+      "verifiedAt": "2026-10-14T09:02:11.488Z",
+      "viewport": {
+        "width": 960,
+        "height": 680
+      },
+      "pages": [
+        {
+          "page": 1,
+          "bounds": {
+            "x": 140,
+            "y": 148.953125,
+            "width": 680,
+            "height": 382.09375
+          },
+          "navigationVisible": true
+        },
+        {
+          "page": 2,
+          "bounds": {
+            "x": 140,
+            "y": 148.953125,
+            "width": 680,
+            "height": 382.09375
+          },
+          "navigationVisible": true
+        },
+        {
+          "page": 3,
+          "bounds": {
+            "x": 140,
+            "y": 142.21875,
+            "width": 680,
+            "height": 395.5625
+          },
+          "navigationVisible": true
+        },
+        {
+          "page": 4,
+          "bounds": {
+            "x": 140,
+            "y": 148.953125,
+            "width": 680,
+            "height": 382.09375
+          },
+          "navigationVisible": true
+        }
+      ],
+      "passed": true
+    },
+    "word": {
+      "passed": true,
+      "samples": 5,
+      "fileVersion": "16.0.20430.20146",
+      "scope": "Dedicated hidden Word COM: open, repaginate, edit and reopen; other office software and visual layout remain manual."
+    },
+    "nativeStartup": {
+      "verifiedAt": "2026-10-14T08:56:37.7655110Z",
+      "version": "0.5.0",
+      "executableSha256": "3d4e8ba66401e2a034d8796503940cd985fdb0b5af2f62bb8de9d8667b8c8b98",
+      "isolatedProfile": true,
+      "isolatedNativeRegistry": true,
+      "launched": true,
+      "gracefulClose": true,
+      "passed": true,
+      "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+    },
+    "portable": {
+      "verifiedAt": "2026-10-14T08:56:43.6261057Z",
+      "version": "0.5.0",
+      "archive": "src-tauri/target/release/bundle/portable/EasyM-0.5.0-windows-x64-dev.zip",
+      "bytes": 5117466,
+      "entries": 247,
+      "sha256": "609dab86d07f363ce287dd5d266247486635515631fc9247a524e0b2731f72c8",
+      "executableSha256": "3d4e8ba66401e2a034d8796503940cd985fdb0b5af2f62bb8de9d8667b8c8b98",
+      "sampleVersion": "v0.5",
+      "allStagedFileHashesVerified": true,
+      "passed": true
+    },
+    "packageMetadata": {
+      "recordedAt": "2026-10-14T08:58:14.8853331Z",
+      "artifacts": [
+        {
+          "path": "src-tauri/target/release/easym.exe",
+          "bytes": 12469248,
+          "productName": "EasyM",
+          "productVersion": "0.5.0",
+          "fileVersion": "0.5.0",
+          "sha256": "3d4e8ba66401e2a034d8796503940cd985fdb0b5af2f62bb8de9d8667b8c8b98"
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/EasyM_0.5.0_x64-setup.exe",
+          "bytes": 3677523,
+          "productName": "EasyM",
+          "productVersion": "0.5.0",
+          "fileVersion": "0.5.0",
+          "sha256": "078ee1d61ce2a3d4c0b7cc3e21c46e3b7e52769d4f09508429c196bacf9f3ce0"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "target": "x86_64-pc-windows-msvc",
+    "versions": 430,
+    "added": [],
+    "removed": [],
+    "licenseChanges": [],
+    "missingWindowsTexts": 0
+  },
+  "logHashes": {
+    "typecheck": {
+      "path": "test-results/v05-step4/typecheck.log",
+      "bytes": 10,
+      "sha256": "1f345e6ac1f9e6ae7c4e70d1f0c8c9f8b8f80218269a1b4473f9ac63a9d4a253"
+    },
+    "frontend-tests": {
+      "path": "test-results/v05-step4/frontend-tests.log",
+      "bytes": 7458,
+      "sha256": "6f8134cbec40104444354535f6f92f65b08ca7a6d15f82c6f2e3a723aa321c5e"
+    },
+    "desktop-build": {
+      "path": "test-results/v05-step4/desktop-build.log",
+      "bytes": 9109,
+      "sha256": "1fbfb2828cbd3db25794d513289e5a64641583a035b6182f70a64cc28787ed71"
+    },
+    "regression": {
+      "path": "test-results/v05-step4/regression.log",
+      "bytes": 12276,
+      "sha256": "0eb21c05c9dc41515a9cf7b42868d4f76e30e84cd3475413f40b6142f36f1baa"
+    },
+    "rust-tests": {
+      "path": "test-results/v05-step4/rust-tests.log",
+      "bytes": 6560,
+      "sha256": "a650a69665bae0017460e1b9fb0e9beed22c1f534b861de377f2b45af9456291"
+    },
+    "release": {
+      "path": "test-results/v05-step4/release.log",
+      "bytes": 115,
+      "sha256": "391f2e8665b031e1863388fd4834251f13671d18b62948ffad1f9d5800d0b767"
+    },
+    "performance": {
+      "path": "test-results/v05-step4/performance.log",
+      "bytes": 2386,
+      "sha256": "a2f72320ccfea4c8c315117b7c3e046d43f5b74a48170220188dbea8b53cd1dc"
+    },
+    "search-slow": {
+      "path": "test-results/v05-step4/search-slow.log",
+      "bytes": 158,
+      "sha256": "05839571eb9ab989004d6ecd4358ed378f5292a4020dd39387c60ab63e420df3"
+    },
+    "templates-slow": {
+      "path": "test-results/v05-step4/templates-slow.log",
+      "bytes": 153,
+      "sha256": "9c19afe65b1e242759382890fe50e46b21ba71b5b5d073124f8f42ae54d2f293"
+    },
+    "word": {
+      "path": "test-results/v05-step4/word.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-startup": {
+      "path": "test-results/v05-step4/native-startup.log",
+      "bytes": 403,
+      "sha256": "a619b3b0fffc2fe37982aa543e80c3fb8bef465f22a7f932de34ca92f7700836"
+    },
+    "bundle": {
+      "path": "test-results/v05-step4/bundle.log",
+      "bytes": 455,
+      "sha256": "931fb6b73b3b6759980a9cdc38b1bab3c3c31d2e55dde3f0052e865145ae363f"
+    },
+    "portable": {
+      "path": "test-results/v05-step4/portable.log",
+      "bytes": 554,
+      "sha256": "56a8379089398e9d0fce9bdbfa14462a9caf80be17a2c372fc9eaf2e852c9ff4"
+    }
+  },
+  "ci": {
+    "status": "pending_commit_and_push",
+    "currentRun": null,
+    "scope": "Three-platform build/test, platform notices and Windows disposable installer install/remove are configured but not run for these changes."
+  },
+  "pending": [
+    "Current-source remote CI and Windows isolated installation/removal",
+    "Real IME, OS open/save/export/print dialogs and permission changes",
+    "Real crash recovery and end-to-end native conflict/image/history workflows",
+    "macOS/Linux GUI and assistive technology",
+    "Specified WPS/LibreOffice versions and visual pagination acceptance",
+    "Existing macOS 12 missing complete license texts and platform distribution review",
+    "Release signing, notarization and update strategy"
+  ]
+}

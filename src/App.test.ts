@@ -98,6 +98,23 @@ it('shows first-run onboarding, acknowledges Escape and restores menu focus', as
   expect(container.querySelector('[aria-label="EasyM 使用导引"]')).toBeNull()
   expect(localStorage.getItem('easym-guide-version')).toBe(appVersion)
 })
+it('allows OS close during first-run guidance without acknowledging it', async () => {
+  localStorage.removeItem('easym-guide-version'); await mount(); await settle()
+  expect(container.querySelector('[aria-label="EasyM 使用导引"]')).not.toBeNull()
+  await requestClose(); await settle()
+  expect(native.close).toHaveBeenCalledOnce()
+  expect(localStorage.getItem('easym-guide-version')).toBeNull()
+  expect(native.save).not.toHaveBeenCalled()
+})
+it('keeps unsaved-content protection when closing a window from manual guidance', async () => {
+  await mount(); await edit('keep this local draft')
+  await click('EM 菜单'); await click('设置'); await click('查看使用导引')
+  await requestClose(); await settle()
+  expect(container.querySelector('[aria-label="EasyM 使用导引"]')).toBeNull()
+  expect(container.querySelector('.close-dialog')).not.toBeNull()
+  expect(native.close).not.toHaveBeenCalled()
+  expect(container.querySelector('textarea')?.value).toBe('keep this local draft')
+})
 it('shows one guide page at a time, navigates both directions and starts manual guides on page one', async () => {
   localStorage.removeItem('easym-guide-version'); await mount()
   const dialog = () => container.querySelector('[aria-label="EasyM 使用导引"]')!

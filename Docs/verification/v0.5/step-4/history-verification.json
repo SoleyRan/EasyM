@@ -1,0 +1,14 @@
+{
+  "stage": "v0.3-step4",
+  "passed": true,
+  "verifiedAt": "2026-10-14T08:54:02.703Z",
+  "checks": [
+    "explicit consent, baseline, read-only query, normalized worker line diff, name and pin protection",
+    "native copy cancellation, external revision conflict, restore current pre-snapshot and one undo/redo",
+    "manual capture, preview-before-cleanup, quota/corruption/unknown-schema safety, keyboard focus, four theme screenshots",
+    "manual snapshot includes current memory edits; panel locks autosave; no remote requests or uncaught errors"
+  ],
+  "scope": "Production UI with deterministic desktop IPC fixture; real history filesystem, transactions and fault injection covered by locked Rust tests. Native file dialogs and cross-platform WebView remain manual.",
+  "browser": "156.0.8078.4",
+  "finishedAt": "2026-10-14T08:54:05.737Z"
+}

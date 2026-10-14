@@ -1,0 +1,125 @@
+{
+  "version": "0.5.0",
+  "startedAt": "2026-10-14T08:53:09.167Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 530
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 4934
+    },
+    {
+      "script": "docx",
+      "passed": true,
+      "durationMs": 7708
+    },
+    {
+      "script": "docx-ui",
+      "passed": true,
+      "durationMs": 39888
+    },
+    {
+      "script": "history",
+      "passed": true,
+      "durationMs": 3657
+    },
+    {
+      "script": "batch-images",
+      "passed": true,
+      "durationMs": 10532
+    },
+    {
+      "script": "settings",
+      "passed": true,
+      "durationMs": 3414
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 5937
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 64704
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 6425
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 16448
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 1961
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 4910
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 3804
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 5118
+    },
+    {
+      "script": "commands",
+      "passed": true,
+      "durationMs": 1698
+    },
+    {
+      "script": "tables",
+      "passed": true,
+      "durationMs": 10056
+    },
+    {
+      "script": "content-tools",
+      "passed": true,
+      "durationMs": 13450
+    },
+    {
+      "script": "quick-entry",
+      "passed": true,
+      "durationMs": 9861
+    },
+    {
+      "script": "appearance",
+      "passed": true,
+      "durationMs": 7976
+    },
+    {
+      "script": "session",
+      "passed": true,
+      "durationMs": 2923
+    },
+    {
+      "script": "recent",
+      "passed": true,
+      "durationMs": 5733
+    },
+    {
+      "script": "external",
+      "passed": true,
+      "durationMs": 11207
+    }
+  ],
+  "distIndexSha256": "ac192ef8fa04159d40ce71063826bda443ef37ad8f56098aeb3bcad932edfc85",
+  "finishedAt": "2026-10-14T08:57:12.049Z"
+}

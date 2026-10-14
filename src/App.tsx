@@ -268,7 +268,10 @@ function Application() {
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
   const requestClose = (id: string | string[] | 'window', prepared = false) => {
-    if (appModal || !sessionReady) return
+    if (!sessionReady || (appModal && !(id === 'window' && guideOpen))) return
+    // The informational guide must not swallow an OS close request. Dismiss
+    // it without acknowledging completion, then retain all document guards.
+    if (id === 'window' && guideOpen) setGuideOpen(false)
     if (templateOpen) { cancelTemplate(); return }
     const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
     if (!ids.length) return

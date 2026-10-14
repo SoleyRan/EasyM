@@ -159,13 +159,50 @@ pub async fn reopen_recent_workspace(state: State<'_, Recents>, workspaces: Stat
 }
 
 pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    app.manage(Recents::new(app.path().app_data_dir()?.join("recent-v1.json"))); Ok(())
+    let directory = app.path().app_data_dir()?;
+    // WebView2 permits an explicit isolated profile. Keep its native session
+    // registry in that same profile, so smoke tests cannot reopen or rewrite
+    // the regular user's recent documents while testing a fresh WebView.
+    #[cfg(windows)]
+    let directory = profile_registry_directory(directory, std::env::var_os("WEBVIEW2_USER_DATA_FOLDER"))?;
+    app.manage(Recents::new(directory.join("recent-v1.json"))); Ok(())
+}
+
+#[cfg(windows)]
+fn profile_registry_directory(default: PathBuf, profile: Option<std::ffi::OsString>) -> Result<PathBuf, String> {
+    match profile {
+        None => Ok(default),
+        Some(value) => {
+            let profile = PathBuf::from(value);
+            if !profile.is_absolute() { return Err("recent_profile_invalid".into()); }
+            Ok(profile.join(".easym"))
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     fn registry(root: &Path) -> Recents { Recents::new(root.join("app/recent-v1.json")) }
+    #[cfg(windows)]
+    #[test]
+    fn explicit_webview_profile_keeps_native_session_out_of_regular_registry() {
+        let temp = tempfile::tempdir().unwrap();
+        let default = temp.path().join("regular");
+        assert_eq!(profile_registry_directory(default.clone(), None).unwrap(), default);
+        assert!(profile_registry_directory(default.clone(), Some("relative/profile".into())).is_err());
+        fs::create_dir(&default).unwrap();
+        let regular = default.join("recent-v1.json");
+        fs::write(&regular, b"keep existing user registry").unwrap();
+        let profile = temp.path().join("isolated");
+        let directory = profile_registry_directory(default, Some(profile.clone().into_os_string())).unwrap();
+        assert_eq!(directory, profile.join(".easym"));
+        let isolated = Recents::new(directory.join("recent-v1.json"));
+        assert!(isolated.snapshot().unwrap().entries.is_empty());
+        isolated.session(Session::default()).unwrap();
+        assert!(isolated.path.is_file());
+        assert_eq!(fs::read(regular).unwrap(), b"keep existing user registry");
+    }
     #[test]
     fn persists_unicode_same_names_session_and_reopens_with_fresh_process_handles() {
         let temp = tempfile::tempdir().unwrap(); let root = temp.path().canonicalize().unwrap();

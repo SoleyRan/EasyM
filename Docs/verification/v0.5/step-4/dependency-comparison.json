@@ -1,0 +1,25 @@
+{
+  "recordedAt": "2026-10-14T08:43:56.003Z",
+  "applicationVersions": {
+    "before": "0.4.0",
+    "after": "0.5.0"
+  },
+  "target": "x86_64-pc-windows-msvc",
+  "dependencies": 430,
+  "added": [],
+  "removed": [],
+  "licenseChanges": [],
+  "inventory": {
+    "target": "x86_64-pc-windows-msvc",
+    "dependencies": 430,
+    "missingLicenseTexts": [],
+    "completeLicenseTexts": true
+  },
+  "sourceHashes": {
+    "pnpm-lock.yaml": "d9bc17bdf5de6254032b3cbb07a7b12be913c5aaa680242b937ab0023ac00345",
+    "src-tauri/Cargo.lock": "12f75881e8c05d2c70fea3d28429af9e276019c9b3c0efaa584df116cb233462",
+    "test-results/v05-step4/npm-licenses.json": "155da7c2da17cfe513040226e2b6b28abde67dbe4a9bb60fd3d9633b7e546012",
+    "test-results/v05-step4/cargo-windows.json": "839621442413db51a4c7a22829631b43af9f4dc8cdefedf2a05548424c908ae1"
+  },
+  "scope": "Locally regenerated Windows target inventory. No dependency or license expression changes. Existing macOS license gaps require CI and release review."
+}
