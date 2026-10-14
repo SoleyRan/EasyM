@@ -75,7 +75,7 @@ function errorMessage(error: unknown): string {
   return labels[value] ?? value
 }
 
-export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; tableDecision?: boolean }
+export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; recentId?: string | null; tableDecision?: boolean }
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
@@ -95,6 +95,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
   const [view, setView] = useState<ViewMode>('source')
   const [name, setName] = useState(file?.name ?? seed?.name ?? '未命名.md')
   const [fileId, setFileId] = useState<string | null>(file?.id ?? null)
+  const [recentId, setRecentId] = useState<string | null>(file?.recentId ?? null)
   const [revision, setRevision] = useState<string | null>(file?.revision ?? null)
   const [snapshot, setSnapshot] = useState<FileSnapshot>(initial)
   const [epoch, setEpoch] = useState(0)
@@ -418,7 +419,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     tableCommandOffset.current = null
     void result.then(status => { if (!status.enabled && activeRef.current) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(errorMessage(err)))
   }
-  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session, tableDecision }
+  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, recentId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session, tableDecision }
   useEffect(() => {
     onReport(id, summary, { summary, prepareLeave, canLeave: () => !contentToolRef.current && !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
       canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!contentToolRef.current && !saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
@@ -732,7 +733,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     setBusy(true)
     try {
       const next = refresh && workspace ? { ...workspace, entries: await listWorkspace(workspace.id) } : await openWorkspace()
-      if (next) { onWorkspaceChange(next); onShowFiles(true); setTreeRevision((value) => value + 1) }
+      if (next) { onWorkspaceChange(next); onShowFiles(true); setTreeRevision((value) => value + 1); if (next.warning) setError(next.warning) }
     } catch (err) { setError(errorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -781,6 +782,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
       if (result.destination === 'disk') persistedTextRevision.current = savingRevision
       setAutoSavePaused(false)
       setFileId(result.id); setName(result.name); setRevision(result.revision); setSnapshot(decodeFile(bytes))
+      setRecentId(result.recentId ?? null)
       if (result.warning) setError(errorMessage(result.warning))
       if (savingRevision === changeRevision.current) {
         if (result.destination === 'disk') {
@@ -918,6 +920,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     if (!draft) return
     try {
       if (keep) {
+        setRecentId(null)
         load(draft.text, draft.name, draft.snapshot, null, null, true); images.setResources(draft.resources ?? emptyResources())
         if (draft.imageSession && draft.imageSession.baseText === draft.text) images.setSession(draft.imageSession)
       }

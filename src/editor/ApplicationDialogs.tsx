@@ -4,7 +4,7 @@ import { appVersion, historyDirectory, themes, type Theme, type HistoryDirectory
 import { desktop } from '../platform/storage'
 import { historyError } from '../platform/history'
 
-function ApplicationDialog({ title, onClose, busy = false, children, onKeyDown }: { title: string; onClose(): void; busy?: boolean; children: ReactNode; onKeyDown?: KeyboardEventHandler<HTMLDivElement> }) {
+export function ApplicationDialog({ title, onClose, busy = false, children, onKeyDown }: { title: string; onClose(): void; busy?: boolean; children: ReactNode; onKeyDown?: KeyboardEventHandler<HTMLDivElement> }) {
   const dialog = useRef<HTMLDivElement>(null)
   useModalOverlay(dialog)
   useEffect(() => { dialog.current?.focus() }, [])

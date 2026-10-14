@@ -12,9 +12,9 @@ const MAX_IMAGE: u64 = 20 * 1024 * 1024;
 pub struct Storage(pub Arc<Mutex<HashMap<String, PathBuf>>>);
 
 #[derive(Serialize)]
-pub struct OpenedFile { id: String, name: String, bytes: Vec<u8>, revision: String, metadata: Option<Metadata>, warning: Option<String> }
+pub struct OpenedFile { id: String, name: String, bytes: Vec<u8>, revision: String, metadata: Option<Metadata>, pub warning: Option<String>, #[serde(rename = "recentId")] pub recent_id: Option<String> }
 #[derive(Serialize)]
-pub struct SavedFile { id: String, name: String, revision: String, warning: Option<String> }
+pub struct SavedFile { id: String, name: String, revision: String, warning: Option<String>, #[serde(rename = "recentId")] recent_id: Option<String> }
 #[derive(Serialize)]
 pub struct ImageFile { bytes: Vec<u8>, mime: String }
 
@@ -41,7 +41,7 @@ pub(crate) fn open_path(storage: &Storage, path: PathBuf) -> Result<OpenedFile, 
     let id = sessions.iter().find(|(_, existing)| **existing == path).map(|(id, _)| id.clone()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let recovery = transaction::recover(&path);
     let (metadata, warning) = read_metadata(path.parent().ok_or("invalid_data")?);
-    let result = OpenedFile { id: id.clone(), name: name(&path), revision: hash(&bytes), bytes, metadata, warning: recovery.or(warning) };
+    let result = OpenedFile { id: id.clone(), name: name(&path), revision: hash(&bytes), bytes, metadata, warning: recovery.or(warning), recent_id: None };
     sessions.insert(id, path);
     Ok(result)
 }
@@ -56,20 +56,24 @@ pub(crate) fn read_image_path(path: &Path) -> Result<ImageFile, String> {
 }
 
 #[tauri::command]
-pub async fn open_document(state: State<'_, Storage>) -> Result<Option<OpenedFile>, String> {
+pub async fn open_document(state: State<'_, Storage>, recents: State<'_, crate::recent::Recents>) -> Result<Option<OpenedFile>, String> {
     let storage = state.inner().clone();
+    let recents = recents.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Some(path) = rfd::FileDialog::new().add_filter("Markdown", &["md", "markdown"]).pick_file() else { return Ok(None); };
         let path = path.canonicalize().map_err(|_| "resource_missing")?;
-        open_path(&storage, path).map(Some)
+        let mut file = open_path(&storage, path.clone())?;
+        file.recent_id = crate::recent::register(&recents, &path, "file", None, &mut file.warning);
+        Ok(Some(file))
     }).await.map_err(|_| "io_failed".to_string())?
 }
 
 #[tauri::command]
-pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: String, expected_revision: Option<String>, bytes: Vec<u8>, save_as: bool, assets: Vec<Asset>, metadata: Metadata, operation_id: String, history_references: Option<Vec<String>>, history_previous_references: Option<Vec<String>>, history_unarchived_references: Option<Vec<String>>, history_previous_unarchived_references: Option<Vec<String>>, history_collection_error: Option<bool>) -> Result<Option<SavedFile>, String> {
+pub async fn save_document(state: State<'_, Storage>, recents: State<'_, crate::recent::Recents>, id: Option<String>, name: String, expected_revision: Option<String>, bytes: Vec<u8>, save_as: bool, assets: Vec<Asset>, metadata: Metadata, operation_id: String, history_references: Option<Vec<String>>, history_previous_references: Option<Vec<String>>, history_unarchived_references: Option<Vec<String>>, history_previous_unarchived_references: Option<Vec<String>>, history_collection_error: Option<bool>) -> Result<Option<SavedFile>, String> {
     if bytes.len() > MAX_TEXT { return Err("quota_exceeded".into()); }
     uuid::Uuid::parse_str(&operation_id).map_err(|_| "invalid_data")?;
     let storage = state.inner().clone();
+    let recents = recents.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         // Serializes this application's writers. External tools are checked optimistically.
         let mut sessions = storage.0.lock().map_err(|_| "io_failed")?;
@@ -102,7 +106,8 @@ pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: 
         }
         // The base revision is the body we committed, so later external writes conflict on the next save.
         let revision = hash(&bytes);
-        let result = SavedFile { id: session_id.clone(), name: crate::storage::name(&path), revision, warning };
+        let recent_id = crate::recent::register(&recents, &path, "file", None, &mut warning);
+        let result = SavedFile { id: session_id.clone(), name: crate::storage::name(&path), revision, warning, recent_id };
         sessions.insert(session_id, path);
         Ok(Some(result))
     }).await.map_err(|_| "io_failed".to_string())?
@@ -152,6 +157,6 @@ pub async fn reload_document(state: State<'_, Storage>, id: String) -> Result<Op
         let recovery = transaction::recover(path);
         let (metadata, warning) = read_metadata(path.parent().ok_or("invalid_data")?);
         let warning = recovery.or(warning);
-        Ok(OpenedFile { id, name: name(path), revision: hash(&bytes), bytes, metadata, warning })
+        Ok(OpenedFile { id, name: name(path), revision: hash(&bytes), bytes, metadata, warning, recent_id: None })
     }).await.map_err(|_| "io_failed".to_string())?
 }

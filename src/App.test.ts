@@ -11,6 +11,10 @@ import { blankSnapshot } from './core/codec'
 import { defaultRecipe } from './core/images'
 import { drafts } from './platform/drafts'
 import { SESSION_KEY, saveSession } from './platform/session'
+import type { RecentState } from './platform/recent'
+
+const recentApi = vi.hoisted(() => ({ state: vi.fn(), remember: vi.fn(), forget: vi.fn(), file: vi.fn(), workspace: vi.fn() }))
+vi.mock('./platform/recent', async original => ({ ...await original<object>(), recentState: recentApi.state, rememberSession: recentApi.remember, forgetRecent: recentApi.forget, reopenRecentFile: recentApi.file, reopenRecentWorkspace: recentApi.workspace }))
 
 const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
 const docxApi = vi.hoisted(() => ({ preflight: vi.fn(), render: vi.fn(), save: vi.fn() }))
@@ -40,6 +44,7 @@ import { appVersion } from './platform/preferences'
 let root: Root
 let container: HTMLDivElement
 beforeEach(async () => {
+  recentApi.state.mockReset(); recentApi.state.mockResolvedValue({ entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }); recentApi.remember.mockReset(); recentApi.remember.mockResolvedValue(undefined); recentApi.forget.mockReset(); recentApi.forget.mockResolvedValue(undefined); recentApi.file.mockReset(); recentApi.workspace.mockReset()
   ;(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true
   // fake-indexeddb uses Node structuredClone, which cannot clone happy-dom's Blob.
   vi.stubGlobal('Blob', CloneableBlob)
@@ -551,6 +556,53 @@ it('restores index order and active draft, drops missing entries and recovers or
   expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('document:a')
   expect(native.open).not.toHaveBeenCalled(); expect(native.reload).not.toHaveBeenCalled(); expect(native.save).not.toHaveBeenCalled()
   expect(localStorage.getItem(SESSION_KEY)).not.toContain('expired-native-id')
+})
+
+it('reopens saved tabs in order with fresh handles while independently recovering drafts', async () => {
+  await drafts.save({ version: 1, name: '草稿.md', text: 'local only', snapshot: blankSnapshot(), updatedAt: 1, fileId: 'old-process' }, 'document:dirty')
+  const state: RecentState = { entries: [{ id: 'saved', kind: 'file', name: '同名.md', location: 'D:/one/同名.md' }, { id: 'dirty', kind: 'file', name: '草稿.md', location: 'D:/two/草稿.md' }], session: { tabs: [{ draftKey: 'document:saved', recentId: 'saved' }, { draftKey: 'document:dirty', recentId: 'dirty' }], activeDraftKey: 'document:saved', workspaceId: 'workspace' } }
+  recentApi.state.mockResolvedValue(state)
+  recentApi.file.mockResolvedValue({ id: 'fresh-process', recentId: 'saved', name: '同名.md', bytes: new TextEncoder().encode('disk body'), revision: 'new' })
+  recentApi.workspace.mockResolvedValue({ id: 'new-workspace', recentId: 'workspace', name: '项目', entries: [] })
+  await mount()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('disk body')
+  expect(recentApi.file.mock.calls).toEqual([['saved']]); expect(recentApi.workspace).toHaveBeenCalledWith('workspace')
+  await act(async () => container.querySelectorAll<HTMLButtonElement>('[role=tab]')[1].click()); await settle(); await click('恢复草稿')
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('local only')
+  expect(native.save).not.toHaveBeenCalled(); expect(native.reload).not.toHaveBeenCalled()
+})
+
+it('keeps other restored tabs when one saved file is missing and preserves incompatible native records', async () => {
+  const entry = (id: string) => ({ id, kind: 'file' as const, name: `${id}.md`, location: `D:/${id}.md` })
+  recentApi.state.mockResolvedValue({ entries: [entry('missing'), entry('good')], session: { tabs: [{ draftKey: 'document:m', recentId: 'missing' }, { draftKey: 'document:g', recentId: 'good' }], activeDraftKey: 'document:m', workspaceId: null } })
+  recentApi.file.mockImplementation(async id => { if (id === 'missing') throw 'resource_missing'; return { id: 'fresh', recentId: 'good', name: 'good.md', bytes: new TextEncoder().encode('survives'), revision: 'r' } })
+  await mount()
+  expect(container.textContent).toContain('目标已移动或删除')
+  expect((container.querySelector('textarea') as HTMLTextAreaElement).value).toBe('survives')
+  await act(async () => root.unmount()); root = createRoot(container)
+  recentApi.state.mockRejectedValue('recent_invalid_record'); recentApi.remember.mockClear()
+  await mount(); await edit('still editable'); await settle()
+  expect(container.textContent).toContain('原记录已保留')
+  expect(recentApi.remember).not.toHaveBeenCalled()
+})
+
+it('recent open reuses a saved tab with edits and cancellation releases only unused fresh handles', async () => {
+  const entries = [{ id: 'saved', kind: 'file', name: 'note.md', location: 'D:/note.md' }]
+  recentApi.state.mockResolvedValue({ entries, session: { tabs: [], activeDraftKey: null, workspaceId: null } })
+  native.open.mockResolvedValue({ id: 'live', recentId: 'saved', name: 'note.md', bytes: new TextEncoder().encode('disk'), revision: 'r' })
+  await mount(); await click('打开文件'); await settle(); await edit('unsaved edit')
+  recentApi.file.mockResolvedValue({ id: 'live', recentId: 'saved', name: 'note.md', bytes: new TextEncoder().encode('older disk'), revision: 'r' })
+  await click('EM 菜单'); await click('最近打开'); await settle(); await click('note.mdD:/note.md'); await settle()
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
+  expect((container.querySelector('.document-panel:not([hidden]) textarea') as HTMLTextAreaElement).value).toBe('unsaved edit')
+  let complete!: (value: unknown) => void
+  recentApi.file.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
+  await click('EM 菜单'); await click('最近打开'); await settle(); await click('note.mdD:/note.md'); await click('完成')
+  await act(async () => complete({ id: 'unused-new', recentId: 'saved', name: 'note.md', bytes: new TextEncoder().encode('late'), revision: 'r' })); await settle()
+  const { releaseDocument } = await import('./platform/storage')
+  expect(releaseDocument).toHaveBeenCalledWith('unused-new')
+  expect(container.querySelectorAll('[role=tab]')).toHaveLength(2)
 })
 
 it('preserves an incompatible session index while independently recovering and editing drafts', async () => {

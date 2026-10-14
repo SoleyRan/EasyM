@@ -12,6 +12,10 @@
 .view-switcher { height: 42px; flex: 0 0 42px; padding: 0 16px; margin: 0; border-bottom: 1px solid #edf1f6; }
 .view-tabs button { padding: 10px 14px; font-size: 12px; }
 .pane-actions { display: flex; align-items: center; gap: 4px; }
+.recent-list { max-height: 50vh; overflow: auto; }
+.recent-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.recent-open { min-width: 0; flex: 1; text-align: left; }
+.recent-open strong, .recent-open small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .toolbar { flex: 0 0 auto; height: auto; min-height: 42px; margin: 8px 12px 0; padding: 4px 8px; flex-wrap: wrap; }
 .code-language { display: flex; align-items: center; gap: 6px; margin-left: 8px; font-size: 12px; color: #657790; }
 .code-language select { max-width: 150px; padding: 5px 8px; border: 1px solid #d5deeb; border-radius: 5px; background: #fff; color: #273852; font: inherit; }

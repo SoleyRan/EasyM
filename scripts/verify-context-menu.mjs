@@ -27,6 +27,9 @@ try {
     let callback = 0
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback,
       invoke: async (command) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
         if (command.startsWith('plugin:window|is_')) return false
         if (command.startsWith('plugin:')) return 1
         if (command === 'open_workspace') return { id: 'ws', name: '中文工作区', entries: [{ name: '目录', path: '目录', kind: 'directory' }] }

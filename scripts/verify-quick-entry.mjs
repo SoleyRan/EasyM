@@ -69,6 +69,9 @@ try {
     window.isTauri = true; window.quickCalls = []; window.quickSlow = false; window.quickFail = false
     let callback = 0; window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback, invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
       window.quickCalls.push({ command, args })
       if (command.startsWith('plugin:window|is_')) return false
       if (command.startsWith('plugin:')) return 1

@@ -39,7 +39,8 @@
     "verify:content-tools": "node scripts/verify-content-tools.mjs",
     "verify:quick-entry": "node scripts/verify-quick-entry.mjs",
     "verify:appearance": "node scripts/verify-appearance.mjs",
-    "verify:session": "node scripts/verify-session.mjs"
+    "verify:session": "node scripts/verify-session.mjs",
+    "verify:recent": "node scripts/verify-recent.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

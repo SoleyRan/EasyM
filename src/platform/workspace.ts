@@ -2,7 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 import type { OpenedFile } from './storage'
 
 export interface WorkspaceEntry { path: string; name: string; kind: 'directory' | 'document' | 'image' }
-export interface Workspace { id: string; name: string; entries: WorkspaceEntry[] }
+export interface Workspace { id: string; name: string; entries: WorkspaceEntry[]; recentId?: string | null; warning?: string | null }
 export interface WorkspaceImage { id: string; path: string }
 export interface WorkspaceSearchResult { path: string; line: number; preview: string; revision: string }
 export interface WorkspaceSearchReport { results: WorkspaceSearchResult[]; scanned: number; skipped: number; limited: boolean; cancelled: boolean }

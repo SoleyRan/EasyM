@@ -6,8 +6,8 @@ import { MAX_ASSET_BYTES } from '../core/images'
 import { parseDocument } from '../core/markdown'
 import { collectHistoryResources } from './history-resources'
 
-export interface OpenedFile { id: string | null; name: string; bytes: Uint8Array; revision: string | null; metadata?: ImageMetadata; warning?: string }
-export interface SavedFile { id: string | null; name: string; revision: string | null; destination: 'disk' | 'download'; warning?: string }
+export interface OpenedFile { id: string | null; name: string; bytes: Uint8Array; revision: string | null; metadata?: ImageMetadata; warning?: string; recentId?: string | null }
+export interface SavedFile { id: string | null; name: string; revision: string | null; destination: 'disk' | 'download'; warning?: string; recentId?: string | null }
 export const desktop = isTauri()
 
 export async function releaseDocument(id: string | null): Promise<void> {

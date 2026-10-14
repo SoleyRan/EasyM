@@ -1,0 +1,32 @@
+{
+  "stage": "v0.5-step-2",
+  "recordedAt": "2026-10-14T07:41:00.922Z",
+  "source": {
+    "baseCommit": "db89561",
+    "branch": "feature/v0.5",
+    "uncommitted": true
+  },
+  "frontend": {
+    "files": 44,
+    "tests": 244,
+    "passed": true,
+    "finalTargetedTests": 67
+  },
+  "windowsRust": {
+    "tests": 61,
+    "passed": true,
+    "locked": true
+  },
+  "regression": {
+    "groups": 22,
+    "passed": true,
+    "performanceIncluded": false
+  },
+  "checks": {
+    "typecheck": true,
+    "productionBuild": true,
+    "releaseMetadata": true
+  },
+  "distIndexSha256": "533d01d1f608a8b9b08ab1b89a8386c49d8ed9539324f954b1e7d5a767244d95",
+  "scope": "Native registry IO is covered by Windows Rust tests; browser desktop IPC is simulated. Native UI restart/dialogs and Unix symlink tests await device/CI validation. No new installer."
+}

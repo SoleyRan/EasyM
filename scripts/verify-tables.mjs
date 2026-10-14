@@ -142,6 +142,9 @@ try {
     let callback = 0
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback,
       invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
         window.calls.push({ command, args })
         if (command.startsWith('plugin:window|is_')) return false
         if (command.startsWith('plugin:')) return 1

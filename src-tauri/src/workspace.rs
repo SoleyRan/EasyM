@@ -11,7 +11,7 @@ pub struct Workspaces(Arc<Mutex<HashMap<String, PathBuf>>>, Arc<Mutex<HashMap<St
 pub struct Entry { path: String, name: String, kind: &'static str }
 
 #[derive(Serialize)]
-pub struct Workspace { id: String, name: String, entries: Vec<Entry> }
+pub struct Workspace { id: String, name: String, entries: Vec<Entry>, #[serde(rename = "recentId")] pub recent_id: Option<String>, pub warning: Option<String> }
 
 #[derive(Serialize)]
 pub struct SearchResult { pub path: String, pub line: usize, pub preview: String, pub revision: String }
@@ -109,17 +109,26 @@ pub async fn search_workspace_filenames(state: State<'_, Workspaces>, id: String
     result?
 }
 
+pub(crate) fn open_path(workspaces: &Workspaces, path: PathBuf) -> Result<Workspace, String> {
+    let path = path.canonicalize().map_err(|_| "resource_missing")?;
+    let entries = directory_entries(&path, "")?;
+    let mut sessions = workspaces.0.lock().map_err(|_| "io_failed")?;
+    let id = sessions.iter().find(|(_, p)| **p == path).map(|(id, _)| id.clone()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+    let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+    sessions.insert(id.clone(), path);
+    Ok(Workspace { id, name, entries, recent_id: None, warning: None })
+}
+
 #[tauri::command]
-pub async fn open_workspace(state: State<'_, Workspaces>) -> Result<Option<Workspace>, String> {
+pub async fn open_workspace(state: State<'_, Workspaces>, recents: State<'_, crate::recent::Recents>) -> Result<Option<Workspace>, String> {
     let workspaces = state.inner().clone();
+    let recents = recents.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Some(path) = rfd::FileDialog::new().pick_folder() else { return Ok(None); };
         let path = path.canonicalize().map_err(|_| "resource_missing")?;
-        let entries = directory_entries(&path, "")?;
-        let id = uuid::Uuid::new_v4().to_string();
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        workspaces.0.lock().map_err(|_| "io_failed")?.insert(id.clone(), path);
-        Ok(Some(Workspace { id, name, entries }))
+        let mut workspace = open_path(&workspaces, path.clone())?;
+        workspace.recent_id = crate::recent::register(&recents, &path, "workspace", None, &mut workspace.warning);
+        Ok(Some(workspace))
     }).await.map_err(|_| "io_failed".to_string())?
 }
 
@@ -197,12 +206,16 @@ pub fn cancel_workspace_search(state: State<'_, Workspaces>, request_id: String)
 }
 
 #[tauri::command]
-pub async fn open_workspace_document(state: State<'_, Workspaces>, storage: State<'_, Storage>, id: String, relative_path: String) -> Result<OpenedFile, String> {
+pub async fn open_workspace_document(state: State<'_, Workspaces>, storage: State<'_, Storage>, recents: State<'_, crate::recent::Recents>, id: String, relative_path: String) -> Result<OpenedFile, String> {
     let workspaces = state.inner().clone(); let storage = storage.inner().clone();
+    let recents = recents.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let path = safe_existing(&root(&workspaces, &id)?, &relative_path)?;
+        let boundary = root(&workspaces, &id)?;
+        let path = safe_existing(&boundary, &relative_path)?;
         if kind(&path) != Some("document") { return Err("invalid_data".into()); }
-        storage::open_path(&storage, path)
+        let mut file = storage::open_path(&storage, path.clone())?;
+        file.recent_id = crate::recent::register(&recents, &path, "file", Some(&boundary), &mut file.warning);
+        Ok(file)
     }).await.map_err(|_| "io_failed".to_string())?
 }
 
