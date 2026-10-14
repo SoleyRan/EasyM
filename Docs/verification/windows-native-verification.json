@@ -1,0 +1,27 @@
+{
+  "verifiedOn": "2026-10-09",
+  "platform": "Windows WebView2",
+  "profile": "isolated test profile",
+  "executableSha256": "0c1dfefdb0503f0a3ff799a77cb1d7bbfb066e4368a70e8e2f71e8cf4b6b825d",
+  "method": "native application interaction and saved-file inspection",
+  "passed": [
+    "native Release application launch",
+    "EM file menu",
+    "close untouched new document without prompt",
+    "Chinese and emoji text entry",
+    "save as to Chinese path containing spaces",
+    "named document autosave with disk content inspection",
+    "reading mode fullscreen and Escape exit",
+    "dirty document close protection",
+    "retain text draft on exit and recover after process restart",
+    "save recovered text as a separate Markdown file"
+  ],
+  "notVerified": [
+    "real IME composition and candidate selection",
+    "native image import, crop, clipboard and pending recipe restart recovery",
+    "all native close decisions and failure paths",
+    "native window drag, minimize, maximize and restore",
+    "installer installation and removal",
+    "macOS and Linux native GUI"
+  ]
+}

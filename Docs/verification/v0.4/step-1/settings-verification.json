@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "version": "0.3.0",
+  "checks": [
+    "four guide pages, forward/back/keyboard navigation, first-run, version update, acknowledgment across reload, focus trap, Escape",
+    "appearance persists, editor font applied, unsaved document guidance, return focus",
+    "authorized directory operations, cancellation, integrity errors, busy lock, reset, four themes, manual guide"
+  ],
+  "scope": "Production Chromium UI with simulated desktop IPC. Real archive migration and data integrity covered by Rust tests; native directory picker remains manual.",
+  "browser": "156.0.8078.4"
+}

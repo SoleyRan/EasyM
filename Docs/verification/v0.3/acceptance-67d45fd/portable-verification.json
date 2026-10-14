@@ -1,0 +1,12 @@
+{
+  "verifiedAt": "2026-10-13T03:54:13.8592582Z",
+  "version": "0.3.0",
+  "archive": "src-tauri/target/release/bundle/portable/EasyM-0.3.0-windows-x64-dev.zip",
+  "bytes": 4936349,
+  "entries": 245,
+  "sha256": "cb9ab148734608efb452a54034064e103bb0b2b92e201338801ff2c7357f8f41",
+  "executableSha256": "b008ef54f3a533b75178c12aac6f0b87fdc757ea2e2a13697fb168982eb6b98c",
+  "sampleVersion": "v0.3",
+  "allStagedFileHashesVerified": true,
+  "passed": true
+}

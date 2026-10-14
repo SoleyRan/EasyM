@@ -1,0 +1,111 @@
+import assert from 'node:assert/strict'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { chromium } from 'playwright'
+import { serveProduction, acknowledgeGuide } from './serve-production.mjs'
+import { fillSource } from './source-test-utils.mjs'
+
+const server = await serveProduction()
+let browser
+try {
+  browser = await chromium.launch({ channel: process.env.EASYM_TEST_BROWSER || undefined })
+  const page = await browser.newPage({ viewport: { width: 1080, height: 780 } })
+  const errors = [], checks = []
+  page.on('pageerror', error => errors.push(error.message))
+  await acknowledgeGuide(page)
+  await page.goto(server.url)
+  const editor = page.getByRole('textbox', { name: 'Markdown 源码编辑器' })
+  const em = page.getByRole('button', { name: 'EM 菜单', exact: true })
+  const file = page.getByRole('menu', { name: '文件菜单', exact: true })
+  const context = page.getByRole('menu', { name: '右键菜单', exact: true })
+  const body = () => editor.evaluate(node => [...node.querySelectorAll('.cm-line')].map(line => line.textContent).join('\n'))
+  const insideViewport = async locator => {
+    const box = await locator.boundingBox(), viewport = page.viewportSize()
+    assert.ok(box && box.x >= 0 && box.y >= 0 && box.x + box.width <= viewport.width && box.y + box.height <= viewport.height)
+  }
+  await fillSource(page, '共享命令 target')
+  await editor.press('Control+a'); await editor.press('Control+b')
+  assert.equal(await body(), '**共享命令 target**')
+  await page.getByRole('button', { name: '加粗', exact: true }).click()
+  assert.equal(await body(), '共享命令 target')
+  await editor.press('Control+z')
+  assert.equal(await body(), '**共享命令 target**')
+  await editor.press('Control+Shift+z')
+  assert.equal(await body(), '共享命令 target')
+  checks.push('shortcut/toolbar share format toggles and one undo stack')
+
+  await editor.press('Control+f')
+  const query = page.getByRole('textbox', { name: '查找文本' })
+  await query.fill('target')
+  await em.click(); await file.waitFor()
+  assert.equal(await file.evaluate(node => node.parentElement.className), 'overlay-host')
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), '新建文档')
+  await page.keyboard.press('End')
+  assert.equal(await page.evaluate(() => document.activeElement.textContent), '设置')
+  // The search panel must not intercept pointer events over the portaled menu.
+  await file.getByRole('menuitem', { name: '导出', exact: true }).click()
+  const exports = page.getByRole('menu', { name: '导出格式', exact: true })
+  await exports.waitFor(); await insideViewport(exports)
+  await page.keyboard.press('Escape')
+  assert.equal(await exports.count(), 0); assert.equal(await file.count(), 1)
+  await page.keyboard.press('Escape')
+  assert.equal(await file.count(), 0); assert.equal(await query.count(), 1)
+  await query.focus(); await page.keyboard.press('Escape')
+  assert.equal(await query.count(), 0)
+  checks.push('menu above search; Escape closes submenu, menu, then search')
+
+  await em.click()
+  await editor.click({ button: 'right' })
+  await context.waitFor()
+  assert.equal(await file.count(), 0)
+  await page.keyboard.press('Escape')
+  await em.click(); await file.getByRole('menuitem', { name: '设置', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: '设置', exact: true })
+  await settings.waitFor()
+  // Programmatic click models a stale queued event on the now-inert trigger.
+  await em.evaluate(node => node.click())
+  assert.equal(await file.count(), 0)
+  await settings.getByRole('button', { name: '完成', exact: true }).click()
+  assert.equal(await body(), '共享命令 target')
+  checks.push('right-click replaces application menu; modal refuses lower overlays')
+
+  await page.setViewportSize({ width: 420, height: 330 })
+  await em.click(); await insideViewport(file)
+  await file.getByRole('menuitem', { name: '导出', exact: true }).click()
+  await exports.waitFor(); await insideViewport(exports)
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 1080, height: 780 })
+  checks.push('menus clamp and flip in a narrow short viewport')
+
+  await editor.focus()
+  await editor.dispatchEvent('compositionstart', { data: '中' })
+  await editor.press('Control+b')
+  assert.equal(await body(), '共享命令 target')
+  await editor.dispatchEvent('compositionend', { data: '中' })
+  await editor.press('ArrowRight')
+  await page.evaluate(() => {
+    window.imagePickerClicks = 0
+    document.querySelector('input[type=file]').addEventListener('click', event => { event.preventDefault(); window.imagePickerClicks++ })
+  })
+  await editor.press('Control+Shift+p')
+  assert.equal(await page.evaluate(() => window.imagePickerClicks), 1)
+  assert.equal(await page.locator('.print-dialog').count(), 0)
+  await editor.press('Control+p')
+  await page.locator('.print-dialog').waitFor()
+  await page.keyboard.press('Escape')
+  checks.push('composition protects source; image and print shortcuts remain distinct')
+
+  await page.getByRole('button', { name: '阅读模式', exact: true }).click()
+  await page.locator('.application.reading-mode').waitFor()
+  await page.locator('.preview').click({ button: 'right' })
+  await context.waitFor()
+  await page.keyboard.press('Escape')
+  assert.equal(await page.locator('.application.reading-mode').count(), 1)
+  await page.keyboard.press('Escape')
+  await page.locator('.application:not(.reading-mode)').waitFor()
+  assert.equal(await body(), '共享命令 target')
+  checks.push('Escape in reading closes the top menu before exiting reading')
+  assert.deepEqual(errors, [])
+  await mkdir('test-results', { recursive: true })
+  await writeFile('test-results/commands-verification.json', JSON.stringify({ passed: true, browser: process.env.EASYM_TEST_BROWSER || 'chromium', checks, pageErrors: errors }, null, 2) + '\n')
+  console.log('Commands and overlays: ' + checks.length + ' production checks passed')
+} finally { await browser?.close(); await server.close() }

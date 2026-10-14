@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-10T09:44:12.576Z",
+  "browser": "156.0.8078.4",
+  "passed": true,
+  "scope": "Production frontend with deterministic IPC fixture; real filesystem and limits covered by Rust tests. Native WebView end-to-end remains pending.",
+  "checks": [
+    "search result file/line navigation and existing tab reuse",
+    "file tree lazy expansion and directional navigation",
+    "outline keyboard navigation and source jump",
+    "cancel and late-result rejection",
+    "changed file rejection without overwrite",
+    "desktop/compact search layout screenshots",
+    "search and navigation issue no save commands"
+  ]
+}

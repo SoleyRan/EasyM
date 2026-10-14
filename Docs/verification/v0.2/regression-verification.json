@@ -1,0 +1,55 @@
+{
+  "version": "0.2.0",
+  "startedAt": "2026-10-10T07:51:02.320Z",
+  "browser": "msedge",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 442
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 16212
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 67186
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 10235
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 33911
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 3509
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 7294
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 18622
+    },
+    {
+      "script": "performance",
+      "passed": true,
+      "durationMs": 15156
+    }
+  ],
+  "distIndexSha256": "dc4896269c0102697b6c8bb48733225f69ce659367a0096e1c131cb68089333e",
+  "finishedAt": "2026-10-10T07:53:54.898Z"
+}

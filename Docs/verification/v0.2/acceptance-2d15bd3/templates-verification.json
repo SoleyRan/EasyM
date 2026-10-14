@@ -1,0 +1,18 @@
+{
+  "stage": "v0.2-step-4",
+  "verifiedAt": "2026-10-10T09:36:53.534Z",
+  "browser": "155.0.4283.45",
+  "passed": true,
+  "checks": [
+    "EM template entry",
+    "initial focus, focus trap, Escape/cancel and return focus",
+    "blank/meeting/project templates",
+    "literal Chinese/emoji/dollar/nested placeholder substitutions",
+    "script text does not execute",
+    "independent tabs and preserved source",
+    "untouched blank closes without prompt",
+    "generated draft survives reload",
+    "first browser download preserves exact Markdown",
+    "four themes and compact dialog layout"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "target": "x86_64-pc-windows-msvc",
+  "dependencies": 406,
+  "missingLicenseTexts": [],
+  "completeLicenseTexts": true
+}

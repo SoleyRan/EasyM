@@ -1,0 +1,16 @@
+{
+  "recordedAt": "2026-10-13T04:08:51.325Z",
+  "applicationVersion": "0.3.0",
+  "target": "x86_64-unknown-linux-gnu",
+  "dependencies": 526,
+  "missingLicenseTexts": [],
+  "completeLicenseTexts": true,
+  "licenseFiles": 284,
+  "source": {
+    "cargoMetadataSha256": "0b79befa42f40bdd1e4137f2cf3ac89792bc1100da4cce5ed0faf5bf011f9243",
+    "npmMetadataSha256": "488706c19d45a48dcc2b42e2fc40c0fd32b6a6d21168d5e75b34317ab0b6f408",
+    "cargoLockSha256": "b8ec88096125ce8c6df0a81651ec55c794a1fdab2173e8e09172950a735588fe",
+    "pnpmLockSha256": "2bdd266a7dae5d1e2828b921cf4d8cd20cb385626af0534dc501117e2d38876c"
+  },
+  "scope": "Locally generated target-filtered inventory and text verification; not a compilation/runtime or distribution legal review."
+}

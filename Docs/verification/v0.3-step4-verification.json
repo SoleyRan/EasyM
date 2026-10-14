@@ -1,0 +1,422 @@
+{
+  "step": "4",
+  "verifiedAt": "2026-10-12T13:32:43.939Z",
+  "baseCommit": "7869da95720821b4b858ea0036c29610fc364a1b",
+  "branch": "feature/v0.3",
+  "sourceState": "uncommitted step 4 on recorded base",
+  "applicationVersion": "0.2.0",
+  "newInstallerBuilt": false,
+  "status": "implementation-and-available-acceptance-passed; manual acceptance remains",
+  "results": {
+    "typecheck": true,
+    "frontendBuild": true,
+    "frontendTestFiles": 28,
+    "frontendUnitTests": 164,
+    "lockedWindowsRustTests": 45,
+    "regressionChecks": 14,
+    "productionWorkers": 5,
+    "windowsReleaseBuild": true,
+    "nativeStartup": true,
+    "diffCheck": true
+  },
+  "unitTestEvidence": {
+    "fullFrontend": "28 files / 164 tests passed at approximately 2026-10-12 21:17 Asia/Shanghai, before two final async/error-handling refinements",
+    "finalTargetedFrontend": "12 history/resources/storage tests passed at approximately 2026-10-12 21:23 Asia/Shanghai after those refinements",
+    "rust": "45 locked Windows tests passed at approximately 2026-10-12T13:19Z, including 18 history tests; native sources unchanged afterward",
+    "commands": [
+      "pnpm.cmd test",
+      "pnpm.cmd test src/platform/history.test.ts src/platform/history-resources.test.ts src/platform/storage.test.ts",
+      "cargo test --manifest-path src-tauri/Cargo.toml --locked"
+    ]
+  },
+  "browserAcceptance": {
+    "stage": "v0.3-step4",
+    "passed": true,
+    "verifiedAt": "2026-10-12T13:29:58.738Z",
+    "checks": [
+      "explicit consent, baseline, read-only query, normalized worker line diff, name and pin protection",
+      "native copy cancellation, external revision conflict, restore current pre-snapshot and one undo/redo",
+      "manual capture, preview-before-cleanup, quota/corruption/unknown-schema safety, keyboard focus, four theme screenshots",
+      "manual snapshot includes current memory edits; panel locks autosave; no remote requests or uncaught errors"
+    ],
+    "scope": "Production UI with deterministic desktop IPC fixture; real history filesystem, transactions and fault injection covered by locked Rust tests. Native file dialogs and cross-platform WebView remain manual.",
+    "browser": "156.0.8078.4",
+    "finishedAt": "2026-10-12T13:30:01.654Z"
+  },
+  "regression": {
+    "version": "0.2.0",
+    "startedAt": "2026-10-12T13:29:11.601Z",
+    "browser": "chromium",
+    "passed": true,
+    "checks": [
+      {
+        "script": "workers",
+        "passed": true,
+        "durationMs": 584
+      },
+      {
+        "script": "docx-library",
+        "passed": true,
+        "durationMs": 5285
+      },
+      {
+        "script": "docx",
+        "passed": true,
+        "durationMs": 8968
+      },
+      {
+        "script": "docx-ui",
+        "passed": true,
+        "durationMs": 31935
+      },
+      {
+        "script": "history",
+        "passed": true,
+        "durationMs": 3412
+      },
+      {
+        "script": "browser",
+        "passed": true,
+        "durationMs": 5997
+      },
+      {
+        "script": "writing",
+        "passed": true,
+        "durationMs": 66771
+      },
+      {
+        "script": "search",
+        "passed": true,
+        "durationMs": 6656
+      },
+      {
+        "script": "live-preview",
+        "passed": true,
+        "durationMs": 20919
+      },
+      {
+        "script": "workspace",
+        "passed": true,
+        "durationMs": 2355
+      },
+      {
+        "script": "templates",
+        "passed": true,
+        "durationMs": 5096
+      },
+      {
+        "script": "export",
+        "passed": true,
+        "durationMs": 4450
+      },
+      {
+        "script": "context-menu",
+        "passed": true,
+        "durationMs": 6341
+      },
+      {
+        "script": "performance",
+        "passed": true,
+        "durationMs": 13783
+      }
+    ],
+    "distIndexSha256": "2d0332165a449b8103d795debf61c7f0ade825b7e4308ceb730a3287ff51f42e",
+    "finishedAt": "2026-10-12T13:32:14.164Z"
+  },
+  "performance": {
+    "verifiedAt": "2026-10-12T13:32:00.734Z",
+    "machine": {
+      "os": "win32",
+      "release": "10.0.26200",
+      "cpu": "Intel(R) Core(TM) 5 220H",
+      "logicalCpus": 16,
+      "memoryGiB": 31.7
+    },
+    "cases": [
+      {
+        "name": "5 MiB text",
+        "bytes": 5242880,
+        "openMs": 1802,
+        "inputSamples": 40,
+        "inputEventToNextFrameP95Ms": 16.9,
+        "targetMs": 50,
+        "targetMet": true,
+        "sourceHighlightLimited": false
+      },
+      {
+        "name": "100 KiB single line",
+        "bytes": 102400,
+        "openMs": 128,
+        "inputSamples": 40,
+        "inputEventToNextFrameP95Ms": 22.3,
+        "targetMs": 50,
+        "targetMet": true,
+        "sourceHighlightLimited": true,
+        "fullPreviewAndUndoVerified": true
+      },
+      {
+        "name": "100 local 800×600 images",
+        "restoreAndDecodeMs": 434,
+        "imageCount": 100,
+        "allDecoded": true
+      },
+      {
+        "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+        "boundaryBytes": 20971520,
+        "accepted": {
+          "durationMs": 69.8,
+          "width": 800,
+          "height": 600
+        },
+        "rejected": {
+          "durationMs": 21.7,
+          "error": "图片文件超过 20 MB。"
+        }
+      }
+    ],
+    "browser": "156.0.8078.4"
+  },
+  "historyDiffPerformance": {
+    "verifiedAt": "2026-10-12T13:29:12.148Z",
+    "platform": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) 5 220H",
+    "node": "v24.19.0",
+    "scope": "Actual shipped worker in Node VM. Endpoint process heap/RSS samples, not browser/WebView peak memory; GC may produce negative deltas.",
+    "measurements": [
+      {
+        "name": "5MiB-near-limit-small-edit",
+        "bytesBefore": 5119999,
+        "bytesAfter": 5119999,
+        "durationMs": 33.92,
+        "heapDeltaBytes": 18459936,
+        "rssAfterBytes": 134836224,
+        "additions": 1,
+        "deletions": 1,
+        "fallback": null
+      },
+      {
+        "name": "100KiB-single-line",
+        "bytesBefore": 102400,
+        "bytesAfter": 102400,
+        "durationMs": 0.46,
+        "heapDeltaBytes": 210656,
+        "rssAfterBytes": 135081984,
+        "additions": 1,
+        "deletions": 1,
+        "fallback": null
+      },
+      {
+        "name": "unrelated-10000-lines",
+        "bytesBefore": 58889,
+        "bytesAfter": 58889,
+        "durationMs": 204.2,
+        "heapDeltaBytes": 120609504,
+        "rssAfterBytes": 314490880,
+        "additions": 0,
+        "deletions": 0,
+        "fallback": "差异计算达到时间或内存限制，未生成逐行差异；请查看双方全文。"
+      },
+      {
+        "name": "over-5MiB-fallback",
+        "bytesBefore": 5242881,
+        "bytesAfter": 0,
+        "durationMs": 6.45,
+        "heapDeltaBytes": 5243712,
+        "rssAfterBytes": 324984832,
+        "additions": 0,
+        "deletions": 0,
+        "fallback": "输入超过 5 MiB，未生成逐行差异；请查看双方全文。"
+      }
+    ]
+  },
+  "nativeStartup": {
+    "verifiedAt": "2026-10-12T13:26:45.7739806Z",
+    "version": "0.2.0",
+    "executableSha256": "907e2f8342bc0dba937d337abd640107e13a2ed3dadb1e49c6d4ac03f79a9b23",
+    "isolatedProfile": true,
+    "launched": true,
+    "gracefulClose": true,
+    "passed": true,
+    "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+  },
+  "visualReview": {
+    "themes": [
+      "light",
+      "dark",
+      "paper",
+      "forest"
+    ],
+    "result": "Direct PNG review: legible text and controls, visible focus and selection, no clipping in the reviewed fixture"
+  },
+  "verificationRepair": "Initial final regression exposed an immediate focus assertion before the deferred EM focus restoration. The script now waits for actual focus; the complete regression was rerun with unchanged build artifacts.",
+  "pending": [
+    "Native end-to-end history interaction and save dialog overwrite/cancel/occupied target",
+    "Real IME and assistive technology",
+    "macOS/Linux GUI and Unix symlink test in platform CI",
+    "Final installer packaging and remote three-platform CI"
+  ],
+  "knownLimits": [
+    "UI acceptance uses deterministic desktop IPC fixtures; Rust filesystem and transaction tests verify actual native data separately.",
+    "Worker performance uses Node VM endpoint heap/RSS samples, not WebView peak memory.",
+    "Existing React act and bundle size warnings remain.",
+    "History is opt-in local recovery, not a device backup; remote images are not downloaded."
+  ],
+  "sourceSha256": {
+    ".github/workflows/ci.yml": "555b045cc00dcd517ba121b4a540a6614f50cea3bdefbb5fd23c4328f8b9aaf6",
+    "Docs/Easy-Markdown-v0.3-第三步C-预检界面与验收.md": "d0f2c1fa05448f719f8482bb03dcd8ed77c1b704f11af2fda95b8c8dc322c179",
+    "Docs/Easy-Markdown-v0.3-设计与实施计划.md": "3b0c96976ed0ab61811a6ed742893432f24b4060f45c83f7742b7d8c697fdd78",
+    "README.md": "322456a340d2ebb4d75f1c9ea057672a5bf96d32a1f386af404719647a326bdd",
+    "package.json": "e1587157911c63109fe6991781bbd3b3b79e60be20242fbe3c36d8f5f3125a57",
+    "scripts/production-workers.mjs": "ce34dea1917afa6f48f023407d93d63e159a48c63efebddef5b33c7efaae172f",
+    "scripts/verify-regression.mjs": "f6e938e075fa8d19255cc08ec9947a124d7ee3753e6387f1fb06895f96826334",
+    "scripts/verify-workers.mjs": "2dd3860b812b0882e7c2fbe6c729b2de20bb401a2dbaebea8735bc95ff6e49ff",
+    "src-tauri/src/lib.rs": "03f4d988f06656e2925cb4431ad420ec03e20b8d8ef6146f7ddbee8d4272fcef",
+    "src-tauri/src/resources.rs": "a477f3953ec5ef8a518c6277dfbf6a19d5d6aaa1697e0bbb764ee5c2b3b6e0ea",
+    "src-tauri/src/storage.rs": "d273b34638946dc8f0ea805af82d13dc67ec2b425daace84bab5d0d808e23b9f",
+    "src/App.test.ts": "e17d36231be4c946f442253571b803ed3e2b13655832cc80736c410918f08d50",
+    "src/App.tsx": "5b4bbc0a5d362440148018e595226a1126d2f26b2a6744d287a7bb0d0801b450",
+    "src/editor/DocumentEditor.tsx": "1f46dbb311d756a1ed144b58a6c8106465105ad0c6fb246b1f4eaf0de86e4a84",
+    "src/editor/themes.css": "135aeb22781ea403a39448116c6d9abe479ee95c3130098e849a2d6ce29b526c",
+    "src/platform/storage.test.ts": "36f6e3cc4110ba5171fff8316fbe9252a5252f4e3c425e4ce2b7b44550c5bc48",
+    "src/platform/storage.ts": "ac72bb0e423637956f7d33986d6432f29c3a346d304cbd756e3d36d043487de5",
+    "Docs/Easy-Markdown-v0.3-第四步-版本历史与恢复.md": "171fb6ab509298839a9012feae4e01b89e02de210cca1d65aefdc20b786b4ffe",
+    "scripts/verify-history.mjs": "25e3934ac9c105a8cead1ef027c986e434f068218f703d30be66e7f747283d99",
+    "src-tauri/src/history.rs": "446638c982b639a8d14180c462d469d76a8bf72c072ec6c763998be8a875173e",
+    "src/core/history-diff.test.ts": "554befe5e4174446e588bb154d2202d1a6454b3c8f15e12d17c7625b11ca80f4",
+    "src/core/history-diff.ts": "9bda2cd431ceee45ff061e54e656eab2dcad82db3be29c6da9ed0d9828b257f9",
+    "src/core/history-resources.ts": "905dec57a03d60a61636e3c2ea3a1328190ffd6978a2bb949094a17cef4f0814",
+    "src/editor/HistoryDialog.tsx": "14da8976521fa27dabd88ae4c77720086d4c264d5e7e4a04a685d690f933a44e",
+    "src/platform/history-diff-worker.ts": "50edd7ac91a9e9de12b7488f529e8dd3465ba2b693d7cf5a07dc21e0d4bfcc48",
+    "src/platform/history-resources.test.ts": "a8fd7ef800e2e50e468eda9d975d7181dd9db1c5ddb30b0b05d610e180f05518",
+    "src/platform/history-resources.ts": "3b09ff604e23cf428219be300ad4cb891df73a7e680eb49c2563d959c430c564",
+    "src/platform/history.test.ts": "c06c16953ca300a8ed38c14c419a965f7ad940f19d4a0e77f4a78892c9a6c3c4",
+    "src/platform/history.ts": "684611c65e70cff702b893ce2f8cdb33f71616fa727f777047fef6c906e40ad6",
+    "pnpm-lock.yaml": "2bdd266a7dae5d1e2828b921cf4d8cd20cb385626af0534dc501117e2d38876c",
+    "src-tauri/Cargo.lock": "fc039aa1e1033f782c63dcf63a6fc05375bb6bccef61735c9695633b80d3c8b9",
+    "src-tauri/tauri.conf.json": "1c80ca6e67b02461cbfbaeea519b3d0618990393eb639e8a4ae3755dc2bf277b"
+  },
+  "artifactSha256": {
+    "dist/index.html": "2d0332165a449b8103d795debf61c7f0ade825b7e4308ceb730a3287ff51f42e",
+    "src-tauri/target/release/easym.exe": "907e2f8342bc0dba937d337abd640107e13a2ed3dadb1e49c6d4ac03f79a9b23",
+    "dist/assets/apl-B4CMkyY2.js": "f242eda34c4a72bd8e51c278934ec62fe4804f129733e27d0441e1dc8bbc07a9",
+    "dist/assets/asciiarmor-Df11BRmG.js": "a4f24c2097052635b21234f8995ea0bc9aa6eb4627e9aad3d4c7da5fb3eb9321",
+    "dist/assets/asn1-EdZsLKOL.js": "ae03ba33f00f6d244c134c98deb75db9ef27894ed42661b6b96cf897561e1bab",
+    "dist/assets/asterisk-B-8jnY81.js": "47dfc80fb04e1d00d31d9f5286c817e3a75d012bc8c88b97585ea4776a4761c7",
+    "dist/assets/brainfuck-C4LP7Hcl.js": "de73a71178f148e59b5a6d7ca989842599d46d92836517bad1ddf005a968ab4e",
+    "dist/assets/clike-B9uivgTg.js": "362289d801a4f7b5abb548e9220660731b08cf3e00989bb8462ebed73bf28e96",
+    "dist/assets/clojure-BMjYHr_A.js": "498a60106d02e5d91242032d01e8c02c8405cc0dd2d089d69f55eab8e78d1a20",
+    "dist/assets/cmake-BQqOBYOt.js": "754963f9ba8388c27113791b9da35a6291f5784fd853027081091ae4b9018ca7",
+    "dist/assets/cobol-CWcv1MsR.js": "b5708cea6e07765d16bd3cea07d4a10a3672636bbc45ce2d2646c9f1833a4372",
+    "dist/assets/coffeescript-S37ZYGWr.js": "140d96ba54d87483b611e343940304fd55d851a31289ffb6b9ab1a2c8b4793a2",
+    "dist/assets/commonlisp-DBKNyK5s.js": "5ab53180afeb19f45f2adb48571c37465b9b697129377d2745eb0948ee8add01",
+    "dist/assets/crystal-SjHAIU92.js": "66127e5531035963dfda0a8bc314538018e1205865fa9371da29ddc850b3fd7b",
+    "dist/assets/css-BnMrqG3P.js": "aa3e47bd7d7e6f2b9aed7b342b7d6aa059ff6e770c86d64cb0eaf97b403ec98a",
+    "dist/assets/cypher-C_CwsFkJ.js": "4a2a3e7313e1339de833d287d518acc97046ddd16fb244a28b34f15f01f01b4b",
+    "dist/assets/d-pRatUO7H.js": "7d17f349f6b8da47c4e024e6646b867bcae32da8f1262291e93eb551f2d6f15d",
+    "dist/assets/diff-DbItnlRl.js": "100f04b4d542403a267b0beed52abb489c507eb75bd1cff9e11447af2dbf9eda",
+    "dist/assets/dockerfile-BKs6k2Af.js": "95f163ab68a8f7365d9a168beafab67b4eaaf73ed8a051cad2bbb445d3dbd208",
+    "dist/assets/docx-CvC3-jbu.js": "af23eaaed8b15d29d41c40a8a9dd8fd0d2800706ce58707c359c313f3ae605fa",
+    "dist/assets/dtd-DF_7sFjM.js": "e107c8a82ea6a638f3350669326809c15eb5e227e6dae8d8dd41ca139cd522ee",
+    "dist/assets/dylan-DwRh75JA.js": "9b7382fd95169a9a2b34765109c2bf6c7ae30b3dd0bd62759b04a49c3d394acc",
+    "dist/assets/ebnf-CDyGwa7X.js": "ef22ca54434ab2be0f6ed0dc36b246cdcfa507556fed7a847d77064c5fb1c0ef",
+    "dist/assets/ecl-Cabwm37j.js": "af42e9e8b926913548f8cf9d90bbe9ea829ced5b235a49d8b59e4f8010113fc1",
+    "dist/assets/eiffel-CnydiIhH.js": "6a7536ca49edb77b3af0b9a68caeb900aa05f71ae09babb95591fa4699ccb07f",
+    "dist/assets/elm-vLlmbW-K.js": "649698475e1b2b949f3af3c199a7e4cb72dbc4e51a111984437689b8893865ad",
+    "dist/assets/erlang-BNw1qcRV.js": "8a3a9b30601fc689347511fed678378f5db855c49743cbf971043e1c10b19fed",
+    "dist/assets/factor-kuTfRLto.js": "c3f0ab8713e16d718edae2753adce49b7d87b3ee36d3a529db49e4c7ae209335",
+    "dist/assets/fcl-Kvtd6kyn.js": "685d86c935fa25d282da3444b211803edf318f1723b0e3db5a665ec50db10151",
+    "dist/assets/forth-Ffai-XNe.js": "f6680528a050997990fd2eac73d2fee5e3c5432b34aaf52fe1fdc2f984db261b",
+    "dist/assets/fortran-DYz_wnZ1.js": "91936d3b97248972ef6db720395a5f811a4f560a34920d60ebcf3add475162b1",
+    "dist/assets/gas-Bneqetm1.js": "548fd06740ff7e7e6dab57021f454462c6899e78043f5d70e1902e4ca7c317a0",
+    "dist/assets/gherkin-heZmZLOM.js": "75d36502feb18a52191c195ac7fd3b5f7e57a29b6e73ae30422815efc689fc81",
+    "dist/assets/groovy-D9Dt4D0W.js": "6912e83a4950c0e255f200359253bfb636344600ab03ad7178aaa166041fb79e",
+    "dist/assets/haskell-Cw1EW3IL.js": "b47ca38b34ea1f8fb65c1f4f1043277796f6437c9852bad46a7c6cf1445d6f20",
+    "dist/assets/haxe-H-WmDvRZ.js": "3754ffb01bd31420d626dd6139d4fc5b12f58485c5779552a99710740ee0f5da",
+    "dist/assets/http-DBlCnlav.js": "269060ee11376e85e7b8d4c7dd15c014fe4b755289a85d084d125a2615488e75",
+    "dist/assets/idl-BEugSyMb.js": "24a7719ff1d38588f4889f8d0f6bca90690f58436a048ef8e3c644aabf1aaffd",
+    "dist/assets/index-B-yKFGzM.js": "7f1dd14273ba4141ad15777580ab0670813647eb611751015067b6232cd061bc",
+    "dist/assets/index-B76hmlzA.js": "0c68973e1dbd9199ff28c64b98acb3cacd42c4f8497c093f4aa5a4b5425c6ef0",
+    "dist/assets/index-b7r13o7A.js": "920e58cbe4ec16fe2fce79c903a083ad07c566c5194cc3a43a47c3528e657d5c",
+    "dist/assets/index-BoO0DaT7.js": "23569dcdbe12d5b9226ab9770410a8e6403b9bd5b08222031b383fe990f3940d",
+    "dist/assets/index-BoYQ8I3O.js": "35106d8dde0781ba1a13ed79feadd537932521bd6d9db5a5b13c8f02bf2bc94c",
+    "dist/assets/index-C7IVJwww.js": "222b59f1c5b1b3dc326fffd8805c354d23c15f23819175124576febdafb775e1",
+    "dist/assets/index-Cfon9DdI.js": "a8cd64465cef1c5f9e47c5969531cab4463d5ec583a5a187d35fd5e0fbdb822b",
+    "dist/assets/index-Cg012KDI.js": "b07c7fa2841eb414d753b2a00dc59dbbffb10d310951288db56d17de2d691c4b",
+    "dist/assets/index-CpkWpu4U.js": "fe1702c20e40e0eca45b2775f75d454616e687fc0b2da3edfd16c7a4d596ddc1",
+    "dist/assets/index-CRGz4vqZ.js": "8192e51772f29c469e21e911106c55eb2adbb125e68a4923d1d64d6330b82f38",
+    "dist/assets/index-CxvIwimb.js": "933429fb195c132f881f9d897a0f0e5af941423d0673efc660eff67e03640cfc",
+    "dist/assets/index-CZqDjv4a.js": "e39722addd021e8d196e25e517a056c995d271441631f5150edc72ce14b24d61",
+    "dist/assets/index-CZRfuk45.js": "10906d08aa516f5d055f5ff598dd2774f870d5a6243b41acd6e9925eecf755b3",
+    "dist/assets/index-DjtQXlNv.css": "1b6c9985543a0a472f863da0d8ebd3b92d45343794dba6133d4d1e7c3955478a",
+    "dist/assets/index-DKd9Q80q.js": "ceb2f7c038dc593f285034ca83ae6a6bd4984269edb0a9719dc81739282dfd84",
+    "dist/assets/index-DxzbpNq5.js": "2067543aa9fecb5c248c0d559351eb03ad2040a81a9768fd604a308f5997825b",
+    "dist/assets/index-Jk_9zJp1.js": "5562b488977fa35334958ba191b391cec895bde6a634a5653dd0e9ac8e6aea30",
+    "dist/assets/index-scZFsswg.js": "79e32970efbcce77aac8388b01d04c4cb5ac88be9d22c6c45ffb9f5011698514",
+    "dist/assets/index-XDljrmWJ.js": "0ecfc5671001245f3bea09bc182cd76bc5a7c42eebe9d13ed82d8ff9d44b98b3",
+    "dist/assets/javascript-iXu5QeM3.js": "182fdca66238d12ed737c8fd2d3f5a4bfec8d6559889f9c79117a1caab05d649",
+    "dist/assets/julia-DuME0IfC.js": "9c693e030ec08a516cdbb591c88c08c69a6525445481ba74a899961e8704b9d6",
+    "dist/assets/livescript-BwQOo05w.js": "63b490e7cca07ce077a7c204e930a01413d0d5e18064eed03b1e662e01c22103",
+    "dist/assets/lua-VAEuO923.js": "ad18df7e84403433d3dc6847268b41d31e2bdb44e293ce5b147af333a9f456a7",
+    "dist/assets/mathematica-DTrFuWx2.js": "d3613780e5d57d3809324863462a59a54fb9b83f31e223d59f504a77b04dc495",
+    "dist/assets/mbox-CNhZ1qSd.js": "19086bb5a8b00d893a7b6aceea1d06a0cc34c24bdb053031f880cb1bb1994ced",
+    "dist/assets/mirc-CjQqDB4T.js": "76ae2e410f90b453529c367ac69d476e5fb516964c0bf8ffb2676d875b8522b4",
+    "dist/assets/mllike-CXdrOF99.js": "0bf60c6883fe103d813759f1b69baa46af8b5dc0b502aae492c247838a5d8784",
+    "dist/assets/modelica-Dc1JOy9r.js": "03c2e8fe9a47723c0e6eb8a2394543d7e2bdddace7770b4ae9c54005d6ae4be9",
+    "dist/assets/mscgen-BA5vi2Kp.js": "f0e7bd8988241778eac8d6093bee63f099bcd957994a35c58979ff33f5a137cc",
+    "dist/assets/mumps-BT43cFF4.js": "1eee059f667d792d74620cbb7e83406488e209e548c7de0f880cd8830d97a58f",
+    "dist/assets/nginx-DdIZxoE0.js": "67487e9c0fa87bca9b8e9be91aad97fca8b610627731156b4ae44116a2b33b36",
+    "dist/assets/nsis-LY0VT_u5.js": "8b617c3eef35cf5d07d8423a492c648445de80a2cd5b4a3b234c4f7723b554c0",
+    "dist/assets/ntriples-BfvgReVJ.js": "46bcf88e08c9250fac68671aa5bb4b5314a3ff62c487736825f6bdc41f02392b",
+    "dist/assets/octave-Ck1zUtKM.js": "2050e71c70081d414f73ab9b72ccf17a7319d311d6aba18193ba050705d661e9",
+    "dist/assets/oz-BzwKVEFT.js": "930fe68084255ef156188a29a640431ca0f276d323ce07241b92f1b678390777",
+    "dist/assets/pascal--L3eBynH.js": "19eb54c507f12be735989dcfebb5dc2f7a139777cdd71665896fb4bd287f89ca",
+    "dist/assets/perl-CdXCOZ3F.js": "195216883cd9274b5414861746c3ca02f4df013330b91440c785561fbc188f37",
+    "dist/assets/pig-CevX1Tat.js": "8a443e606edc2da2658abe26c048af2a468c4f3244434957fe11320a15938043",
+    "dist/assets/powershell-CFHJl5sT.js": "5eef7d073bc36b86d7cfd0804c38c091931f20dadc61b176ca2d70ce6bb488d2",
+    "dist/assets/properties-C78fOPTZ.js": "5b083077fe05a0376e6ca5536d04fb555ba72e848b7a8ba2cd8a7236a3a5d6b9",
+    "dist/assets/protobuf-ChK-085T.js": "872320ac45a7915b0f7aed71325ae2adb105b51cadd2a6fc74b65f5a552791ae",
+    "dist/assets/pug-DeIclll2.js": "803a888b8468015a2133ca30b67d5ad7d18a7b67e0715cbb8b0fb5426f790d20",
+    "dist/assets/puppet-DMA9R1ak.js": "c614d78e96603483b265bdb548e7cdd7a54a68df8b7a3556829d7b7ea874eb4e",
+    "dist/assets/python-BuPzkPfP.js": "ac31cf70d1ebf5ecde918d2284e736615fab53442c2b3c230bfa83f85f806d78",
+    "dist/assets/q-pXgVlZs6.js": "c4828fd3608a4a8a9b322b6e5653aea3b21aa2556267680d5d27520796320fd9",
+    "dist/assets/r-B6wPVr8A.js": "e32bc0fe55b99eb76ad25438a9c224ee4ae4d9ed482e95c40af328e44ea70a64",
+    "dist/assets/rpm-CTu-6PCP.js": "60f8f25323f47996c1e5a299f87f42de42bd6c13a584733c4fe3d71ec48ba65a",
+    "dist/assets/ruby-BK5aLJev.js": "003bfbd0b73d57a22d46969602d1965e571385dfe26883e8b874a100a8acdf36",
+    "dist/assets/sas-B4kiWyti.js": "f8c7889fa764fc5a840cbe7010e1d9f931865efee9d4c510425d62b0ac84075d",
+    "dist/assets/scheme-C41bIUwD.js": "7ddaa1a5f63ea49d2ba6007ee977de4495644082218253d0c107f7b6865ce8fe",
+    "dist/assets/shell-CjFT_Tl9.js": "b4da8a11db1127e003f10a94ff707474af1392051c41f1e0ef78152e9bd0ea95",
+    "dist/assets/sieve-C3Gn_uJK.js": "e30edd162cbd37962e7e62440bf9835dad2bb1234288486f24ad4e4940fd1e8f",
+    "dist/assets/simple-mode-GW_nhZxv.js": "8ae187bd3b7d02dbf9bd195a73c4c8635c67a557825c91a00ef476d4e1113db2",
+    "dist/assets/smalltalk-CnHTOXQT.js": "6fea82ec5301f1b147fda0b2e757be2c8dd8b4792c74dac06261c07718290762",
+    "dist/assets/solr-DehyRSwq.js": "c4f3f72687c813db9a8a676f52b958aec08292b294aade4f43ee53222bafb2cd",
+    "dist/assets/sparql-DkYu6x3z.js": "35e5e4f888aac0249bb3570ac5f07f7dbb45cef40eb8444ec2a3a0772776d0f0",
+    "dist/assets/spreadsheet-BCZA_wO0.js": "44d7acba2c5b735fbda1649b9845fbb6de24821882d2a34682bc726c1925bb03",
+    "dist/assets/sql-D0XecflT.js": "de179cb192745a50f178503fd65ae5ff2488f34b4d421de85961a1207930a125",
+    "dist/assets/stex-C3f8Ysf7.js": "bee5f7a433d45272561fef44f62f4c354b7c849efbadfe2143da5595ce0c1537",
+    "dist/assets/stylus-B533Al4x.js": "352405ae3d7bbf0dfcd087d128510cb3cd5f4763bc2e58136e069c7e915be77e",
+    "dist/assets/swift-BzpIVaGY.js": "6fdd63ef4febc2aaff6b39553ef9b5d60a76a59a4ddfedbbd260b0ebded352f9",
+    "dist/assets/tcl-DVfN8rqt.js": "dd357643696c69931e253fb64d0cd3911ac609616448c3197958a821dcbbbd08",
+    "dist/assets/textile-CnDTJFAw.js": "0f2de1a421c605520b0c8b876bd124369085c5fb7f13b12c9dfbcc60bd27c394",
+    "dist/assets/tiddlywiki-DO-Gjzrf.js": "0bf0e719c5c34298e72e308cd6be69ca63680a0bf538086adf4939a16f41aa8a",
+    "dist/assets/tiki-DGYXhP31.js": "3bdc3135821a80ff86d40c2d4fbae733f59b7dcf86a43a2367a17d1df5cb1b80",
+    "dist/assets/toml-Bm5Em-hy.js": "b7f8416bfb193fea056e2ea29ac97d5569055b02829786fae1f23d619a3b08d6",
+    "dist/assets/troff-wAsdV37c.js": "8e77af30b3dfad9e8c5fb316df448139905aeb2ec55ed63970c1c5f1e43758cd",
+    "dist/assets/ttcn-cfg-B9xdYoR4.js": "8d367f5c728e0a125912df85cc96c61e1bd2616e3617535c70783494e6361653",
+    "dist/assets/ttcn-CfJYG6tj.js": "09fd86d60a4bf3f39f56146b8444dab213087d567f3685f91b810499020f5255",
+    "dist/assets/turtle-B1tBg_DP.js": "7aee24b54c788eb05f03336ac595622a7e26d5a51d7d175fc95b12bd139f948a",
+    "dist/assets/vb-CmGdzxic.js": "a6d39b887d52687053a94f7fd6438d9e193c78735e36ec0d7585ab54873e0e3a",
+    "dist/assets/vbscript-BuJXcnF6.js": "6ca48951cc338f55899631cf06bae1f31e0ab9068225eb7a1c4a2bcbe35b1693",
+    "dist/assets/velocity-D8B20fx6.js": "a83193ff3101931e7df5a8e2c0fcd29d4b9db08d1464e270efdcfd589ad3dc17",
+    "dist/assets/verilog-C6RDOZhf.js": "51f07eed339c5f2fb36a10c69b0311f6888e5b93694ac2ba8527da651317091d",
+    "dist/assets/vhdl-lSbBsy5d.js": "9e808646c19567daf6856e0e835ea01b94fc38e4b8529c526872ecf587041256",
+    "dist/assets/webidl-ZXfAyPTL.js": "bce47d0d06b098cede3bbb8ffee3d534c1cd85610afe7463f579e357037a3bd2",
+    "dist/assets/xquery-DzFWVndE.js": "c98f053278244c215c51c68f20cc352f038a2fd3c99436400785a6d36a9853bd",
+    "dist/assets/yacas-BJ4BC0dw.js": "5f69a3c388a14c26bd6060c2eddb3970b6e3e8a40fc6419ce705783685526bf5",
+    "dist/assets/z80-Hz9HOZM7.js": "af74ec9a00d4224b94ceb13fc87cac85fadc218e26b64a2d6e4f7e47a8fede01",
+    "test-results/history/light.png": "3508e59cf2f988016e41b3eccc046cf7d29ed47bb0434b67b6b32abd3c49d7d1",
+    "test-results/history/dark.png": "2be2d37bc7ff11a1814a987bbec919a2307919f8f2cb607d08a59d6c89aead23",
+    "test-results/history/paper.png": "7ce7261a625d0529c63217da9f2e0ea152a70a6d6e3a0b78f6872173c6aaacfb",
+    "test-results/history/forest.png": "e04a037358c11c290f86c482295fe252f97bae88c647767a8c7ae75a91497fe3"
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "verifiedAt": "2026-10-14T02:45:40.5062385Z",
+  "passed": true,
+  "application": "Microsoft Word",
+  "version": "16.0",
+  "checks": [
+    {
+      "sample": "letter-compact",
+      "pages": 1,
+      "tables": 1,
+      "inlineImages": 0,
+      "opened": true,
+      "editedAndReopened": true,
+      "pdfBytes": 194255
+    },
+    {
+      "sample": "placeholders",
+      "pages": 1,
+      "tables": 0,
+      "inlineImages": 0,
+      "opened": true,
+      "editedAndReopened": true,
+      "pdfBytes": 178791
+    },
+    {
+      "sample": "display-image",
+      "pages": 1,
+      "tables": 0,
+      "inlineImages": 1,
+      "opened": true,
+      "editedAndReopened": true,
+      "pdfBytes": 145028
+    },
+    {
+      "sample": "office",
+      "pages": 2,
+      "tables": 1,
+      "inlineImages": 2,
+      "opened": true,
+      "editedAndReopened": true,
+      "pdfBytes": 4313131
+    },
+    {
+      "sample": "multipage",
+      "pages": 25,
+      "tables": 2,
+      "inlineImages": 12,
+      "opened": true,
+      "editedAndReopened": true,
+      "pdfBytes": 437152
+    }
+  ],
+  "build": "16.0.20430",
+  "fileVersion": "16.0.20430.20146"
+}

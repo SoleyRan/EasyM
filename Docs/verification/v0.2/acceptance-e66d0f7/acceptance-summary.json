@@ -1,0 +1,104 @@
+{
+  "verifiedOn": "2026-10-12",
+  "sourceCommit": "e66d0f7372fe81f724adc06a401e0ac656ed2cd8",
+  "version": "0.2.0",
+  "local": {
+    "typecheck": {
+      "passed": true
+    },
+    "frontendUnitTests": {
+      "passed": true,
+      "files": 22,
+      "tests": 125
+    },
+    "windowsRustTests": {
+      "passed": true,
+      "tests": 21,
+      "locked": true,
+      "offline": true
+    },
+    "productionBuild": {
+      "passed": true
+    },
+    "regression": {
+      "passed": true,
+      "checks": 10,
+      "report": "regression-verification.json"
+    },
+    "notices": {
+      "passed": true,
+      "dependencies": 407,
+      "licenseFiles": 211,
+      "missingTexts": 0
+    },
+    "portable": {
+      "passed": true,
+      "entries": 219,
+      "sha256": "de90357ac88f90b2033fb89ad3b2c15c9f5bc87fe9a8535736e8925c2b8ec174"
+    },
+    "nativeStartup": {
+      "passed": true,
+      "report": "native-startup-verification.json"
+    }
+  },
+  "ci": {
+    "runId": 38044000324,
+    "url": "https://github.com/SoleyRan/EasyM/actions/runs/38044000324",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "id": 114189734159,
+        "name": "frontend",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114189734317,
+        "name": "desktop (windows-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114189734359,
+        "name": "desktop (macos-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114189734442,
+        "name": "desktop (ubuntu-24.04)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "browserArtifact": {
+      "id": 11667665752,
+      "zipSha256": "15e2d29ee376c4c26e65beee9ba21eabe00b113862ee906bc3de96735dd3b183"
+    },
+    "installerArtifact": {
+      "id": 11666821732,
+      "zipSha256": "3ce5d4a668cd9a956f35f78655ae834aa9b9a264fb3b7aab9b80c8837ca80115"
+    }
+  },
+  "nativeInteraction": {
+    "passed": false,
+    "isolatedWebViewProfile": true,
+    "disposableFixture": true,
+    "observed": [
+      "EM menu opens",
+      "native open-file dialog opens",
+      "dialog filename accepts temporary Chinese/space path"
+    ],
+    "errors": [
+      "coordinate input geometry is unavailable",
+      "foreground window did not report a process id"
+    ],
+    "outcome": "Test process disappeared after confirming Open; file opening result unverified. No recent easym.exe crash event found in Windows Application log. Do not treat this as native file/IME/printing acceptance."
+  },
+  "limitations": [
+    "Browser IPC fixtures and composition guards do not verify native dialogs or real IME.",
+    "Browser PDF and print stub do not verify OS print dialog.",
+    "Existing local Release/NSIS unchanged hashes; packaging validated without rebuilding Release.",
+    "macOS/Linux GUI require corresponding devices; 12 macOS complete license texts remain missing."
+  ]
+}

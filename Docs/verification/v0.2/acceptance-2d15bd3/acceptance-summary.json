@@ -1,0 +1,75 @@
+{
+  "recordedAt": "2026-10-10T09:46:31.107Z",
+  "head": "2d15bd39acc181e8423d98a9b4ac62f3eaedb6c8",
+  "sourceDirty": true,
+  "scope": "CI verification script fixes; no application source changes",
+  "localChecks": [
+    {
+      "command": "pnpm.cmd typecheck",
+      "passed": true
+    },
+    {
+      "command": "pnpm.cmd test",
+      "passed": true,
+      "files": 22,
+      "tests": 125
+    },
+    {
+      "command": "pnpm.cmd build",
+      "passed": true
+    },
+    {
+      "command": "cargo test --manifest-path src-tauri/Cargo.toml --locked --offline",
+      "passed": true,
+      "tests": 21
+    },
+    {
+      "command": "pnpm.cmd verify:regression --performance",
+      "browser": "Edge 155.0.4283.45",
+      "passed": true,
+      "report": "regression-verification.json"
+    },
+    {
+      "command": "pnpm.cmd verify:search --slow",
+      "browser": "Edge 155.0.4283.45",
+      "passed": true,
+      "cpuThrottlingRate": 6,
+      "report": "search-slow-verification.json"
+    },
+    {
+      "command": "pnpm.cmd verify:regression",
+      "browser": "Chromium 156.0.8078.4",
+      "passed": true,
+      "report": "chromium/regression-verification.json"
+    },
+    {
+      "command": "pnpm.cmd verify:search --slow",
+      "browser": "Chromium 156.0.8078.4",
+      "passed": true,
+      "cpuThrottlingRate": 6,
+      "report": "chromium/search-slow-verification.json"
+    },
+    {
+      "command": "./scripts/verify-native-startup.ps1",
+      "passed": true,
+      "scope": "isolated WebView2 startup/graceful close only"
+    },
+    {
+      "command": "./scripts/package-portable.ps1",
+      "passed": true,
+      "entries": 219
+    },
+    {
+      "command": "node scripts/verify-notices.mjs Docs/dependencies",
+      "passed": true,
+      "dependencies": 407,
+      "licenseFiles": 211,
+      "missingTexts": 0
+    }
+  ],
+  "limitations": [
+    "Fix not yet committed/pushed; updated Ubuntu frontend CI result pending.",
+    "Native computer-use input/state capture unreliable (timeout; 13x13 bounds); IME, file/image dialogs and system printing pending.",
+    "macOS 12 missing complete license texts and release signing remain pending."
+  ]
+}

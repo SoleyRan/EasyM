@@ -1,0 +1,122 @@
+{
+  "phase": "v0.4 step 4",
+  "verifiedAt": "2026-10-13T14:46:13.8646760Z",
+  "branch": "feature/v0.4",
+  "parentCommit": "e0c2981ad8df388c3d44a077542de8b6edb7256a",
+  "implementation": "Uncommitted workspace snapshot; fourth-step implementation",
+  "version": "0.3.0",
+  "passed": true,
+  "checks": {
+    "unitFiles": 41,
+    "unitTests": 225,
+    "productionGroups": 19,
+    "windowsRustTests": 57,
+    "typecheck": true,
+    "build": true,
+    "releaseMetadata": true,
+    "diffCheck": true,
+    "quickEntryBrowser": 6,
+    "workspaceCancellationComponentTests": 2
+  },
+  "distIndexSha256": "0bf78b04ccfdfd85710802520927c056c4014887397c8d885609474f982c54b8",
+  "sourceFiles": [
+    {
+      "sha256": "e71ec88ba2ef550333547e9303c41164a52a33ec0140898a9b93e82653f72065",
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "sha256": "1ccf1aac09894cdcd0fdc61d8821fa9e47405b7503395b0f316389ce0bdd4609",
+      "path": "Docs/Easy-Markdown-v0.4-第四步-快捷入口.md"
+    },
+    {
+      "sha256": "468249454f658e1b886b977be2465a41f7fc43603e0b7b2e937388b588683700",
+      "path": "Docs/Easy-Markdown-v0.4-设计与实施计划.md"
+    },
+    {
+      "sha256": "dedda460a0af490ec873129b190a51aba23f535f2d471fc9dd149b32724a1ca5",
+      "path": "package.json"
+    },
+    {
+      "sha256": "efd3c27314a6551795b990a6dde62ea1019ce5c81d90a71c03f3aa2ac179b414",
+      "path": "README.md"
+    },
+    {
+      "sha256": "964e8fd39ef1d5ee9f6b0d3670d2a7c64db22c809973038d50d599c24294e7bd",
+      "path": "scripts/source-test-utils.mjs"
+    },
+    {
+      "sha256": "9798daa36ebfb31a9b3ad9859fb6f8a7aab99ad1cf09d5eadddfe57672d6db2b",
+      "path": "scripts/verify-quick-entry.mjs"
+    },
+    {
+      "sha256": "eb19781b79dee24a24d7d951ea90de6425e7cb0412c32cc34664a7ad3d142641",
+      "path": "scripts/verify-regression.mjs"
+    },
+    {
+      "sha256": "921eb63a874c474df9261cee131d211a539e25a966bcea2ac167357ef403cc5e",
+      "path": "src-tauri/src/lib.rs"
+    },
+    {
+      "sha256": "50c847ef2de2550a4f471053b590bf11c38a510a86a657d23e257cd44510e0ee",
+      "path": "src-tauri/src/workspace.rs"
+    },
+    {
+      "sha256": "5fb73af1bcf0be672905c67ef204e802e6ad2d1479bdd3b96d0344d0f0390fb9",
+      "path": "src/App.tsx"
+    },
+    {
+      "sha256": "7d887126ae5ac95d3abc541775be8b24c85339d34931677988093508eeb12563",
+      "path": "src/core/commands.ts"
+    },
+    {
+      "sha256": "90d68a1b01f95791bb2f4882459e16d67f4e03e8d6dda1305f6384b39c45d3ef",
+      "path": "src/core/quick-entry.test.ts"
+    },
+    {
+      "sha256": "ad04bc1346feccfb23a50cfd79c4051984aaee3ac223caf10886573b94cec784",
+      "path": "src/core/quick-entry.ts"
+    },
+    {
+      "sha256": "4b95f5f68ae398b5c9492a3eaefb0183d63a84669bfbf473940dd57e2e03b429",
+      "path": "src/editor/DocumentEditor.tsx"
+    },
+    {
+      "sha256": "ce001c7e9fe963f1b45ff79402dfd138f760b9a85385b41b91077934e4287095",
+      "path": "src/editor/Editor.tsx"
+    },
+    {
+      "sha256": "0d526c50c30dce504dd9fe681c0725209f9bed9e13968af15cf7bf5ae274b0f0",
+      "path": "src/editor/Overlay.tsx"
+    },
+    {
+      "sha256": "b03315c5ed0eb4fb7ccb77434edef4f43d4384be33c1489c5e530908806b1bf3",
+      "path": "src/editor/QuickEntry.test.ts"
+    },
+    {
+      "sha256": "85009ebe61beb55533765a3ae7123b233eae5e739934b775fa13ed24d8dc90c8",
+      "path": "src/editor/QuickEntry.tsx"
+    },
+    {
+      "sha256": "6370aa03cfb4e435dc54841c5148e68192cbfea0234f4df89c9baa3e0c7b44db",
+      "path": "src/editor/themes.css"
+    },
+    {
+      "sha256": "98fc568c61cf502f8ec4f221ce3db42c4a352ea1f988727f47c2bf0936c1d92b",
+      "path": "src/editor/useImages.ts"
+    },
+    {
+      "sha256": "9b74e82891e547e5704d2b4f9292b0b62a4845b2ab3d01972eb2b5f119234d48",
+      "path": "src/platform/workspace.test.ts"
+    },
+    {
+      "sha256": "a48a5814698d0ae3c09bb6f9cc828e14ebd8fc85754fe35e9bdff0edcb863aa9",
+      "path": "src/platform/workspace.ts"
+    }
+  ],
+  "limitations": [
+    "Real IME candidate interaction remains manual.",
+    "Native dialogs, URL association launch and macOS/Linux GUI remain unverified.",
+    "No package, push or remote CI run in this step.",
+    "Vite chunk-size and React act warnings remain informational."
+  ]
+}
