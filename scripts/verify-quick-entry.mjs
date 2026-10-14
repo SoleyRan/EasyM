@@ -69,12 +69,16 @@ try {
     window.isTauri = true; window.quickCalls = []; window.quickSlow = false; window.quickFail = false
     let callback = 0; window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback, invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
       window.quickCalls.push({ command, args })
       if (command.startsWith('plugin:window|is_')) return false
       if (command.startsWith('plugin:')) return 1
       if (command === 'open_workspace') return { id: 'work', name: '工作区', entries: [] }
       if (command === 'search_workspace_filenames') { if (args.query === 'slow') await new Promise(resolve => setTimeout(resolve, 450)); return { paths: args.query === 'none' ? [] : ['中文 notes/同名.md', 'other/同名.md'], scanned: 10000, skipped: 2, limited: true, cancelled: false } }
       if (command === 'open_workspace_document') { if (window.quickSlow) await new Promise(resolve => setTimeout(resolve, 450)); if (window.quickFail) throw new Error('resource_missing'); return { id: args.relativePath.startsWith('other/') ? 'other-doc' : 'doc', name: '同名.md', revision: 'hash', bytes: [...new TextEncoder().encode('# 原文')] } }
+      if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
       if (command === 'close_document' || command === 'cancel_workspace_search') return
       if (command === 'history_operation') return { entries: [], enabled: false }
       if (command === 'save_document') return { id: 'doc', name: '同名.md', revision: 'hash2', destination: 'disk' }

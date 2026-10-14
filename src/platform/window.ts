@@ -6,6 +6,11 @@ export async function listenForClose(request: () => void): Promise<() => void> {
   return getCurrentWindow().onCloseRequested((event) => { event.preventDefault(); request() })
 }
 
+export async function listenForFocus(request: () => void): Promise<() => void> {
+  if (!desktop) return () => undefined
+  return getCurrentWindow().onFocusChanged(event => { if (event.payload) request() })
+}
+
 export async function closeWindow(): Promise<void> {
   if (desktop) await getCurrentWindow().destroy()
 }

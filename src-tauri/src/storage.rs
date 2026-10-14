@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::{Component, Path, PathBuf}, sync::{Arc, Mutex}};
+use std::{collections::HashMap, fs, io::Read, path::{Component, Path, PathBuf}, sync::{Arc, Mutex}};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tauri::State;
@@ -12,9 +12,9 @@ const MAX_IMAGE: u64 = 20 * 1024 * 1024;
 pub struct Storage(pub Arc<Mutex<HashMap<String, PathBuf>>>);
 
 #[derive(Serialize)]
-pub struct OpenedFile { id: String, name: String, bytes: Vec<u8>, revision: String, metadata: Option<Metadata>, warning: Option<String> }
+pub struct OpenedFile { id: String, name: String, bytes: Vec<u8>, revision: String, metadata: Option<Metadata>, pub warning: Option<String>, #[serde(rename = "recentId")] pub recent_id: Option<String> }
 #[derive(Serialize)]
-pub struct SavedFile { id: String, name: String, revision: String, warning: Option<String> }
+pub struct SavedFile { id: String, name: String, revision: String, warning: Option<String>, #[serde(rename = "recentId")] recent_id: Option<String> }
 #[derive(Serialize)]
 pub struct ImageFile { bytes: Vec<u8>, mime: String }
 
@@ -23,9 +23,51 @@ fn name(path: &Path) -> String { path.file_name().unwrap_or_default().to_string_
 fn read_text(path: &Path) -> Result<Vec<u8>, String> {
     if !path.is_file() { return Err("invalid_data".into()); }
     if fs::metadata(path).map_err(|_| "resource_missing")?.len() > MAX_TEXT as u64 { return Err("quota_exceeded".into()); }
-    let bytes = fs::read(path).map_err(|_| "io_failed")?;
+    let mut bytes = Vec::new();
+    fs::File::open(path).map_err(|_| "permission_denied")?.take(MAX_TEXT as u64 + 1).read_to_end(&mut bytes).map_err(|_| "io_failed")?;
     if bytes.len() > MAX_TEXT { return Err("quota_exceeded".into()); }
     Ok(bytes)
+}
+
+// Check every component of the canonical path recorded by the file picker.
+// A replaced parent link/junction must not silently expand that authorization.
+fn checked_document(path: &Path) -> Result<(), String> {
+    let mut current = PathBuf::new();
+    for part in path.components() {
+        current.push(part.as_os_str());
+        if matches!(part, Component::Prefix(_) | Component::RootDir) { continue; }
+        let info = fs::symlink_metadata(&current).map_err(|_| "resource_missing")?;
+        if info.file_type().is_symlink() { return Err("permission_denied".into()); }
+        #[cfg(windows)]
+        { use std::os::windows::fs::MetadataExt; if info.file_attributes() & 0x400 != 0 { return Err("permission_denied".into()); } }
+    }
+    Ok(())
+}
+
+#[derive(Serialize)]
+pub struct InspectedFile { revision: String, bytes: Option<Vec<u8>> }
+
+fn inspect_path(path: &Path, expected_revision: Option<&str>) -> Result<InspectedFile, String> {
+    checked_document(path)?;
+    let bytes = read_text(path)?;
+    let revision = hash(&bytes);
+    Ok(InspectedFile { bytes: if expected_revision == Some(revision.as_str()) { None } else { Some(bytes) }, revision })
+}
+
+fn read_reload(path: &Path, expected_revision: Option<&str>) -> Result<Vec<u8>, String> {
+    checked_document(path)?;
+    let bytes = read_text(path)?;
+    if expected_revision.is_some_and(|expected| expected != hash(&bytes)) { return Err("revision_conflict".into()); }
+    Ok(bytes)
+}
+
+#[tauri::command]
+pub async fn inspect_document(state: State<'_, Storage>, id: String, expected_revision: Option<String>) -> Result<InspectedFile, String> {
+    let storage = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = storage.0.lock().map_err(|_| "io_failed")?.get(&id).ok_or("permission_denied")?.clone();
+        inspect_path(&path, expected_revision.as_deref())
+    }).await.map_err(|_| "io_failed".to_string())?
 }
 
 #[tauri::command]
@@ -41,7 +83,7 @@ pub(crate) fn open_path(storage: &Storage, path: PathBuf) -> Result<OpenedFile, 
     let id = sessions.iter().find(|(_, existing)| **existing == path).map(|(id, _)| id.clone()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let recovery = transaction::recover(&path);
     let (metadata, warning) = read_metadata(path.parent().ok_or("invalid_data")?);
-    let result = OpenedFile { id: id.clone(), name: name(&path), revision: hash(&bytes), bytes, metadata, warning: recovery.or(warning) };
+    let result = OpenedFile { id: id.clone(), name: name(&path), revision: hash(&bytes), bytes, metadata, warning: recovery.or(warning), recent_id: None };
     sessions.insert(id, path);
     Ok(result)
 }
@@ -56,20 +98,24 @@ pub(crate) fn read_image_path(path: &Path) -> Result<ImageFile, String> {
 }
 
 #[tauri::command]
-pub async fn open_document(state: State<'_, Storage>) -> Result<Option<OpenedFile>, String> {
+pub async fn open_document(state: State<'_, Storage>, recents: State<'_, crate::recent::Recents>) -> Result<Option<OpenedFile>, String> {
     let storage = state.inner().clone();
+    let recents = recents.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Some(path) = rfd::FileDialog::new().add_filter("Markdown", &["md", "markdown"]).pick_file() else { return Ok(None); };
         let path = path.canonicalize().map_err(|_| "resource_missing")?;
-        open_path(&storage, path).map(Some)
+        let mut file = open_path(&storage, path.clone())?;
+        file.recent_id = crate::recent::register(&recents, &path, "file", None, &mut file.warning);
+        Ok(Some(file))
     }).await.map_err(|_| "io_failed".to_string())?
 }
 
 #[tauri::command]
-pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: String, expected_revision: Option<String>, bytes: Vec<u8>, save_as: bool, assets: Vec<Asset>, metadata: Metadata, operation_id: String, history_references: Option<Vec<String>>, history_previous_references: Option<Vec<String>>, history_unarchived_references: Option<Vec<String>>, history_previous_unarchived_references: Option<Vec<String>>, history_collection_error: Option<bool>) -> Result<Option<SavedFile>, String> {
+pub async fn save_document(state: State<'_, Storage>, recents: State<'_, crate::recent::Recents>, id: Option<String>, name: String, expected_revision: Option<String>, bytes: Vec<u8>, save_as: bool, assets: Vec<Asset>, metadata: Metadata, operation_id: String, history_references: Option<Vec<String>>, history_previous_references: Option<Vec<String>>, history_unarchived_references: Option<Vec<String>>, history_previous_unarchived_references: Option<Vec<String>>, history_collection_error: Option<bool>) -> Result<Option<SavedFile>, String> {
     if bytes.len() > MAX_TEXT { return Err("quota_exceeded".into()); }
     uuid::Uuid::parse_str(&operation_id).map_err(|_| "invalid_data")?;
     let storage = state.inner().clone();
+    let recents = recents.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         // Serializes this application's writers. External tools are checked optimistically.
         let mut sessions = storage.0.lock().map_err(|_| "io_failed")?;
@@ -102,7 +148,8 @@ pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: 
         }
         // The base revision is the body we committed, so later external writes conflict on the next save.
         let revision = hash(&bytes);
-        let result = SavedFile { id: session_id.clone(), name: crate::storage::name(&path), revision, warning };
+        let recent_id = crate::recent::register(&recents, &path, "file", None, &mut warning);
+        let result = SavedFile { id: session_id.clone(), name: crate::storage::name(&path), revision, warning, recent_id };
         sessions.insert(session_id, path);
         Ok(Some(result))
     }).await.map_err(|_| "io_failed".to_string())?
@@ -111,6 +158,55 @@ pub async fn save_document(state: State<'_, Storage>, id: Option<String>, name: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn passive_inspection_hashes_raw_bytes_without_writing_sidecars() {
+        let temp = tempfile::tempdir().unwrap();
+        let file = temp.path().canonicalize().unwrap().join("中文.md");
+        let original = b"# text\r\n";
+        fs::write(&file, original).unwrap();
+        let first = inspect_path(&file, None).unwrap();
+        assert_eq!(first.bytes.unwrap(), original);
+        assert!(inspect_path(&file, Some(&first.revision)).unwrap().bytes.is_none());
+        let changed = b"\xef\xbb\xbf# text\n";
+        fs::write(&file, changed).unwrap();
+        let second = inspect_path(&file, Some(&first.revision)).unwrap();
+        assert_ne!(first.revision, second.revision);
+        assert_eq!(second.bytes.unwrap(), changed);
+        assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+        assert_eq!(fs::read(&file).unwrap(), changed);
+    }
+    #[test]
+    fn passive_inspection_retains_missing_invalid_and_oversized_targets() {
+        let temp = tempfile::tempdir().unwrap();
+        let file = temp.path().canonicalize().unwrap().join("note.md");
+        assert!(inspect_path(&file, None).is_err());
+        fs::create_dir(&file).unwrap(); assert!(inspect_path(&file, None).is_err());
+        fs::remove_dir(&file).unwrap();
+        let huge = fs::File::create(&file).unwrap(); huge.set_len(MAX_TEXT as u64 + 1).unwrap(); drop(huge);
+        assert!(matches!(inspect_path(&file, None), Err(e) if e == "quota_exceeded"));
+        assert_eq!(fs::metadata(&file).unwrap().len(), MAX_TEXT as u64 + 1);
+    }
+    #[test]
+    fn reload_refuses_a_changed_comparison_revision_before_any_recovery() {
+        let temp = tempfile::tempdir().unwrap(); let file = temp.path().canonicalize().unwrap().join("note.md");
+        fs::write(&file, "compared").unwrap(); let compared = hash(b"compared");
+        fs::write(&file, "newer external").unwrap();
+        assert!(matches!(read_reload(&file, Some(&compared)), Err(e) if e == "revision_conflict"));
+        assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 1);
+        assert_eq!(read_reload(&file, Some(&hash(b"newer external"))).unwrap(), b"newer external");
+    }
+    #[cfg(unix)]
+    #[test]
+    fn passive_inspection_rejects_replaced_parent_links() {
+        let temp = tempfile::tempdir().unwrap(); let outside = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap(); let parent = root.join("parent");
+        fs::create_dir(&parent).unwrap(); let file = parent.join("note.md");
+        fs::write(&file, "original").unwrap(); fs::write(outside.path().join("note.md"), "outside").unwrap();
+        fs::remove_file(&file).unwrap(); fs::remove_dir(&parent).unwrap();
+        std::os::unix::fs::symlink(outside.path(), &parent).unwrap();
+        assert!(matches!(inspect_path(&file, None), Err(e) if e == "permission_denied"));
+        assert_eq!(fs::read_to_string(outside.path().join("note.md")).unwrap(), "outside");
+    }
     #[test]
     fn repeated_open_reuses_document_identity() {
         let root = std::env::temp_dir().join(format!("easym-tabs-{}", uuid::Uuid::new_v4()));
@@ -142,16 +238,15 @@ pub async fn read_image(state: State<'_, Storage>, id: String, relative_path: St
 }
 
 #[tauri::command]
-pub async fn reload_document(state: State<'_, Storage>, id: String) -> Result<OpenedFile, String> {
+pub async fn reload_document(state: State<'_, Storage>, id: String, expected_revision: Option<String>) -> Result<OpenedFile, String> {
     let storage = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let sessions = storage.0.lock().map_err(|_| "io_failed")?;
         let path = sessions.get(&id).ok_or("permission_denied")?;
-        if fs::symlink_metadata(path).map_err(|_| "resource_missing")?.file_type().is_symlink() { return Err("permission_denied".into()); }
-        let bytes = read_text(path)?;
+        let bytes = read_reload(path, expected_revision.as_deref())?;
         let recovery = transaction::recover(path);
         let (metadata, warning) = read_metadata(path.parent().ok_or("invalid_data")?);
         let warning = recovery.or(warning);
-        Ok(OpenedFile { id, name: name(path), revision: hash(&bytes), bytes, metadata, warning })
+        Ok(OpenedFile { id, name: name(path), revision: hash(&bytes), bytes, metadata, warning, recent_id: None })
     }).await.map_err(|_| "io_failed".to_string())?
 }

@@ -5,6 +5,7 @@ import { TemplateDialog } from './editor/TemplateDialog'
 import type { NewDocument } from './core/templates'
 import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
 import { drafts } from './platform/drafts'
+import { loadSession, saveSession, MAX_SESSION_TABS } from './platform/session'
 import { releaseDocument, type OpenedFile } from './platform/storage'
 import type { Workspace, WorkspaceLocation } from './platform/workspace'
 import { desktop } from './platform/storage'
@@ -18,8 +19,11 @@ import type { CSSProperties } from 'react'
 import { CommandPalette, QuickOpen } from './editor/QuickEntry'
 import { openWorkspaceDocument } from './platform/workspace'
 import { decodeFile } from './core/codec'
+import { RecentDialog } from './editor/RecentDialog'
+import { recentState, rememberSession, reopenRecentFile, reopenRecentWorkspace, recentError, type RecentState, type RecentEntry } from './platform/recent'
+import { planRestoration } from './platform/restore-session'
 
-interface Tab { id: string; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
+interface Tab { id: string; draftKey: string; restoredName?: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
 
 export default function App() {
@@ -35,6 +39,11 @@ function Application() {
   const exportSurface = useRef<HTMLDivElement>(null)
   const [tabs, setTabs] = useState<Tab[]>([first])
   const [active, setActive] = useState(first.id)
+  const [sessionReady, setSessionReady] = useState(false)
+  const sessionWritable = useRef(false)
+  const nativeSessionWritable = useRef(false), nativeSessionQueue = useRef(Promise.resolve())
+  const nativeSessionValue = useRef('')
+  const startupQueue = useRef(Promise.resolve())
   const [summaries, setSummaries] = useState<Record<string, DocumentSummary>>({})
   const handles = useRef(new Map<string, DocumentHandle>())
   const [closing, setClosing] = useState<string[] | 'window' | null>(null)
@@ -44,6 +53,7 @@ function Application() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [recentOpen, setRecentOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(needsGuide)
   const [appearance, setAppearance] = useState(loadAppearance)
   const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false)
@@ -64,7 +74,7 @@ function Application() {
     if (appearance !== initialAppearance.current && !saveAppearance(appearance)) setError('无法保存外观设置，当前会话仍可使用。')
   }, [appearance])
   const previousGuideVersion = useRef(storedPreference('easym-guide-version'))
-  const appModal = settingsOpen || guideOpen
+  const appModal = settingsOpen || guideOpen || recentOpen
   const appModalRef = useRef(false)
   appModalRef.current = appModal
   function closeApplicationDialog() {
@@ -167,11 +177,69 @@ function Application() {
   }, [active])
   useEffect(() => {
     let alive = true
-    drafts.keys().then((keys) => {
-      if (alive) setTabs((previous) => [...previous, ...keys.filter((key) => key.startsWith('document:') && !previous.some((tab) => tab.draftKey === key)).map((key) => ({ id: key, draftKey: key }))])
-    }).catch((err) => setError(String(err)))
+    const loaded = loadSession()
+    startupQueue.current = startupQueue.current.then(async () => {
+      if (!alive) return
+      const messages: string[] = []
+      let native: RecentState | null = null
+      const [inventory, recent] = await Promise.allSettled([drafts.keys(), desktop ? recentState() : Promise.resolve(null)])
+      if (!alive) return
+      if (inventory.status === 'rejected') throw new Error(`无法读取草稿列表：${String(inventory.reason)}；会话索引已保留。`)
+      if (recent.status === 'fulfilled') native = recent.value
+      else messages.push(recentError(recent.reason))
+      const restored = planRestoration(loaded.index, inventory.value, native)
+      const next: Tab[] = []
+      if (restored.workspaceId) {
+        try { const workspace = await reopenRecentWorkspace(restored.workspaceId); if (!alive) return; setWorkspace(workspace); if (workspace.warning) messages.push(workspace.warning) }
+        catch (err) { messages.push(`上次工作区：${recentError(err)}`) }
+      }
+      for (const tab of restored.tabs) {
+        if (!alive) return
+        if (tab.draft) next.push({ id: tab.draftKey, draftKey: tab.draftKey, restoredName: tab.name, blank: true })
+        else if (tab.recentId) {
+          let file: OpenedFile | null = null
+          try {
+            file = await reopenRecentFile(tab.recentId)
+            if (!alive) { if (file.id) await releaseDocument(file.id).catch(() => undefined); return }
+            decodeFile(file.bytes)
+            if (file.warning) messages.push(file.warning)
+            if (!next.some(item => item.file?.id === file!.id)) next.push({ id: tab.draftKey, draftKey: tab.draftKey, file })
+          } catch (err) { if (file?.id) await releaseDocument(file.id).catch(() => undefined); messages.push(`${tab.name}：${recentError(err)}`) }
+        }
+      }
+      if (!alive) return
+      if (next.length) {
+        const legacyWelcome = !loaded.index && !native?.session.tabs.length && !next.some(tab => tab.draftKey === 'current')
+        setTabs([...(legacyWelcome ? [first] : []), ...next])
+        setActive(legacyWelcome ? first.id : next.find(tab => tab.draftKey === restored.activeDraftKey)?.id ?? next[0].id)
+      }
+      if (restored.limited) messages.push('启动最多重开 20 个已保存文件；其余文件请通过最近打开访问。')
+      sessionWritable.current = !loaded.error
+      nativeSessionWritable.current = desktop && !!native
+      if (loaded.error) messages.push(loaded.error)
+      if (messages.length) setError(messages.join('\n'))
+      setSessionReady(true)
+    }).catch((err) => { if (alive) { setError(String(err)); setSessionReady(true) } })
     return () => { alive = false }
   }, [])
+  useEffect(() => {
+    if (!sessionReady || !sessionWritable.current) return
+    try {
+      if (tabs.length > MAX_SESSION_TABS) throw new Error('打开标签超过 100 个；草稿继续独立保存，会话索引未更新。')
+      saveSession({ version: 1, tabs: tabs.map(tab => ({ draftKey: tab.draftKey, name: (summaries[tab.id]?.name ?? tab.restoredName ?? tab.file?.name ?? '未命名.md').slice(0, 512) })), activeDraftKey: tabs.find(tab => tab.id === active)?.draftKey ?? null })
+    } catch (err) { setError(`无法保存会话索引：${String(err)}；正文与独立草稿不受影响。`) }
+  }, [sessionReady, tabs, active, summaries])
+  useEffect(() => {
+    if (!sessionReady || !nativeSessionWritable.current || closing || closeBusy || tabs.some(tab => !summaries[tab.id] || summaries[tab.id].busy)) return
+    const session = { tabs: tabs.map(tab => ({ draftKey: tab.draftKey, recentId: summaries[tab.id].recentId ?? null })), activeDraftKey: tabs.find(tab => tab.id === active)?.draftKey ?? null, workspaceId: workspace?.recentId ?? null }
+    const value = JSON.stringify(session)
+    if (nativeSessionValue.current === value) return
+    nativeSessionValue.current = value
+    const timer = window.setTimeout(() => {
+      nativeSessionQueue.current = nativeSessionQueue.current.then(() => rememberSession(session)).catch(err => { nativeSessionValue.current = ''; setError(recentError(err)) })
+    }, 150)
+    return () => { window.clearTimeout(timer); if (nativeSessionValue.current === value) nativeSessionValue.current = '' }
+  }, [sessionReady, tabs, active, summaries, workspace?.recentId, closing, closeBusy])
   const add = (file?: OpenedFile, path: string | null = null, nextWorkspace: Workspace | null = null, location?: WorkspaceLocation, seed?: NewDocument) => {
     if (nextWorkspace) setWorkspace(nextWorkspace)
     if (file?.id) {
@@ -183,6 +251,11 @@ function Application() {
     setActive(id)
   }
   const targetHandles = () => (closing === 'window' ? tabs.map(tab => tab.id) : closing ?? []).map(id => handles.current.get(id)).filter((handle): handle is DocumentHandle => !!handle)
+  async function persistBeforeExit() {
+    if (!nativeSessionWritable.current) return
+    await nativeSessionQueue.current
+    await rememberSession({ tabs: tabs.map(tab => ({ draftKey: tab.draftKey, recentId: handles.current.get(tab.id)?.summary.recentId ?? null })), activeDraftKey: tabs.find(tab => tab.id === active)?.draftKey ?? null, workspaceId: workspace?.recentId ?? null }).catch(err => setError(recentError(err)))
+  }
   const remove = async (ids: string[], keepDraft: boolean) => {
     for (const id of ids) {
       const tab = tabs.find((tab) => tab.id === id)
@@ -195,7 +268,10 @@ function Application() {
     else { const nextId = crypto.randomUUID(); setTabs([{ id: nextId, draftKey: `document:${nextId}`, blank: true }]); setActive(nextId) }
   }
   const requestClose = (id: string | string[] | 'window', prepared = false) => {
-    if (appModal) return
+    if (!sessionReady || (appModal && !(id === 'window' && guideOpen))) return
+    // The informational guide must not swallow an OS close request. Dismiss
+    // it without acknowledging completion, then retain all document guards.
+    if (id === 'window' && guideOpen) setGuideOpen(false)
     if (templateOpen) { cancelTemplate(); return }
     const ids = id === 'window' ? tabs.map(tab => tab.id) : Array.isArray(id) ? [...new Set(id)] : [id]
     if (!ids.length) return
@@ -206,7 +282,7 @@ function Application() {
     setMenuOpen(false)
     if (targets.some((handle) => handle.summary.dirty || handle.summary.pendingImage)) { setClosing(id === 'window' ? 'window' : ids); return }
     closeOperation.current = true; setCloseBusy(true)
-    void (id === 'window' ? closeWindow() : remove(ids, false)).catch((err) => setError(String(err))).finally(() => { closeOperation.current = false; setCloseBusy(false) })
+    void (id === 'window' ? persistBeforeExit().then(closeWindow) : remove(ids, false)).catch((err) => setError(String(err))).finally(() => { closeOperation.current = false; setCloseBusy(false) })
   }
   const closeRequest = useRef(() => undefined as void); closeRequest.current = () => requestClose('window')
   useEffect(() => {
@@ -223,7 +299,7 @@ function Application() {
         else if (action === 'retain') await handle.retain()
         else if (action === 'discard') await handle.discard()
       }
-      if (closing === 'window') await closeWindow()
+      if (closing === 'window') { await persistBeforeExit(); await closeWindow() }
       else await remove(closing, action !== 'save')
       setClosing(null)
     } catch (err) { if (action === 'discard') targetHandles().forEach((handle) => handle.resume()); setError(String(err)) }
@@ -233,20 +309,21 @@ function Application() {
     restoreTemplateFocus.current = true
     setTemplateOpen(false)
   }
-  const blocked = appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
+  const blocked = !sessionReady || appModal || templateOpen || closeBusy || !!closing || !summaries[active] || !!summaries[active]?.busy || !!summaries[active]?.pendingImage
   const appRuntime = useRef<{ context(): CommandContext; run(id: string): void; ready(): boolean }>(null!)
   const appCommands = useMemo(() => {
     const registry = new CommandRegistry(() => appRuntime.current.context())
     for (const definition of commandDefinitions.filter(item => item.id.startsWith('app.'))) registry.register({ ...definition,
-      status: () => ({ enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }), run: () => appRuntime.current.run(definition.id) })
+      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
     return registry
   }, [])
   appRuntime.current = {
     context: () => handles.current.get(active)?.commandContext() ?? ({ documentId: active, fileId: summaries[active]?.fileId ?? null, textRevision: 0, selection: { anchor: 0, head: 0 }, active: true, reading, composing: false, lockReason: blocked ? '请先完成当前文档操作。' : undefined }),
-    ready: () => !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
+    ready: () => sessionReady && !!handles.current.get(active)?.canEdit() && !Object.values(summaries).some(summary => summary.busy),
     run: commandId => {
       setMenuOpen(false)
       if (commandId === 'app.template') setTemplateOpen(true)
+      else if (commandId === 'app.recent') { if (desktop) setRecentOpen(true); else setError('浏览器不能记忆磁盘权限，请使用打开文件重新选择；独立草稿仍可恢复。') }
       else if (commandId === 'app.commands' || commandId === 'app.quickOpen') { setQuickError(''); setQuickEntry({ kind: commandId === 'app.commands' ? 'commands' : 'open', context: appCommands.capture() }) }
       else setSettingsOpen(true)
     },
@@ -298,6 +375,25 @@ function Application() {
     setMenuOpen(false)
     handle.run(action)
   }
+  async function openRecent(entry: RecentEntry, current: () => boolean) {
+    const handle = handles.current.get(active), context = handle?.commandContext()
+    if (!handle || !context || !handle.canLeave() || context.composing) throw new Error('请先完成当前文档操作。')
+    const stillCurrent = () => current() && handles.current.get(active) === handle && handle.commandContext().textRevision === context.textRevision && !handle.commandContext().composing
+    if (entry.kind === 'workspace') {
+      const next = await reopenRecentWorkspace(entry.id)
+      if (!stillCurrent()) return
+      setWorkspace(next); setShowFiles(true); setRecentOpen(false)
+      if (next.warning) setError(next.warning)
+      return
+    }
+    let file: OpenedFile | null = null, accepted = false
+    try {
+      file = await reopenRecentFile(entry.id)
+      if (!stillCurrent()) return
+      decodeFile(file.bytes); accepted = true; add(file); setRecentOpen(false)
+      if (file.warning) setError(file.warning)
+    } finally { if (file?.id && !accepted && ![...handles.current.values()].some(handle => handle.summary.fileId === file!.id)) await releaseDocument(file.id).catch(() => undefined) }
+  }
   return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} data-code-wrap={appearance.codeWrap} style={{ '--editor-font-size': `${fontSize}px`, '--body-line-height': appearance.lineHeight, '--content-width': appearance.contentWidth ? `${appearance.contentWidth}px` : '100%', '--code-font-size': `${appearance.codeFontSize}px` } as CSSProperties}>
     <div className="document-strip" hidden={reading} inert={templateOpen || appModal || !!summaries[active]?.tableDecision}>
       <div className="app-menu" ref={menu} onKeyDown={(event) => {
@@ -322,6 +418,7 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit()} onClick={() => executeApp('app.template')}>从模板新建</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.open').enabled} onClick={() => fileAction('open')}>打开文件</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.workspace').enabled} onClick={() => fileAction('workspace')}>打开工作区</button>
+          <button role="menuitem" title={desktop ? '重开最近的文件或工作区' : '浏览器不支持记忆磁盘权限，请重新选择文件'} disabled={blocked || !desktop} onClick={() => executeApp('app.recent')}>最近打开</button>
           <button role="menuitem" disabled={blocked || !appCommands.status('app.quickOpen').enabled} onClick={() => executeApp('app.quickOpen')}>快速打开 <kbd>Ctrl/⌘+Alt+O</kbd></button>
           <button role="menuitem" disabled={blocked || !appCommands.status('app.commands').enabled} onClick={() => executeApp('app.commands')}>命令面板 <kbd>F1</kbd></button>
           <div className="menu-divider" role="separator" />
@@ -356,7 +453,7 @@ function Application() {
           setMenuOpen(false)
           const canClose = (ids: string[]) => ids.length > 0 && !appModal && !closing && !closeBusy && !closeOperation.current && !templateOpen && ids.every(id => {
             const handle = handles.current.get(id)
-            return !!handle && !handle.summary.busy && handle.canLeave()
+            return sessionReady && !!handle && !handle.summary.busy && handle.canLeave()
           })
           const all = tabs.map(item => item.id), others = all.filter(id => id !== tab.id)
           contextMenu(event, [
@@ -365,13 +462,13 @@ function Application() {
             { label: '关闭所有其他', disabled: !canClose(others), run: () => requestClose(others) },
           ])
         }}>
-          <button role="tab" title={summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={templateOpen || closeBusy || !!closing || !handles.current.get(active)?.canSwitch()} onKeyDown={(event) => {
+          <button role="tab" title={summaries[tab.id]?.name ?? tab.restoredName ?? tab.file?.name ?? '未命名.md'} tabIndex={tab.id === active ? 0 : -1} id={`tab-${tab.id}`} aria-controls={`panel-${tab.id}`} aria-selected={tab.id === active} disabled={!sessionReady || templateOpen || closeBusy || !!closing || !handles.current.get(active)?.canSwitch()} onKeyDown={(event) => {
             if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || !handles.current.get(active)?.canSwitch()) return
             event.preventDefault()
             const index = tabs.findIndex((item) => item.id === tab.id)
             const next = tabs[event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length]
             void (async () => { const handle = handles.current.get(active); if (!handle?.prepareLeave || await handle.prepareLeave()) { setActive(next.id); document.getElementById(`tab-${next.id}`)?.focus() } })()
-          }} onClick={() => { const handle = handles.current.get(active); if (handle?.canSwitch()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) setActive(tab.id) })() }}>{summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
+          }} onClick={() => { const handle = handles.current.get(active); if (handle?.canSwitch()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) setActive(tab.id) })() }}>{summaries[tab.id]?.name ?? tab.restoredName ?? tab.file?.name ?? '未命名.md'}{summaries[tab.id]?.dirty ? ' *' : ''}</button>
           <button className="tab-close" aria-label={`关闭 ${summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md'}`} disabled={blocked} onClick={() => requestClose(tab.id)}>×</button>
         </div>)}
         <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { const handle = handles.current.get(active); if (handle?.canLeave()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) add() })() }}>＋</button>
@@ -385,8 +482,9 @@ function Application() {
     </div>
     <OverlayHost />
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
-    {tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
+    {!sessionReady && <p role="status">正在检查上次会话与草稿…</p>}
+    {sessionReady && tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
+      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!sessionReady || !!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
@@ -394,6 +492,7 @@ function Application() {
     </section>)}
     {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} appearance={appearance} onAppearance={updateAppearance} onResetAppearance={() => setAppearance({ ...defaultAppearance })} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
+    {recentOpen && <RecentDialog open={openRecent} close={() => setRecentOpen(false)} />}
     {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
     {quickEntry?.kind === 'open' && <QuickOpen tabs={tabs.map(tab => ({ id: tab.id, name: summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md', path: tab.path }))} workspace={workspace} pending={quickBusy} error={quickError} choose={chooseQuickFile} close={closeQuickEntry} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {

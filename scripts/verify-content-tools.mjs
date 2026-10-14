@@ -73,7 +73,11 @@ try {
   await page.locator('.live-language-button').click(); await language.waitFor(); await language.getByRole('button', { name: '取消', exact: true }).click()
   report.checks.push('split link click/edit and heading anchor open; preview/live language tags, Chinese search, unknown preservation, info-only patch and undo')
 
-  await page.getByRole('button', { name: '源码', exact: true }).click(); await fillSource(page, '## **heading**\n\nkeep'); await source().press('Control+Home')
+  await page.getByRole('button', { name: '源码', exact: true }).click()
+  // Mode changes can redraw CodeMirror's DOM selection. Select through its
+  // keyboard command so this fixture replaces the document in editor state.
+  await source().press('Control+a'); await page.keyboard.insertText('## **heading**\n\nkeep')
+  assert.equal(await body(), '## **heading**\n\nkeep'); await source().press('Control+Home')
   await fixed.getByRole('button', { name: '转换为', exact: true }).click(); const paragraph = page.getByRole('dialog', { name: '转换为', exact: true }); await paragraph.waitFor()
   assert.match(await paragraph.innerText(), /第 1–1 行/); await paragraph.getByLabel('转换段落类型').selectOption('task'); await paragraph.getByRole('button', { name: '应用转换' }).click(); assert.equal(await body(), '- [ ] **heading**\n\nkeep'); await undo(); assert.equal(await body(), '## **heading**\n\nkeep')
   report.checks.push('paragraph target explanation, structural conversion preserving inline syntax, and one undo')
@@ -96,6 +100,9 @@ try {
     window.isTauri = true; window.calls = []; let callback = 0
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback, invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
       window.calls.push({ command, args }); if (command.startsWith('plugin:window|is_')) return false; if (command.startsWith('plugin:')) return 1
       if (command === 'open_workspace') return { id: 'workspace', name: 'links', entries: [{ path: 'current.md', name: 'current.md', kind: 'document' }] }
       if (command === 'open_workspace_document') {
@@ -103,6 +110,7 @@ try {
         const text = args.relativePath === 'current.md' ? '[next](next.md#target)\n\n[outside](../private.md)\n\n[web](https://example.com)' : '# Target\n\nnext file'
         return { id: args.relativePath, name: args.relativePath, bytes: [...new TextEncoder().encode(text)], revision: 'r1' }
       }
+      if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
       if (command === 'open_external_link' || command === 'close_document') return
       if (command === 'history_operation') throw 'history_disabled'
       throw new Error(`Unexpected IPC ${command}`)

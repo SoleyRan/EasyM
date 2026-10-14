@@ -20,10 +20,14 @@ try {
     let callback = 0
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback,
       invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
         window.settingsCalls.push({ command, args })
         if (command.startsWith('plugin:window|is_')) return false
         if (command.startsWith('plugin:')) return 1
         if (command === 'open_document') return { id: 'settings-file', name: '设置文档.md', bytes: [...new TextEncoder().encode('# 保留正文\n\n内容')], revision: 'baseline' }
+        if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
         if (command === 'close_document') return
         if (command === 'history_directory') {
           if (args.action !== 'status') {

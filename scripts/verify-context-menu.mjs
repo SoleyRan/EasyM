@@ -26,12 +26,16 @@ try {
     window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
     let callback = 0
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback,
-      invoke: async (command) => {
+      invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
         if (command.startsWith('plugin:window|is_')) return false
         if (command.startsWith('plugin:')) return 1
         if (command === 'open_workspace') return { id: 'ws', name: '中文工作区', entries: [{ name: '目录', path: '目录', kind: 'directory' }] }
         if (command === 'list_workspace') return [{ name: '文档.md', path: '目录/文档.md', kind: 'document' }]
         if (command === 'open_workspace_document') return { id: 'doc', name: '文档.md', revision: 'r1', bytes: [...new TextEncoder().encode('# 文件标题\n\n正文')] }
+        if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
         if (command === 'close_document') return
         throw new Error(`Unexpected IPC ${command}`)
       },

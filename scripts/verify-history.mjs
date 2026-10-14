@@ -24,10 +24,14 @@ try {
     window.__TAURI_INTERNALS__ = {
       metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback,
       invoke: async (command, args) => {
+        if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
+        if (command === 'remember_session') return
+
         window.historyCalls.push({ command, args })
         if (command.startsWith('plugin:window|is_')) return false
         if (command.startsWith('plugin:')) return 1
         if (command === 'open_document') return { id: 'authorized-file', name: '中文 history.md', bytes: [...encoder.encode(window.historyBody)], revision: window.historyRevision }
+        if (command === 'inspect_document') return { revision: window.historyRevision, bytes: window.historyRevision === args.expectedRevision ? null : [...encoder.encode(window.historyBody)] }
         if (command === 'close_document') return
         if (command === 'save_document') { window.historyBody = new TextDecoder().decode(new Uint8Array(args.bytes)); window.historyRevision = 'saved-' + Date.now(); return { id: 'authorized-file', name: '中文 history.md', revision: window.historyRevision } }
         if (command === 'history_directory') return { path: '/fixture/.easym/history', documentDirectory: '/fixture', custom: false }

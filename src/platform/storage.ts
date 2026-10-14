@@ -6,8 +6,8 @@ import { MAX_ASSET_BYTES } from '../core/images'
 import { parseDocument } from '../core/markdown'
 import { collectHistoryResources } from './history-resources'
 
-export interface OpenedFile { id: string | null; name: string; bytes: Uint8Array; revision: string | null; metadata?: ImageMetadata; warning?: string }
-export interface SavedFile { id: string | null; name: string; revision: string | null; destination: 'disk' | 'download'; warning?: string }
+export interface OpenedFile { id: string | null; name: string; bytes: Uint8Array; revision: string | null; metadata?: ImageMetadata; warning?: string; recentId?: string | null }
+export interface SavedFile { id: string | null; name: string; revision: string | null; destination: 'disk' | 'download'; warning?: string; recentId?: string | null }
 export const desktop = isTauri()
 
 export async function releaseDocument(id: string | null): Promise<void> {
@@ -99,7 +99,12 @@ export async function readImageBlob(id: string, relativePath: string): Promise<B
   return new Blob([new Uint8Array(result.bytes)], { type: result.mime })
 }
 
-export async function reloadDocument(id: string): Promise<OpenedFile> {
-  const file = await invoke<Omit<OpenedFile, 'bytes'> & { bytes: number[] }>('reload_document', { id })
+export async function inspectDocument(id: string, expectedRevision: string | null): Promise<{ revision: string; bytes: Uint8Array | null }> {
+  const result = await invoke<{ revision: string; bytes: number[] | null }>('inspect_document', { id, expectedRevision })
+  return { revision: result.revision, bytes: result.bytes === null ? null : new Uint8Array(result.bytes) }
+}
+
+export async function reloadDocument(id: string, expectedRevision?: string): Promise<OpenedFile> {
+  const file = await invoke<Omit<OpenedFile, 'bytes'> & { bytes: number[] }>('reload_document', { id, expectedRevision })
   return { ...file, bytes: new Uint8Array(file.bytes) }
 }

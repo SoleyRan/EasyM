@@ -1,0 +1,39 @@
+{
+  "stage": "v0.5-step-3",
+  "recordedAt": "2026-10-14T08:31:53.355Z",
+  "source": {
+    "baseCommit": "ab529af",
+    "branch": "feature/v0.5",
+    "uncommitted": true
+  },
+  "frontend": {
+    "files": 45,
+    "tests": 250,
+    "passed": true
+  },
+  "windowsRust": {
+    "tests": 64,
+    "passed": true,
+    "locked": true
+  },
+  "regression": {
+    "groups": 23,
+    "passed": true,
+    "performanceIncluded": false,
+    "startedAt": "2026-10-14T08:27:44.888Z",
+    "finishedAt": "2026-10-14T08:31:23.911Z"
+  },
+  "checks": {
+    "typecheck": true,
+    "productionBuild": true,
+    "releaseMetadata": true
+  },
+  "distIndexSha256": "4225dbdddd40d95fa391aaea4e6cf03754e9b9deff37cf3790e63a18323cb854",
+  "logs": {
+    "unit": "test-results/v0.5-step3-unit.log",
+    "rust": "test-results/v0.5-step3-rust.log",
+    "regression": "test-results/v0.5-step3-regression.log",
+    "build": "test-results/v0.5-step3-build.log"
+  },
+  "scope": "Local Windows PowerShell, production headless Chromium with simulated native IPC and separate Rust filesystem tests. Real OS focus/dialog/permission revocation and IME, Unix symlink tests and other-platform GUI await device/CI validation. No installer or push."
+}

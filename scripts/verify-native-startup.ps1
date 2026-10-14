@@ -12,6 +12,7 @@ $report = [ordered]@{
     version = $config.version
     executableSha256 = (Get-FileHash -LiteralPath $exePath -Algorithm SHA256).Hash.ToLowerInvariant()
     isolatedProfile = $true
+    isolatedNativeRegistry = $false
     launched = $false
     gracefulClose = $false
     passed = $false
@@ -27,6 +28,18 @@ try {
     } while (-not $appProcess.HasExited -and $appProcess.MainWindowHandle -eq 0 -and [DateTime]::UtcNow -lt $deadline)
     if ($appProcess.HasExited -or $appProcess.MainWindowHandle -eq 0) { throw 'Application did not create a native window.' }
     $report.launched = $true
+    $registryPath = Join-Path $profileRoot '.easym/recent-v1.json'
+    $registryDeadline = [DateTime]::UtcNow.AddSeconds(30)
+    while (-not (Test-Path -LiteralPath $registryPath) -and -not $appProcess.HasExited -and [DateTime]::UtcNow -lt $registryDeadline) {
+        Start-Sleep -Milliseconds 250
+        $appProcess.Refresh()
+    }
+    if (-not (Test-Path -LiteralPath $registryPath)) { throw 'Isolated native session registry was not created.' }
+    $registry = Get-Content -LiteralPath $registryPath -Raw | ConvertFrom-Json
+    if ($registry.version -ne 1 -or @($registry.records).Count -ne 0 -or $registry.session.workspaceId -or @($registry.session.tabs | Where-Object { $_.recentId }).Count -ne 0) {
+        throw 'Fresh isolated profile unexpectedly contains native recent records.'
+    }
+    $report.isolatedNativeRegistry = $true
     if (-not $appProcess.CloseMainWindow()) { throw 'Native window refused the close request.' }
     if (-not $appProcess.WaitForExit(10000)) { throw 'Native window did not close within 10 seconds.' }
     $report.gracefulClose = $true

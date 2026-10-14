@@ -67,6 +67,7 @@ export const commandDefinitions = [
   definition('file.batchImages', '批量处理图片', '文件', ['batch images']),
   definition('app.template', '从模板新建', '文件', ['template']),
   definition('app.settings', '设置', '应用', ['settings']),
+  definition('app.recent', '最近打开', '文件', ['recent files', 'recent workspace']),
   definition('app.commands', '命令面板', '应用', ['command palette'], 'F1', true),
   definition('app.quickOpen', '快速打开', '文件', ['quick open', 'filename'], 'Mod+Alt+O'),
 ] as const

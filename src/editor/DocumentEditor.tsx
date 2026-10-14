@@ -43,6 +43,8 @@ import type { FencedBlock } from '../core/code-block'
 import type { EditCommandResult } from '../core/document'
 import { openExternalLink, relativeDocumentTarget } from '../platform/links'
 import { insertStructure, validSlash, insertKinds, type InsertKind, type SlashTrigger } from '../core/quick-entry'
+import { useExternalChanges } from './useExternalChanges'
+import { ExternalChangeDialog } from './ExternalChangeDialog'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -68,6 +70,7 @@ function errorMessage(error: unknown): string {
     permission_denied: '没有文件访问权限，请重新选择文件。',
     quota_exceeded: '文件超过当前资源限制，请缩小文件后重试。',
     resource_missing: '文件或资源已被移动，请重新选择。',
+    invalid_data: '文件类型已变化或格式无效，本地编辑已保留。',
     io_failed: '写入失败，本地编辑和草稿仍保留，请重试或另存。',
     clipboard_busy: '剪贴板正在被其他程序使用，请稍后重新粘贴。',
     multiple_clipboard_images: '请每次复制并粘贴一张 PNG/JPEG 图片。',
@@ -75,7 +78,7 @@ function errorMessage(error: unknown): string {
   return labels[value] ?? value
 }
 
-export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; tableDecision?: boolean }
+export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; recentId?: string | null; tableDecision?: boolean }
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
@@ -95,11 +98,13 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
   const [view, setView] = useState<ViewMode>('source')
   const [name, setName] = useState(file?.name ?? seed?.name ?? '未命名.md')
   const [fileId, setFileId] = useState<string | null>(file?.id ?? null)
+  const [recentId, setRecentId] = useState<string | null>(file?.recentId ?? null)
   const [revision, setRevision] = useState<string | null>(file?.revision ?? null)
   const [snapshot, setSnapshot] = useState<FileSnapshot>(initial)
   const [epoch, setEpoch] = useState(0)
   const [dirty, setDirty] = useState(!file && !!seed?.text)
   const [busy, setBusy] = useState(false)
+  const [externalOpen, setExternalOpen] = useState(false)
   const [printable, setPrintable] = useState<ExportDocument | null>(null)
   const exporting = useRef(false)
   const docxTask = useRef<AbortController | null>(null)
@@ -337,13 +342,15 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     const paths = new Set(parseDocument(body).images.map((item) => item.url))
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
   }
+  const external = useExternalChanges(fileId, revision, active && draftReady && !pendingDraft && !suspended && !busy && !autoSaving && !externalOpen)
   const images = useImages({
-    text, fileId, blocked: reading || busy || !!printable || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
+    text, fileId, blocked: externalOpen || external.checking || !!external.change || reading || busy || !!printable || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
     selection: () => editor.current?.selection() ?? { anchor: text.length, head: text.length },
     patch: (from, to, insert) => editor.current?.patch([{ from, to, insert }]) ?? false,
     error: setError,
     persist: async (nextText, resources, operationId) => {
       if (!desktop || !fileId) return
+      if (external.blocked.current) throw new Error('磁盘版本待检查或已变化；图片草稿已保留，请先处理外部版本。')
       const mixed = snapshot.lineEnding === 'mixed' && nextText !== snapshot.originalText
       if (mixed && !window.confirm('图片应用将保存正文，并将混合换行统一为 LF。是否继续？')) throw new Error('应用已取消，原版本仍保留。')
       const bytes = encodeFile(snapshot, nextText, mixed ? 'lf' : undefined)
@@ -355,7 +362,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     applied: () => { setView(current => current === 'live' ? 'live' : 'split'); if (desktop && fileId) setDirty(false); setStatus(desktop && fileId ? '图片副本与正文已保存' : '图片已应用，请下载工作区副本') },
   })
   const liveImageContext = useMemo(() => ({ resources: images.resources, fileId }), [images.resources, fileId])
-  const disabled = !!tableInsert || busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
+  const disabled = externalOpen || !!tableInsert || busy || !!printable || draftUnavailable || !!pendingDraft || !draftReady || images.busy || !!images.session
   const commandRuntime = useRef<{ context(): CommandContext; status(id: string): CommandStatus; run(id: string, context: CommandContext, argument?: unknown): void | boolean | Promise<void | boolean> }>(null!)
   const registry = useMemo(() => {
     const commands = new CommandRegistry(() => commandRuntime.current.context())
@@ -374,6 +381,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
       if (commandId === 'content.language') return { enabled: !!editor.current?.fencedCode(), reason: '请将光标放在围栏代码块中。' }
       if (commandId === 'edit.undo' || commandId === 'edit.redo') return { enabled: editor.current?.historyState?.()[commandId.slice(5) as 'undo' | 'redo'] ?? true, reason: '没有可撤销或重做的修改。' }
       if (commandId === 'file.reload' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
+      if (commandId === 'file.save' && (external.checking || external.change)) return { enabled: false, reason: '磁盘版本待检查或已变化，请比较或另存本地副本。' }
       if (commandId === 'view.reading' && readingBusy) return { enabled: false, reason: '正在切换窗口模式。' }
       if (commandId.startsWith('view.')) return { enabled: true, checked: commandId === 'view.reading' ? reading : commandId === 'view.files' ? showFiles : commandId === 'view.outline' ? showOutline : commandId === 'view.toolbar' ? showToolbar : commandId === `view.${view}` }
       return { enabled: true }
@@ -418,10 +426,10 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     tableCommandOffset.current = null
     void result.then(status => { if (!status.enabled && activeRef.current) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(errorMessage(err)))
   }
-  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, busy: busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session, tableDecision }
+  const summary = { name: pendingDraft?.name ?? name, dirty: dirty || !!pendingDraft || draftUnavailable, fileId, recentId, busy: externalOpen || busy || !!printable || autoSaving || images.busy || images.applying || !draftReady, pendingImage: !!images.session, tableDecision }
   useEffect(() => {
-    onReport(id, summary, { summary, prepareLeave, canLeave: () => !contentToolRef.current && !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
-      canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!contentToolRef.current && !saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
+    onReport(id, summary, { summary, prepareLeave, canLeave: () => !externalOpen && !contentToolRef.current && !saving.current && !busy && !printable && !exporting.current && !images.busy && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing(),
+      canSwitch: () => (!!docxTask.current && ['preflight', 'generating'].includes(docxPhase.current)) || (!externalOpen && !contentToolRef.current && !saving.current && !busy && !autoSaving && !printable && !exporting.current && !images.busy && !images.session && !images.applying && !panelApplying.current && draftReady && !editor.current?.composing()),
       canEdit: () => registry.status('file.open').enabled,
       commandContext: () => registry.capture(), commandStatus: (commandId, expected) => registry.status(commandId, expected), execute,
       run: action => execute('file.' + action),
@@ -646,7 +654,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
   }, [text, name, snapshot, dirty, draftReady, draftUnavailable, pendingDraft, images.resources, images.session, images.applying, fileId, revision])
 
   useEffect(() => {
-    if (quickEntryOpen || contentTool || tableSession || tableInsert || !desktop || !fileId || !dirty || disabled || images.applying || autoSaving || autoSavePaused || suspended || discarded.current) return
+    if (external.checking || external.change || external.blocked.current || quickEntryOpen || contentTool || tableSession || tableInsert || !desktop || !fileId || !dirty || disabled || images.applying || autoSaving || autoSavePaused || suspended || discarded.current) return
     let timer: number
     const attempt = () => {
       // Wait for IME composition to finish instead of persisting an intermediate syllable.
@@ -655,7 +663,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     }
     timer = window.setTimeout(attempt, 1200)
     return () => window.clearTimeout(timer)
-  }, [quickEntryOpen, contentTool, tableSession, tableInsert, text, dirty, fileId, revision, snapshot, disabled, images.applying, autoSaving, autoSavePaused, suspended, images.resources])
+  }, [external.checking, external.change, quickEntryOpen, contentTool, tableSession, tableInsert, text, dirty, fileId, revision, snapshot, disabled, images.applying, autoSaving, autoSavePaused, suspended, images.resources])
 
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => { if (!desktop && (dirty || images.session || tableSession)) event.preventDefault() }
@@ -732,7 +740,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     setBusy(true)
     try {
       const next = refresh && workspace ? { ...workspace, entries: await listWorkspace(workspace.id) } : await openWorkspace()
-      if (next) { onWorkspaceChange(next); onShowFiles(true); setTreeRevision((value) => value + 1) }
+      if (next) { onWorkspaceChange(next); onShowFiles(true); setTreeRevision((value) => value + 1); if (next.warning) setError(next.warning) }
     } catch (err) { setError(errorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -750,21 +758,23 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     })
   }
 
-  async function reloadExternal() {
-    if (!desktop || !fileId || busy || !mayReplace()) return
+  async function reloadExternal(expectedRevision?: string, confirmed = false) {
+    if (!desktop || !fileId || busy || saving.current || images.session || images.busy || images.applying || panelApplying.current || contentToolRef.current || tableRef.current || editor.current?.composing() || (!confirmed && !mayReplace())) return
     setBusy(true); setError(''); setStatus('正在重新加载外部版本…')
     try {
-      const file = await reloadDocument(fileId)
+      const file = await reloadDocument(fileId, expectedRevision)
       const decoded = decodeFile(file.bytes)
       await clearDraft()
       load(decoded.text, file.name, decoded, file.id, file.revision)
       images.setResources(openedResources(decoded.text, file.metadata?.instances ?? []))
+      setExternalOpen(false)
       if (file.warning && parseDocument(decoded.text).images.length) setError(errorMessage(file.warning))
-    } catch (err) { setError(errorMessage(err)); setStatus('重新加载失败') }
+    } catch (err) { setError(errorMessage(err)); setStatus('重新加载失败'); if (confirmed) throw new Error(errorMessage(err)) }
     finally { setBusy(false) }
   }
 
   async function save(saveAs = false, automatic = false): Promise<boolean> {
+    if (!saveAs && external.blocked.current) { setError('磁盘版本待检查或已变化，请比较或另存本地副本。'); return false }
     if (contentToolRef.current || tableRef.current || tableInsert || saving.current || busy || printable || exporting.current || draftUnavailable || pendingDraft || !draftReady || images.busy || images.applying || panelApplying.current || images.session || editor.current?.composing()) return false
     saving.current = true
     if (automatic) setAutoSaving(true); else setBusy(true)
@@ -781,6 +791,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
       if (result.destination === 'disk') persistedTextRevision.current = savingRevision
       setAutoSavePaused(false)
       setFileId(result.id); setName(result.name); setRevision(result.revision); setSnapshot(decodeFile(bytes))
+      setRecentId(result.recentId ?? null)
       if (result.warning) setError(errorMessage(result.warning))
       if (savingRevision === changeRevision.current) {
         if (result.destination === 'disk') {
@@ -918,6 +929,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     if (!draft) return
     try {
       if (keep) {
+        setRecentId(null)
         load(draft.text, draft.name, draft.snapshot, null, null, true); images.setResources(draft.resources ?? emptyResources())
         if (draft.imageSession && draft.imageSession.baseText === draft.text) images.setSession(draft.imageSession)
       }
@@ -929,7 +941,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
   const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['strike', 'S̶', '删除线'], ['inlineCode', '‹›', '行内代码'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
   const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
-  return <><div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={!!contentTool || tableDecision || busy || !!printable}>
+  return <>{externalOpen && active && external.change && 'snapshot' in external.change && <ExternalChangeDialog disk={external.change.snapshot} local={text} onClose={() => { setExternalOpen(false); requestAnimationFrame(() => editor.current?.focus()) }} onReload={() => reloadExternal(external.change && 'revision' in external.change ? external.change.revision : undefined, true)} onSaveCopy={async () => { if (await save(true)) setExternalOpen(false) }} onLocate={offset => { setExternalOpen(false); requestAnimationFrame(() => { setView('source'); jumpTo(offset) }) }} />}<div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={externalOpen || !!contentTool || tableDecision || busy || !!printable}>
     <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => {
       const target = imageInsert.current; imageInsert.current = null
       if (target && (!registry.status('insert.image', target.context).enabled || !validSlash(textRef.current, target.context.selection, target.slash))) { setError('图片插入位置已变化，请重新选择。'); event.target.value = ''; return }
@@ -954,12 +966,20 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
         {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
-        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.4.0-dev</span></div>
+        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.5.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
         <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
         {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={!registry.status('format.' + kind).enabled} aria-pressed={registry.status('format.' + kind).checked} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={!registry.status('code.language').enabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><button aria-label="转换为" disabled={!registry.status('paragraph.convert').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('paragraph.convert')}>转换为</button><span className="toolbar-divider" /><button aria-label="插入表格" disabled={!registry.status('insert.table').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('insert.table')}>表格＋</button><button aria-label="编辑表格" disabled={!registry.status('table.edit').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('table.edit')}>编辑表格</button><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={!registry.status('insert.image').enabled} onClick={() => execute('insert.image')}>▣</button><button aria-label="撤销" disabled={!registry.status('edit.undo').enabled} onClick={() => execute('edit.undo')}>↶</button><button aria-label="重做" disabled={!registry.status('edit.redo').enabled} onClick={() => execute('edit.redo')}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
+        {external.change && <div className="recovery-banner" role="status" aria-label="外部文件变化">
+          <strong>{'error' in external.change ? '无法检查磁盘版本' : '文件已被外部修改'}</strong>
+          <span>{'error' in external.change ? errorMessage(external.change.error) : dirty || images.session || tableSession ? '本地编辑已保留，自动保存已暂停。请先确认未提交的图片或表格输入。' : '当前正文保持不变，请确认是否加载磁盘版本。'}</span>
+          <button disabled={disabled || !!contentTool || !!tableSession || !!editor.current?.composing() || 'error' in external.change} onClick={() => setExternalOpen(true)}>比较外部版本</button>
+          <button disabled={disabled || !!contentTool || !!tableSession || !!editor.current?.composing() || 'error' in external.change} onClick={() => void reloadExternal(external.change && 'revision' in external.change ? external.change.revision : undefined)}>重新加载磁盘版本</button>
+          <button disabled={disabled || !!contentTool || !!tableSession} onClick={() => void save(true)}>另存本地副本</button>
+          <button disabled={external.checking || busy} onClick={external.recheck}>重新检查</button>
+        </div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
         <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
