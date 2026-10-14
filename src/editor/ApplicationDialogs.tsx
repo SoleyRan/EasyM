@@ -13,7 +13,7 @@ export function ApplicationDialog({ title, onClose, busy = false, children, onKe
     if (event.defaultPrevented) return
     if (event.key === 'Escape' && !event.nativeEvent.isComposing) { event.preventDefault(); event.stopPropagation(); if (!busy) onClose() }
     if (event.key !== 'Tab') return
-    const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href]') ?? [])
+    const controls = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]') ?? [])
     event.preventDefault()
     if (!controls.length) { dialog.current?.focus(); return }
     const index = controls.indexOf(document.activeElement as HTMLElement)

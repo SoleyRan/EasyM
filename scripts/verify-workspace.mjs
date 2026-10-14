@@ -35,6 +35,7 @@ try {
           return { results: [{ path: 'notes/中文文档.md', line: 4, preview: 'needle 中文匹配', revision: 'hash' }], scanned: 1, skipped: 0, limited: false, cancelled: false }
         }
         if (command === 'open_workspace_document') return { id: 'document', name: '中文文档.md', bytes: [...new TextEncoder().encode('# 标题\r\n\r\n正文\r\nneedle 中文匹配\r\n\r\n## 第二标题')], revision: window.workspaceStale ? 'changed' : 'hash' }
+        if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
         if (command === 'cancel_workspace_search' || command === 'close_document') return
         throw new Error(`Unexpected command: ${command}`)
       },

@@ -110,6 +110,7 @@ try {
         const text = args.relativePath === 'current.md' ? '[next](next.md#target)\n\n[outside](../private.md)\n\n[web](https://example.com)' : '# Target\n\nnext file'
         return { id: args.relativePath, name: args.relativePath, bytes: [...new TextEncoder().encode(text)], revision: 'r1' }
       }
+      if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
       if (command === 'open_external_link' || command === 'close_document') return
       if (command === 'history_operation') throw 'history_disabled'
       throw new Error(`Unexpected IPC ${command}`)

@@ -64,6 +64,8 @@ jobs:
             test-results/session/*.png
             test-results/recent-verification.json
             test-results/recent/*.png
+            test-results/external-verification.json
+            test-results/external/*.png
             test-results/settings-verification.json
             test-results/regression-verification.json
           if-no-files-found: warn

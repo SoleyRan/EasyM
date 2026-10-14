@@ -78,6 +78,7 @@ try {
       if (command === 'open_workspace') return { id: 'work', name: '工作区', entries: [] }
       if (command === 'search_workspace_filenames') { if (args.query === 'slow') await new Promise(resolve => setTimeout(resolve, 450)); return { paths: args.query === 'none' ? [] : ['中文 notes/同名.md', 'other/同名.md'], scanned: 10000, skipped: 2, limited: true, cancelled: false } }
       if (command === 'open_workspace_document') { if (window.quickSlow) await new Promise(resolve => setTimeout(resolve, 450)); if (window.quickFail) throw new Error('resource_missing'); return { id: args.relativePath.startsWith('other/') ? 'other-doc' : 'doc', name: '同名.md', revision: 'hash', bytes: [...new TextEncoder().encode('# 原文')] } }
+      if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
       if (command === 'close_document' || command === 'cancel_workspace_search') return
       if (command === 'history_operation') return { entries: [], enabled: false }
       if (command === 'save_document') return { id: 'doc', name: '同名.md', revision: 'hash2', destination: 'disk' }

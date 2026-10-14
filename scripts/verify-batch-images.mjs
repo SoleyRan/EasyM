@@ -61,6 +61,7 @@ try {
           args.assets.forEach(a => window.batchAssets[a.path] = a.bytes)
           return { id: 'batch-file', name: '批图.md', revision: window.batchRevision }
         }
+        if (command === 'inspect_document') return { revision: window.batchRevision, bytes: window.batchRevision === args.expectedRevision ? null : [...encoder.encode(window.batchBody)] }
         if (command === 'close_document') return
         if (command === 'history_directory') return { path: '/fixture/.easym/history', documentDirectory: '/fixture', custom: false }
         if (command === 'history_operation') {

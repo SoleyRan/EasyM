@@ -37,6 +37,7 @@ try {
       if (command === 'open_workspace' || command === 'reopen_recent_workspace') return { id: `${processId}:workspace`, recentId: 'ws', name: '中文项目', entries: [{ path: '同名.md', name: '同名.md', kind: 'document' }] }
       if (command === 'open_workspace_document') return file('a')
       if (command === 'save_document') { if (window.failSave) throw 'io_failed'; const id = [...handles.entries()].find(([, handle]) => handle === args.id)?.[0]; if (!id) throw 'permission_denied'; const state = read(); state.bodies[id] = new TextDecoder().decode(new Uint8Array(args.bytes)); write(state); return { ...file(id), bytes: undefined } }
+      if (command === 'inspect_document') { const id = [...handles.entries()].find(([, handle]) => handle === args.id)?.[0]; if (!id) throw 'permission_denied'; const body = read().bodies[id]; if (!body) throw 'resource_missing'; return { revision: body, bytes: body === args.expectedRevision ? null : [...new TextEncoder().encode(body)] } }
       if (command === 'close_document') return
       if (command === 'history_operation') throw 'history_disabled'
       throw new Error(`Unexpected IPC ${command}`)

@@ -150,6 +150,7 @@ try {
         if (command.startsWith('plugin:')) return 1
         if (command === 'open_document') return { id: 'table-file', name: 'table.md', bytes: [...new TextEncoder().encode(fixture)], revision: 'r1' }
         if (command === 'save_document') return { id: 'table-file', name: 'table.md', revision: 'r2', destination: 'disk' }
+        if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
         if (command === 'close_document') return
         if (command === 'history_operation') throw 'history_disabled'
         throw new Error(`Unexpected IPC ${command}`)

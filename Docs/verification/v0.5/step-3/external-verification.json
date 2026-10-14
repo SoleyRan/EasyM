@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "checks": [
+    "clean-file notice preserves memory, comparison supports selection/copy, Escape retains body, explicit reload updates baseline",
+    "dirty conflict pauses autosave, stale confirmation refuses newer disk revision, save-copy preserves external original",
+    "missing/revoked/over-limit inspection retains body and can retry, own saves update baseline without repeated conflict",
+    "tab switch discards late inspection result and keeps each file baseline separate",
+    "BOM-only disk change is detected even with identical normalized body and zero text differences",
+    "external inspection preserves unsubmitted table draft, reload is gated, applying the cell keeps autosave paused until explicit resolution",
+    "pending image recipe survives external change; apply cannot write stale disk or source, comparison remains within compact viewport"
+  ],
+  "scope": "Production Chromium with deterministic native IPC; raw filesystem inspection has separate Rust tests. No real native window/IME claim.",
+  "browser": "156.0.8078.4"
+}
