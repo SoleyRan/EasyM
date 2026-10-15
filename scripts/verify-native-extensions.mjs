@@ -1,26 +1,49 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import { chromium } from 'playwright'
 import { setTimeout } from 'node:timers/promises'
 import { fillSource } from './source-test-utils.mjs'
 import { selectAppearanceTheme } from './serve-production.mjs'
 
 // Called by the PowerShell wrapper; never launches or attaches to a user's profile.
-const port = Number(process.argv[2])
-assert.ok(Number.isInteger(port) && port > 0 && port <= 65535)
-const endpoint = `http://127.0.0.1:${port}`
+const profile = process.argv[2], appPid = Number(process.argv[3])
+assert.ok(profile && Number.isInteger(appPid) && appPid > 0)
 const { version } = JSON.parse(await readFile('package.json', 'utf8'))
 const report = { verifiedAt: new Date().toISOString(), version, passed: false, checks: [], isolatedProfile: true,
+  node: process.version, endpointDiscovery: { method: 'DevToolsActivePort', attempts: 0 },
   executableSha256: createHash('sha256').update(await readFile('src-tauri/target/release/easym.exe')).digest('hex'),
   scope: 'Actual Windows release WebView2 over an isolated temporary CDP endpoint. No mocked IPC or source injection; excludes IME, OS save/print and other WebViews.' }
 await mkdir('test-results/native-extensions', { recursive: true })
 let browser, page
 try {
   const deadline = Date.now() + 30000
+  let endpoint
   while (true) {
-    try { const response = await fetch(`${endpoint}/json/version`, { signal: AbortSignal.timeout(1000) }); if (response.ok) break } catch { /* WebView starts asynchronously. */ }
-    if (Date.now() >= deadline) throw new Error('Isolated WebView debug endpoint did not start')
+    report.endpointDiscovery.attempts++
+    try { process.kill(appPid, 0) } catch { throw new Error('Isolated application exited before its WebView debug endpoint was ready') }
+    // WebView2 normally nests Chromium's data directory under EBWebView.
+    // Some runtime versions use the explicit user-data directory directly.
+    for (const directory of [resolve(profile, 'EBWebView'), profile]) {
+      try {
+        const [portLine, websocketPath] = (await readFile(resolve(directory, 'DevToolsActivePort'), 'utf8')).trim().split(/\r?\n/)
+        const port = Number(portLine)
+        if (!Number.isInteger(port) || port < 1 || port > 65535 || !websocketPath?.startsWith('/devtools/browser/')) continue
+        endpoint = `http://127.0.0.1:${port}`
+        report.endpointDiscovery.port = port
+        const response = await fetch(`${endpoint}/json/version`, { signal: AbortSignal.timeout(1000) })
+        if (!response.ok) throw new Error(`DevTools version endpoint returned HTTP ${response.status}`)
+        report.endpointDiscovery.browser = (await response.json()).Browser
+        report.endpointDiscovery.ready = true
+        break
+      } catch (error) {
+        // A missing fallback file must not hide the actual connection failure.
+        if (error.code !== 'ENOENT' || !report.endpointDiscovery.lastError) report.endpointDiscovery.lastError = `${error.code ?? error.cause?.code ?? error.name}: ${error.message}`
+      }
+    }
+    if (report.endpointDiscovery.ready) break
+    if (Date.now() >= deadline) throw new Error(`Isolated WebView debug endpoint did not start: ${report.endpointDiscovery.lastError}`)
     await setTimeout(250)
   }
   browser = await chromium.connectOverCDP(endpoint); report.browser = browser.version()

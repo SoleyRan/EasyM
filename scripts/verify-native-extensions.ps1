@@ -5,27 +5,32 @@ $profileRoot = Join-Path $repoRoot ('test-results/native-extensions-' + [guid]::
 $previousProfile = $env:WEBVIEW2_USER_DATA_FOLDER
 $previousArguments = $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
 $appProcess = $null
-# Use an ephemeral loopback debug port only for this separately launched profile.
-$listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
-$listener.Start()
-$debugPort = $listener.LocalEndpoint.Port
-$listener.Stop()
+$reportPath = Join-Path $repoRoot 'test-results/native-extensions-verification.json'
+$diagnosticRoot = Join-Path $repoRoot 'test-results/native-extensions'
+New-Item -ItemType Directory -Path $diagnosticRoot -Force | Out-Null
+$webviewLog = Join-Path $diagnosticRoot ('webview-' + [guid]::NewGuid().ToString('N') + '.log')
+# Start a new report even if process launch fails; never reuse an earlier pass.
+@{ verifiedAt = [DateTime]::UtcNow.ToString('o'); passed = $false; isolatedProfile = $true } |
+    ConvertTo-Json | Set-Content -LiteralPath $reportPath -Encoding utf8
 try {
     $env:WEBVIEW2_USER_DATA_FOLDER = $profileRoot
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=$debugPort --remote-debugging-address=127.0.0.1"
+    # Let WebView2 allocate and retain its own port, then discover the actual
+    # endpoint in this profile's DevToolsActivePort (no reserve/release race).
+    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = "--remote-debugging-port=0 --remote-debugging-address=127.0.0.1 --enable-logging --log-file=`"$webviewLog`""
     $appProcess = Start-Process -FilePath $exePath -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru
-    & node (Join-Path $PSScriptRoot 'verify-native-extensions.mjs') $debugPort
+    # Invoke the executable directly so package-manager PowerShell shims cannot
+    # change the synchronous process/exit-code handling of this wrapper.
+    $nodePath = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
+    & $nodePath (Join-Path $PSScriptRoot 'verify-native-extensions.mjs') $profileRoot $appProcess.Id
     if ($LASTEXITCODE -ne 0) { throw 'Native extension verification failed.' }
     $appProcess.Refresh()
     if (-not $appProcess.WaitForExit(10000) -or $appProcess.ExitCode -ne 0) {
         throw 'Native extension test window did not exit normally.'
     }
-    $reportPath = Join-Path $repoRoot 'test-results/native-extensions-verification.json'
     $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
     $report | Add-Member -NotePropertyName gracefulClose -NotePropertyValue $true
     $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding utf8
 } catch {
-    $reportPath = Join-Path $repoRoot 'test-results/native-extensions-verification.json'
     if (Test-Path -LiteralPath $reportPath) {
         $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
         $report.passed = $false
@@ -34,7 +39,29 @@ try {
     }
     throw
 } finally {
-    if ($appProcess -and -not $appProcess.HasExited) { Stop-Process -Id $appProcess.Id -Force }
-    $env:WEBVIEW2_USER_DATA_FOLDER = $previousProfile
-    $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $previousArguments
+    try {
+        # Persist only diagnostics for the app/profile owned by this verification.
+        $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
+        if ($appProcess) {
+            $appProcess.Refresh()
+            $report | Add-Member -NotePropertyName appProcess -NotePropertyValue @{
+                id = $appProcess.Id; exited = $appProcess.HasExited
+                exitCode = $(if ($appProcess.HasExited) { $appProcess.ExitCode } else { $null })
+            } -Force
+        }
+        try {
+            $webviews = @(Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" |
+                Where-Object { $_.CommandLine -and $_.CommandLine.Contains($profileRoot) } |
+                Select-Object ProcessId, ParentProcessId, ExecutablePath, CommandLine)
+            $report | Add-Member -NotePropertyName webviewProcesses -NotePropertyValue $webviews -Force
+        } catch { $report | Add-Member -NotePropertyName diagnosticError -NotePropertyValue $_.Exception.Message -Force }
+        $report | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $reportPath -Encoding utf8
+    } finally {
+        try {
+            if ($appProcess -and -not $appProcess.HasExited) { Stop-Process -Id $appProcess.Id -Force }
+        } finally {
+            $env:WEBVIEW2_USER_DATA_FOLDER = $previousProfile
+            $env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = $previousArguments
+        }
+    }
 }

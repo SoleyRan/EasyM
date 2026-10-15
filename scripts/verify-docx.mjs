@@ -11,7 +11,11 @@ const output = resolve('test-results/docx'), report = { verifiedAt: new Date().t
 await mkdir(output, { recursive: true })
 let browser, server
 try {
-  await build({ configFile: resolve('vite.config.ts'), logLevel: 'warn', build: { outDir: output, emptyOutDir: false, lib: { entry: resolve('scripts/fixtures/docx-export.ts'), formats: ['es'], fileName: () => 'entry.js' } } })
+  // Override the app's multi-page input as well as the library entry. Otherwise
+  // Vite builds index.html/mermaid.html and a stale entry.js can hide the error.
+  const entry = resolve('scripts/fixtures/docx-export.ts')
+  await build({ configFile: resolve('vite.config.ts'), logLevel: 'warn', build: { outDir: output, emptyOutDir: true, lib: { entry, formats: ['es'], fileName: () => 'entry.js' }, rollupOptions: { input: entry } } })
+  assert.ok((await readFile(resolve(output, 'entry.js'), 'utf8')).includes('docxAcceptance'), 'DOCX fixture entry was not built')
   const csp = JSON.parse(await readFile('src-tauri/tauri.conf.json', 'utf8')).app.security.csp
   server = createServer(async (req, res) => {
     res.setHeader('Content-Security-Policy', csp)
@@ -23,7 +27,11 @@ try {
   browser = await chromium.launch({ channel: process.env.EASYM_TEST_BROWSER || undefined })
   report.browser = browser.version()
   const context = await browser.newContext({ acceptDownloads: true }), page = await context.newPage(), errors = [], remote = []
+  report.diagnostics = { pageErrors: errors, consoleErrors: [], failedRequests: [], httpErrors: [] }
   page.on('pageerror', e => errors.push(e.message))
+  page.on('console', message => { if (message.type() === 'error') report.diagnostics.consoleErrors.push(message.text()) })
+  page.on('requestfailed', request => report.diagnostics.failedRequests.push({ url: request.url(), error: request.failure()?.errorText }))
+  page.on('response', response => { if (response.status() >= 400) report.diagnostics.httpErrors.push({ url: response.url(), status: response.status() }) })
   context.on('request', r => { if (!r.url().startsWith(`http://127.0.0.1:${server.address().port}/`) && !r.url().startsWith('blob:')) remote.push(r.url()) })
   await page.addInitScript(() => {
     window.originalWorker = window.Worker
