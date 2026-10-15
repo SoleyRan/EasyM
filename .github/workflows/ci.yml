@@ -25,6 +25,8 @@ jobs:
         run: pnpm verify:search --slow
       - name: Verify templates with a slower browser
         run: pnpm verify:templates --slow
+      - name: Verify math and draft recovery with a slower browser
+        run: pnpm verify:math --slow
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -54,6 +56,8 @@ jobs:
             test-results/extensions/*
             test-results/math-verification.json
             test-results/math/*
+            test-results/math-slow-verification.json
+            test-results/math-slow/*
             test-results/mermaid-verification.json
             test-results/mermaid/*
             test-results/extension-delivery-verification.json

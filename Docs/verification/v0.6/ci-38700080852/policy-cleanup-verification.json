@@ -1,0 +1,11 @@
+{
+  "scope": "Exact wrapper policy branch redirected to unique HKCU sandbox; simulated elevated branch and failing startup. Does not validate actual elevated HKLM WebView behavior.",
+  "passed": true,
+  "checks": [
+    "prior policy data and registry value type restored",
+    "unrelated executable policy preserved",
+    "new policy leaf removed after startup failure",
+    "process environment restored"
+  ],
+  "verifiedAt": "2026-10-15T08:36:11.9599749Z"
+}
