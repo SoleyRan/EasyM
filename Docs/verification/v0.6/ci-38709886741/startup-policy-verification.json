@@ -1,0 +1,10 @@
+{
+  "scope": "Startup wrapper policy code redirected to a unique HKCU sandbox and forced elevated branch; actual elevated HKLM WebView remains a CI check.",
+  "passed": true,
+  "checks": [
+    "startup failure restores existing profile policy and ExpandString type",
+    "unrelated executable policy retained",
+    "new empty policy leaf removed",
+    "environment restored on both failures"
+  ]
+}
