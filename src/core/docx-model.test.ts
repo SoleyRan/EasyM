@@ -11,6 +11,29 @@ const imageBlob = () => new Blob([png], { type: 'image/png' })
 const allBlocks = (blocks: DocxBlock[]): DocxBlock[] => blocks.flatMap(block => [block, ...('children' in block && block.type === 'quote' ? allBlocks(block.children) : block.type === 'list' ? block.items.flatMap(item => allBlocks(item.children)) : [])])
 const inlines = (blocks: DocxBlock[]): DocxInline[] => allBlocks(blocks).flatMap(block => block.type === 'paragraph' || block.type === 'heading' ? block.children : block.type === 'table' ? block.rows.flatMap(row => row.flatMap(cell => cell.children)) : [])
 
+it('exports first-use numbered editable endnotes, safely maps nested notes and retains unused definitions', async () => {
+  const text = '---\ntitle: test\n---\n\nB[^b] A[^a] B[^b] missing[^missing]\n\n[^a]: **A** [link](https://example.com)\n\n    - item\n\n[^b]: B[^a] ![image](assets/em.png)\n\n[^a]: duplicate\n\n[^unused]: unused'
+  const model = createDocxModel(text, 'notes.md'), runs = inlines(model.blocks)
+  expect(runs.filter(run => run.type === 'text' && run.style.superscript).map(run => run.type === 'text' && run.text)).toEqual(['1', '2', '1', '1', '2', '2'])
+  expect(model.blocks.filter(block => block.type === 'raw').map(block => block.text)).toEqual(['---\ntitle: test\n---', '[^a]: duplicate', '[^unused]: unused'])
+  expect(runs.some(run => run.type === 'text' && run.text === 'A' && run.style.bold)).toBe(true)
+  expect(runs.some(run => run.type === 'link')).toBe(true)
+  expect(allBlocks(model.blocks).some(block => block.type === 'list')).toBe(true)
+  expect(model.images).toHaveLength(1)
+  expect(model.warnings.items.filter(w => w.code === 'footnote_endnotes')).toHaveLength(1)
+  const load = vi.fn(async () => imageBlob())
+  const prepared = await prepareDocxResources(model, load)
+  expect(load).toHaveBeenCalledWith('assets/em.png', undefined)
+  expect(prepared.assets).toHaveLength(1)
+})
+
+it('maps cyclic note references once and reports restricted images inside notes', () => {
+  const model = createDocxModel('text[^a]\n\n[^a]: A[^b]\n\n[^b]: B[^a] ![remote](https://example.com/a.png)', 'cycle.md')
+  expect(model.blocks.filter(block => block.type === 'paragraph')).toHaveLength(5)
+  expect(model.warnings.imageFailures).toBe(1)
+  expect(model.images[0].path).toBeNull()
+})
+
 it('gives preview and DOCX independent original ASTs and retains source offsets', () => {
   const text = '中文🙂\n\n![显示][photo]\n\n[photo]: assets/em.png'
   const tree = parseMarkdownAst(text), before = structuredClone(tree)

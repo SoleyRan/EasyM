@@ -27,6 +27,7 @@
     "verify:workspace": "node scripts/verify-workspace.mjs",
     "verify:templates": "node scripts/verify-templates.mjs",
     "verify:export": "node scripts/verify-export.mjs",
+    "verify:extensions": "node scripts/verify-extensions.mjs",
     "verify:context-menu": "node scripts/verify-context-menu.mjs",
     "verify:commands": "node scripts/verify-commands.mjs",
     "verify:tables": "node scripts/verify-tables.mjs",

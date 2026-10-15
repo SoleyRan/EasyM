@@ -28,7 +28,7 @@ export function createDocxDocument(prepared: PreparedDocx, options: DocxOptions 
   const spacing = { before: 0, after: compact ? 80 : 160, line: compact ? 264 : 300 }
   const inline = (nodes: DocxInline[], width: number): ParagraphChild[] => nodes.flatMap((node): ParagraphChild[] => {
     switch (node.type) {
-      case 'text': return [new TextRun({ text: node.text, bold: node.style.bold, italics: node.style.italic, strike: node.style.strike, ...(node.style.code ? { font: codeFont, size: 18, color: '000000', shading: { fill: 'F2F2F2' } } : {}) })]
+      case 'text': return [new TextRun({ text: node.text, bold: node.style.bold, italics: node.style.italic, strike: node.style.strike, superScript: node.style.superscript, ...(node.style.code ? { font: codeFont, size: 18, color: '000000', shading: { fill: 'F2F2F2' } } : {}) })]
       case 'break': return [new TextRun({ break: 1 })]
       case 'link': return [new ExternalHyperlink({ link: node.url, children: inline(node.children, width) })]
       case 'image': {

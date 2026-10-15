@@ -50,6 +50,8 @@ jobs:
             test-results/templates-slow-verification.json
             test-results/templates-failure.png
             test-results/export-verification.json
+            test-results/extensions-verification.json
+            test-results/extensions/*
             test-results/context-menu-verification.json
             test-results/commands-verification.json
             test-results/tables-verification.json

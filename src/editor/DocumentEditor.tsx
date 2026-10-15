@@ -251,6 +251,9 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     if (position.ratio <= .001) { expectedPreview.current = 0; pane.scrollTop = 0; return }
     const top = pane.getBoundingClientRect().top
     const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
+      // Endnotes move definitions out of source order. Their exact forward /
+      // back navigation is handled separately from linear scroll interpolation.
+      if (element.matches('.footnotes')) return null
       const node = element.hasAttribute('data-source-from') ? element as HTMLElement : element.querySelector<HTMLElement>('[data-source-from]')
       return node ? { from: Number(node.dataset.sourceFrom), top: element.getBoundingClientRect().top - top + pane.scrollTop } : null
     }).filter((item): item is { from: number; top: number } => item !== null)
@@ -280,6 +283,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     const ratio = max > 0 ? pane.scrollTop / max : 0
     const top = pane.getBoundingClientRect().top
     const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
+      if (element.matches('.footnotes')) return null
       const node = element.hasAttribute('data-source-from') ? element as HTMLElement : element.querySelector<HTMLElement>('[data-source-from]')
       return node ? { from: Number(node.dataset.sourceFrom), top: element.getBoundingClientRect().top - top + pane.scrollTop } : null
     }).filter((item): item is { from: number; top: number } => item !== null)
@@ -293,7 +297,8 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     if (tableRef.current) { void prepareLeave().then(proceed => { if (proceed) jumpTo(offset) }); return }
     if (reading) {
       const nodes = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? [])
-      const node = nodes.filter((element) => Number(element.dataset.sourceFrom) <= offset).at(-1) ?? nodes[0]
+      const node = nodes.find(element => Number(element.dataset.sourceFrom) === offset)
+        ?? nodes.filter(element => Number(element.dataset.sourceFrom) <= offset).sort((a, b) => Number(b.dataset.sourceFrom) - Number(a.dataset.sourceFrom))[0] ?? nodes[0]
       node?.scrollIntoView({ block: 'start' })
       return
     }
@@ -1010,6 +1015,22 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
             const languageAction = target.closest<HTMLElement>('[data-language-offset]')
             if (!reading && languageAction && parsedText.current === text) { openContentTool('language', registry.capture(), Number(languageAction.dataset.languageOffset)); return }
             const link = target.closest<HTMLAnchorElement>('a[href]')
+            if (link && (link.hasAttribute('data-footnote-ref') || link.hasAttribute('data-footnote-backref'))) {
+              event.preventDefault()
+              if (!active || disabled || editor.current?.composing() || tableRef.current || parsedText.current !== text) return
+              const id = link.getAttribute('href')?.slice(1)
+              const destination = Array.from(preview.current?.querySelectorAll<HTMLElement>('[id]') ?? []).find(node => node.id === id)
+              if (!destination) return
+              // Hold preview ownership so source scroll events cannot undo this
+              // exact note jump. The DOM search is confined to the active tab.
+              scrollOwner.current = 'preview'
+              if (!reading && destination.dataset.sourceFrom !== undefined) editor.current?.jump(Number(destination.dataset.sourceFrom))
+              if (!destination.matches('a,button,input,[tabindex]')) destination.tabIndex = -1
+              destination.focus({ preventScroll: true })
+              destination.scrollIntoView({ block: 'start' })
+              expectedPreview.current = preview.current?.scrollTop ?? null
+              return
+            }
             if (link) { event.preventDefault(); if (!reading && parsedText.current === text) { editor.current?.jump(Number(link.dataset.sourceFrom)); openContentTool('link', registry.capture()) }; return }
             const cell = target.closest<HTMLElement>('th,td')
             if (!reading && parsedText.current === text && cell) { execute('table.edit', Number(cell.dataset.sourceFrom)); return }

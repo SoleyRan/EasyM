@@ -12,6 +12,12 @@ function decorations(text: string, anchor = 0, head = anchor) {
   return { state, active, tokens, hidden: tokens.filter(token => token.kind === 'hide').map(token => text.slice(token.from, token.to)) }
 }
 describe('live presentation and source contracts', () => {
+  it('keeps bare footnote reference and definition syntax editable in inactive blocks', () => {
+    const text = 'active\n\n正文[^中文] **bold**\n\n[^中文]: **note**\n\n    second *para*\n\nend'
+    const result = decorations(text)
+    expect(result.hidden).toEqual(['**', '**'])
+    expect(result.state.doc.toString()).toBe(text)
+  })
   it('styles inactive Markdown without changing text or selection', () => {
     const text = 'active\n\n# Heading\n\n**bold** *italic* ~~strike~~ `code` [link](https://example.com)'
     const result = decorations(text)

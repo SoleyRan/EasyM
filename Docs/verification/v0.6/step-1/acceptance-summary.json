@@ -1,0 +1,74 @@
+{
+  "recordedAt": "2026-10-14T10:35:38.779Z",
+  "stage": "v0.6-step-1",
+  "version": "0.5.0",
+  "source": {
+    "branch": "feature/v0.6",
+    "baseCommit": "90c4ce761f4a16d85fc8d8167af0b08ae79df24d",
+    "uncommittedStep1Changes": true,
+    "sourceTree": {
+      "scope": "src, scripts, workflows, v0.6 samples, package/lock, Vite/TypeScript configuration; excludes local .vscode and generated output",
+      "algorithm": "sorted path + NUL + file SHA-256 + newline, then SHA-256",
+      "files": 201,
+      "sha256": "70ddf38e756c8a9fb7a2d7b49b9ea48e771f746243ae994b28ea6dd842082230"
+    }
+  },
+  "localStepAcceptancePassed": true,
+  "formalReleaseReady": false,
+  "checks": {
+    "typecheck": true,
+    "productionBuild": true,
+    "frontend": {
+      "files": 46,
+      "tests": 261,
+      "passed": true
+    },
+    "regression": {
+      "passed": true,
+      "groups": 24,
+      "startedAt": "2026-10-14T10:30:59.407Z",
+      "finishedAt": "2026-10-14T10:34:43.551Z",
+      "distIndexSha256": "d4d8fcafd6996a500c1e008533ce92f15eb40285bf1df3e0f54ed4a9e33727db",
+      "report": "regression-verification.json"
+    },
+    "extensions": {
+      "passed": true,
+      "groups": 5,
+      "report": "extensions-verification.json"
+    }
+  },
+  "commands": [
+    "pnpm.cmd typecheck",
+    "pnpm.cmd test --maxWorkers=2",
+    "pnpm.cmd build",
+    "pnpm.cmd verify:extensions",
+    "pnpm.cmd verify:regression"
+  ],
+  "evidence": {
+    "unit": "unit-output.txt",
+    "build": "build-output.txt",
+    "regression": "regression-output.txt",
+    "screenshots": [
+      "screenshots/dark.png",
+      "screenshots/compact.png",
+      "screenshots/standalone.png"
+    ],
+    "runtimeDirectory": "test-results/extensions",
+    "runtimeArtifacts": [
+      "standalone.html",
+      "endnotes.docx",
+      "endnotes.pdf"
+    ]
+  },
+  "testHarnessCorrections": [
+    "Wait for the new early-definition reference, avoiding stale asynchronous preview DOM.",
+    "Select all through CodeMirror keymap before inserting browser fixtures; avoids stale DOM selection after undo/redo. Final full suite rerun passed."
+  ],
+  "limitations": [
+    "DOCX uses editable superscript and endnotes, not native Word footnotes.",
+    "Front Matter is static exact source; metadata is not executed or applied to settings.",
+    "Native Rust code unchanged; no new native tests or installer/package generated this step.",
+    "Chromium PDF and deterministic IPC do not verify system print dialogs, real IME, screen readers or macOS/Linux GUI.",
+    "Remote CI not run for uncommitted changes; no commit or push performed."
+  ]
+}

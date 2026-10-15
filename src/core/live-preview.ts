@@ -73,6 +73,9 @@ export function liveTokens(state: EditorState, tree: Tree, visible: readonly Sou
     }
     if (/^(EmphasisMark|StrikethroughMark|CodeMark)$/.test(node.name)) hide(node.from, node.to)
     if (node.name === 'Link') {
+      // CodeMirror treats a bare GFM footnote reference as a link. Keep its
+      // complete syntax visible until a dedicated live note UI is introduced.
+      if (/^\[\^[^\]\n]+\]$/.test(state.doc.sliceString(node.from, node.to))) return false
       const marks = []
       for (let child = node.firstChild; child; child = child.nextSibling) if (child.name === 'LinkMark') marks.push(child)
       if (marks.length >= 2) {

@@ -5,6 +5,48 @@ import { createExport, localImagePath } from './export'
 
 const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='), char => char.charCodeAt(0))
 
+it('keeps complete inert metadata and valid footnote/backreference anchors after export', async () => {
+  const text = '---\ntitle: "<script>danger</script>"\n---\n\n正文[^中文] again[^中文] missing[^none]\n\n[^中文]: **说明**\n\n    第二段\n\n[^中文]: 重复\n\n[^unused]: 未引用'
+  const parsed = parseDocument(text), preview = new DOMParser().parseFromString(parsed.html, 'text/html')
+  const refs = [...preview.querySelectorAll('a[data-footnote-ref]')]
+  expect(refs.map(node => node.textContent)).toEqual(['1', '1'])
+  const links = [...refs, ...preview.querySelectorAll('a[data-footnote-backref]')]
+  expect(links).toHaveLength(4)
+  for (const link of links) {
+    const target = preview.getElementById(link.getAttribute('href')!.slice(1))
+    expect(target).not.toBeNull()
+    expect(target!.id).toMatch(/^user-content-/)
+    expect(Number(target!.getAttribute('data-source-from'))).toBeGreaterThan(0)
+  }
+  expect(preview.querySelector('.footnotes strong')?.textContent).toBe('说明')
+  expect(preview.querySelector('.footnotes')?.textContent).toContain('第二段')
+  expect(preview.body.textContent).toContain('missing[^none]')
+  expect(preview.querySelectorAll('.markdown-metadata')).toHaveLength(3)
+  expect(preview.querySelector('.markdown-metadata code')?.textContent).toBe(text.slice(0, text.indexOf('\n\n')))
+  const output = await createExport(parsed, '脚注.md', async () => { throw new Error('no image') })
+  const exported = new DOMParser().parseFromString(output.html, 'text/html')
+  for (const link of exported.querySelectorAll('a[href^="#"]')) expect(exported.getElementById(link.getAttribute('href')!.slice(1))).not.toBeNull()
+  expect(exported.querySelector('script')).toBeNull()
+  expect(exported.querySelector('[data-source-from]')).toBeNull()
+  expect(exported.querySelector('.markdown-metadata code')?.textContent).toBe(preview.querySelector('.markdown-metadata code')?.textContent)
+})
+
+it('recognizes initial TOML metadata without interpreting unfinished or mid-document fences', () => {
+  const doc = new DOMParser().parseFromString(parseDocument('+++\ntitle = "中文"\n+++\n\n# 标题').html, 'text/html')
+  expect(doc.querySelector('.markdown-metadata > p')?.textContent).toContain('TOML')
+  expect(doc.querySelector('.markdown-metadata code')?.textContent).toBe('+++\ntitle = "中文"\n+++')
+  expect(parseDocument('---\ntitle: unfinished').html).not.toContain('markdown-metadata')
+  expect(parseDocument('正文\n\n---\n\ntitle: middle\n\n---').html).not.toContain('markdown-metadata')
+})
+
+it('keeps note headings out of the main outline and anchors early/cyclic definitions safely', () => {
+  const text = '[^a]: ## Note heading\n\n    [^b]\n\n[^b]: B[^a]\n\n# Document heading\n\ntext[^a] special[^a/b]\n\n[^a/b]: special'
+  const parsed = parseDocument(text), doc = new DOMParser().parseFromString(parsed.html, 'text/html')
+  expect(parsed.headings.map(heading => heading.title)).toEqual(['Document heading'])
+  expect(doc.querySelectorAll('.footnotes ol > li')).toHaveLength(3)
+  for (const link of doc.querySelectorAll('a[data-footnote-ref],a[data-footnote-backref]')) expect(doc.getElementById(link.getAttribute('href')!.slice(1))).not.toBeNull()
+})
+
 it('exports sanitized static HTML, escaped titles, code, Chinese and bordered tables without active content', async () => {
   const load = vi.fn()
   const output = await createExport(parseDocument('# 中文\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert%281%29)\n\n|甲|乙|\n|---|---|\n|一|二|\n\n```js\nconst n = 1\n```'), '</title><script>alert(2)</script>.md', load)

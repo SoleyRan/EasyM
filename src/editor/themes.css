@@ -176,6 +176,12 @@
 .application .preview code { background: var(--surface); }
 .application .preview pre { background: var(--code-bg); color: var(--code-text); }
 .application .preview pre code { background: transparent; }
+.application .preview .markdown-metadata { border: 1px solid var(--border); border-radius: 6px; padding: 0 12px; margin: 1em 0; }
+.application .preview .markdown-metadata > p { color: var(--muted); font-size: 12px; }
+.application .preview .footnotes { border-top: 1px solid var(--border); margin-top: 2em; font-size: .9em; }
+.application .preview .footnotes > h2 { font-size: 1.1em; }
+.application .preview :is([data-footnote-ref], [data-footnote-backref]) { padding: 0 2px; }
+.application .preview :is([data-footnote-ref], [data-footnote-backref], .footnotes li):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .application .preview table { display: block; width: max-content; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 1em 0; }
 .application .preview :is(th, td) { border: 1px solid var(--muted); padding: 8px 12px; min-width: 80px; }
 .application .preview th { background: var(--surface); font-weight: 600; }

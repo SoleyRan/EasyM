@@ -1,11 +1,12 @@
 import type { Definition, Nodes, Root } from 'mdast'
 import { parseMarkdownAst } from './markdown-ast'
+import { indexFootnotes } from './footnotes'
 import { localImagePath } from './export-resource'
 import { inspectImage, MAX_ASSET_BYTES, MAX_IMAGE_BYTES } from './images'
 
 export const DOCX_LIMITS = { textBytes: 10 * 1024 * 1024, nodes: 100_000, images: 500, warnings: 1000, depth: 128 } as const
 export interface DocxRange { from: number; to: number }
-export type DocxWarningCode = 'unsupported_node' | 'unsafe_link' | 'unresolved_reference' | 'unused_definition' | 'wide_table' | 'deep_list' | 'restricted_image' | 'missing_image' | 'invalid_image' | 'font_fallback'
+export type DocxWarningCode = 'unsupported_node' | 'unsafe_link' | 'unresolved_reference' | 'unused_definition' | 'wide_table' | 'deep_list' | 'restricted_image' | 'missing_image' | 'invalid_image' | 'font_fallback' | 'footnote_endnotes'
 export interface DocxWarning {
   code: DocxWarningCode
   message: string
@@ -14,7 +15,7 @@ export interface DocxWarning {
   resource?: string
 }
 export interface DocxWarnings { items: DocxWarning[]; total: number; imageFailures: number }
-export interface DocxStyle { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean }
+export interface DocxStyle { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean; superscript?: boolean }
 export type DocxInline =
   | { type: 'text'; text: string; style: DocxStyle; range: DocxRange }
   | { type: 'break'; range: DocxRange }
@@ -88,6 +89,8 @@ export function createDocxModel(text: string, name: string): DocxModel {
 export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
   if (text.length > DOCX_LIMITS.textBytes || new TextEncoder().encode(text).length > DOCX_LIMITS.textBytes) throw new DocxQuotaError('DOCX 正文最多 10 MiB，请减少内容后重试。')
   checkTree(tree)
+  const footnotes = indexFootnotes(tree)
+  const usedFootnotes = new Set(footnotes.order)
   const warnings: DocxWarnings = { items: [], total: 0, imageFailures: 0 }
   const definitions = new Map<string, Definition>()
   const allDefinitions: Definition[] = []
@@ -138,6 +141,10 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
       case 'emphasis': return inline(node.children, { ...style, italic: true })
       case 'delete': return inline(node.children, { ...style, strike: true })
       case 'break': return [{ type: 'break', range: range(node) }]
+      case 'footnoteReference': {
+        const number = footnotes.number(node.identifier)
+        return [literal(node, number === undefined ? original(node) : String(number), number === undefined ? style : { ...style, superscript: true })]
+      }
       case 'image': return [image(node, node.url, node.alt ?? '')]
       case 'imageReference': {
         const value = reference(node)
@@ -161,6 +168,7 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
     const source = range(node)
     switch (node.type) {
       case 'definition': return []
+      case 'footnoteDefinition': return usedFootnotes.has(node) ? [] : [raw(node)]
       case 'paragraph': return [{ type: 'paragraph', children: inline(node.children), range: source }]
       case 'heading': return [{ type: 'heading', level: node.depth, children: inline(node.children), range: source }]
       case 'blockquote': return [{ type: 'quote', children: blocks(node.children, depth), range: source }]
@@ -178,6 +186,14 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
     }
   })
   const output = blocks(tree.children)
+  if (footnotes.order.length) {
+    const source = range(footnotes.order[0])
+    warning(warnings, { code: 'footnote_endnotes', message: '脚注以可编辑上标编号和文末脚注区导出，不是 Word 原生逐页脚注。', severity: 'information', range: source })
+    output.push({ type: 'heading', level: 2, children: [literal(footnotes.order[0], '脚注', {})], range: source })
+    footnotes.order.forEach((note, index) => {
+      output.push({ type: 'paragraph', children: [literal(note, String(index + 1), { superscript: true })], range: range(note) }, ...blocks(note.children))
+    })
+  }
   for (const node of allDefinitions) if (!usedDefinitions.has(node)) {
     report(node, 'unused_definition', '未引用的链接定义将作为静态原文附录保留。')
     output.push({ type: 'raw', text: original(node), label: 'unused_definition', range: range(node) })
