@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-v0.5 已通过 PR #6 合并 main，从 `90c4ce7` 创建 `feature/v0.6`，按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 分四步开发：脚注/Front Matter、数学公式、Mermaid、统一导出与交付。第一步已提交 `afaaac9`，实现脚注往返导航、静态完整元数据和各渠道导出；第二步已实现数学公式、独立设置开关、离线 MathML HTML/打印和 DOCX LaTeX 原文降级，验收见 [数学公式记录](Docs/Easy-Markdown-v0.6-第二步-数学公式.md)。前三步暂保持版本 0.5.0。
+当前分支 `feature/v0.6` 从 main `90c4ce7` 创建，按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 完成脚注/Front Matter（`afaaac9`）、数学公式（`ff81da3`）与 Mermaid（`744d9f7`）；[第四步统一验收与交付](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md) 实现及本机验收完成，本次提交包含交付改动和证据。产品版本为 0.6.0，补齐四页使用导引、扩展导出说明、混排专项与 [v0.6 样例](Docs/samples/v0.6/README.md)。279 项前端 / 65 项 Windows Rust / 27 组生产回归、性能、真实 Windows WebView2 离线扩展和 6 份 Word 导出检查通过，Windows 安装/便携开发包已生成；三平台 CI 和人工门槛单独记录。
 
 v0.5 已完成会话/草稿恢复、最近文件/工作区、已保存标签重开、外部变化及全文/差异对照，历史 252 项前端/65 项 Windows Rust/23 组生产回归、性能、Word 和 Windows 开发包证据见 [v0.5 交付记录](Docs/Easy-Markdown-v0.5-第四步-验收与交付.md)。真实 IME 与跨平台 GUI 等仍待验收。仅借鉴 MarkText 的交互设计，独立实现，没有引入其代码或资源。
 
@@ -16,6 +16,9 @@ v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即�
 
 已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
 
+- 脚注往返导航及文末说明，文件开头 YAML/TOML 元数据完整静态原文；
+- 离线行内/块级数学公式和 Mermaid 流程图/时序图，四主题适配，设置独立开关，错误与超限保留源码；
+- HTML/打印输出静态 MathML 和 SVG 图片，DOCX 保留公式及图表的可编辑源码并预检提示，导出不改变正文；
 - 重启恢复标签顺序和活动页；桌面版最近打开最多记录 30 个文件、10 个工作区，启动最多自动重开 20 个已保存文件；清空记录不删除原文件、草稿或历史；
 - 有未完成草稿时需确认恢复为独立副本并另存；切回应用/标签检测外部变化，冲突时暂停自动保存，可比较双方全文、定位、复制、另存或确认加载，不自动合并；
 - 源码、分屏与即时渲染视图；即时渲染在同一编辑器中呈现标题/行内格式、代码、表格、图片和分隔线，活动块保留源码可编辑；
@@ -79,6 +82,10 @@ pnpm verify:live
 pnpm verify:workspace
 pnpm verify:templates
 pnpm verify:export
+pnpm verify:extensions
+pnpm verify:math
+pnpm verify:mermaid
+pnpm verify:extension-delivery
 pnpm verify:context-menu
 pnpm verify:commands
 pnpm verify:tables
@@ -107,9 +114,9 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
-Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。便携包位于 `src-tauri/target/release/bundle/portable/EasyM-0.5.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.5 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发包，验收状态见 [v0.5 交付记录](Docs/Easy-Markdown-v0.5-第四步-验收与交付.md)，源码/产物校验值见 [构建记录](Docs/verification/v0.5/step-4/windows-build.json)。
+Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。v0.6 便携包已生成于 `src-tauri/target/release/bundle/portable/EasyM-0.6.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.6 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发包，实际生成及验收状态见 [v0.6 交付记录](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md)。
 
-Windows 安装包已生成：`src-tauri/target/release/bundle/nsis/EasyM_0.5.0_x64-setup.exe`（附带项目与第三方许可，未签名；当前源码的安装/卸载待 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS；仅生成 NSIS 可运行 `pnpm.cmd tauri build --bundles nsis`，只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`。便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置及原生最近索引验证 Release 窗口启动与关闭；完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
+v0.6 Windows 安装包已生成于 `src-tauri/target/release/bundle/nsis/EasyM_0.6.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/卸载待 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS；仅生成 NSIS 可运行 `pnpm.cmd tauri build --bundles nsis`，只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`。便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置及原生最近索引验证 Release 窗口启动与关闭；`./scripts/verify-native-extensions.ps1` 使用独立进程及临时本机调试端口验证真实 WebView2 离线扩展，不修改生产 CSP。完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
 
 ## 许可
 

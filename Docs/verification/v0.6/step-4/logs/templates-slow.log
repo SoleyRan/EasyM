@@ -1,0 +1,2 @@
+$ node scripts/verify-templates.mjs "--slow"
+Template verification passed: generation, safe text, tabs, draft recovery, download, keyboard and themes.

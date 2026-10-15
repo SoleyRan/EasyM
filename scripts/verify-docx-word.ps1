@@ -1,4 +1,4 @@
-param([string]$InputDirectory = 'test-results/docx-ui')
+param([string]$InputDirectory = 'test-results/docx-ui', [string[]]$SampleNames = @('letter-compact', 'placeholders', 'display-image', 'office', 'multipage'))
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path -LiteralPath $InputDirectory).Path
 $reportPath = Join-Path $root 'word-verification.json'
@@ -14,7 +14,7 @@ try {
     $report.version = $word.Version
     $report.build = $word.Build
     $report.fileVersion = (Get-Item -LiteralPath (Join-Path $word.Path 'WINWORD.EXE')).VersionInfo.FileVersion
-    foreach ($name in @('letter-compact', 'placeholders', 'display-image', 'office', 'multipage')) {
+    foreach ($name in $SampleNames) {
         $inputPath = Join-Path $root ($name + '.docx')
         $document = $word.Documents.Open($inputPath, $false, $true, $false)
         $document.Repaginate()
@@ -27,6 +27,12 @@ try {
         if ($name -eq 'display-image' -and $images -ne 1) { throw 'Word lost the embedded display image' }
         if ($name -eq 'office' -and ($images -ne 2 -or $tables -ne 1 -or -not $text.Contains('EasyM 办公导出验收') -or -not $text.Contains('结束段落'))) { throw 'Word lost frozen office sample content' }
         if ($name -eq 'multipage' -and ($images -ne 12 -or $pages -lt 2 -or $tables -ne 2 -or -not $text.Contains('长代码行需要保留缩进'))) { throw 'Word lost multipage sample content/images' }
+        if ($name -eq 'combined') {
+            if ($images -ne 1 -or $tables -ne 1) { throw 'Word lost mixed-extension table/image' }
+            foreach ($expected in @('EasyM v0.6 扩展与导出', 'E=mc^2', '\frac{1}{2}+\sqrt{4}=\frac{5}{2}', '```mermaid', 'flowchart TD', 'sequenceDiagram', '这是文末脚注', '<script>仅作元数据原文展示</script>')) {
+                if (-not $text.Contains($expected)) { throw "Word lost extension source: $expected" }
+            }
+        }
         $pdf = Join-Path $root ($name + '-word.pdf')
         $document.ExportAsFixedFormat($pdf, 17)
         if ((Get-Item -LiteralPath $pdf).Length -eq 0) { throw 'Word PDF is empty' }

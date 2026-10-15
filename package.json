@@ -1,6 +1,6 @@
 {
   "name": "easym",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -44,7 +44,8 @@
     "verify:session": "node scripts/verify-session.mjs",
     "verify:recent": "node scripts/verify-recent.mjs",
     "verify:external": "node scripts/verify-external.mjs",
-    "verify:mermaid": "node scripts/verify-mermaid.mjs"
+    "verify:mermaid": "node scripts/verify-mermaid.mjs",
+    "verify:extension-delivery": "node scripts/verify-extension-delivery.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

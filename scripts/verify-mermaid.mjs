@@ -74,7 +74,10 @@ try {
   assert.match(await source().innerText(), /flowchart TD/)
   await page.getByRole('button', { name: '源码', exact: true }).click(); assert.equal(await text(), sample)
   await page.getByRole('button', { name: '分屏', exact: true }).click()
-  await page.getByRole('button', { name: '阅读模式', exact: true }).click(); await waitImages(); await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: '阅读模式', exact: true }).click()
+  await page.getByRole('button', { name: '退出阅读模式', exact: true }).waitFor()
+  await waitImages(); await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: '阅读模式', exact: true }).waitFor()
   report.checks.push('four theme palettes, compact layout, live source reveal and reading mode without source mutation')
 
   await setting(false)

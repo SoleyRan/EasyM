@@ -40,6 +40,7 @@ export function PrintDialog({ output, onClose }: { output: ExportDocument; onClo
     <div className="modal-backdrop print-backdrop"><div className="print-dialog" ref={dialog} role="dialog" aria-modal="true" aria-labelledby="print-title">
       <div className="print-heading"><h2 id="print-title">打印预览</h2><button onClick={onClose} disabled={printing}>返回编辑</button></div>
       <p>仅打印正文，纸张、边距和 PDF 选项由系统打印对话框设置。</p>
+      <p>公式和图表使用静态结果；关闭渲染、语法错误或超限时保留源码。脚注位于文末。</p>
       {!!output.warnings.length && <div className="print-warnings" role="alert">有 {output.warnings.length} 项图片未加载，将以文字占位打印。</div>}
       <div className="print-preview"><article className="export-document" dangerouslySetInnerHTML={{ __html: output.body }} /></div>
       {error && <p role="alert">{error}</p>}<div className="panel-actions"><button className="apply-button" onClick={() => void print()} disabled={printing}>{printing ? '正在打开打印…' : '打开系统打印'}</button></div>

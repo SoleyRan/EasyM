@@ -53,7 +53,13 @@ const native = JSON.parse((await readFile('test-results/native-startup-verificat
 assert.equal(native.version, config.version)
 assert.equal(native.passed, true)
 assert.equal(native.executableSha256, artifacts.find(item => item.path.endsWith('/easym.exe')).sha256)
-for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'extensions-verification.json', 'math-verification.json', 'mermaid-verification.json', 'context-menu-verification.json', 'docx-library-verification.json', 'docx-verification.json', 'docx-ui-verification.json', 'history-verification.json', 'batch-images-verification.json', 'regression-verification.json', 'native-startup-verification.json', 'settings-verification.json', 'commands-verification.json', 'tables-verification.json', 'content-tools-verification.json', 'quick-entry-verification.json', 'appearance-verification.json', 'portable-verification.json', 'session-verification.json', 'recent-verification.json', 'external-verification.json']) {
+const extensions = JSON.parse((await readFile('test-results/native-extensions-verification.json', 'utf8')).replace(/^\uFEFF/, ''))
+assert.equal(extensions.version, config.version)
+assert.equal(extensions.passed, true)
+assert.equal(extensions.gracefulClose, true)
+assert.equal(extensions.executableSha256, native.executableSha256)
+await copyFile('test-results/native-extensions-verification.json', resolve(output, 'native-extensions-verification.json'))
+for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'extensions-verification.json', 'math-verification.json', 'mermaid-verification.json', 'extension-delivery-verification.json', 'context-menu-verification.json', 'docx-library-verification.json', 'docx-verification.json', 'docx-ui-verification.json', 'history-verification.json', 'batch-images-verification.json', 'regression-verification.json', 'native-startup-verification.json', 'settings-verification.json', 'commands-verification.json', 'tables-verification.json', 'content-tools-verification.json', 'quick-entry-verification.json', 'appearance-verification.json', 'portable-verification.json', 'session-verification.json', 'recent-verification.json', 'external-verification.json']) {
   await copyFile(resolve('test-results', file), resolve(output, file))
 }
 await writeFile(resolve(output, 'windows-build.json'), JSON.stringify({

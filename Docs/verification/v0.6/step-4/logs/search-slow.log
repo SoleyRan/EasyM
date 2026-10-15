@@ -1,0 +1,2 @@
+$ node scripts/verify-search.mjs "--slow"
+Search verification passed: Unicode, replace/undo, keyboard/IME guards, tabs, worker limits and split navigation.

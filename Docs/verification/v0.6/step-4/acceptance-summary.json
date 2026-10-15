@@ -1,0 +1,536 @@
+{
+  "recordedAt": "2026-10-15T03:58:59.630Z",
+  "stage": "v0.6-step-4",
+  "version": "0.6.0",
+  "source": {
+    "branch": "feature/v0.6",
+    "baseCommit": "744d9f7c742e38966de5112bd8e8a5104fa393b7",
+    "uncommittedStep4Changes": true,
+    "sourceTree": {
+      "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
+      "files": 621,
+      "sha256": "8abb1e4fa59429077ac4318b6450b9e0950b38518a9e316e7ff6897d4ca7eaf7"
+    }
+  },
+  "localDevelopmentAcceptancePassed": true,
+  "formalReleaseReady": false,
+  "checks": {
+    "frontend": {
+      "files": 49,
+      "tests": 279,
+      "passed": true
+    },
+    "windowsRust": {
+      "tests": 65,
+      "passed": true,
+      "locked": true,
+      "offline": true
+    },
+    "regression": {
+      "version": "0.6.0",
+      "startedAt": "2026-10-15T03:48:49.955Z",
+      "browser": "chromium",
+      "passed": true,
+      "checks": [
+        {
+          "script": "workers",
+          "passed": true,
+          "durationMs": 502
+        },
+        {
+          "script": "docx-library",
+          "passed": true,
+          "durationMs": 4630
+        },
+        {
+          "script": "docx",
+          "passed": true,
+          "durationMs": 37207
+        },
+        {
+          "script": "docx-ui",
+          "passed": true,
+          "durationMs": 28424
+        },
+        {
+          "script": "history",
+          "passed": true,
+          "durationMs": 3006
+        },
+        {
+          "script": "batch-images",
+          "passed": true,
+          "durationMs": 9913
+        },
+        {
+          "script": "settings",
+          "passed": true,
+          "durationMs": 2807
+        },
+        {
+          "script": "browser",
+          "passed": true,
+          "durationMs": 6318
+        },
+        {
+          "script": "writing",
+          "passed": true,
+          "durationMs": 67150
+        },
+        {
+          "script": "search",
+          "passed": true,
+          "durationMs": 6362
+        },
+        {
+          "script": "live-preview",
+          "passed": true,
+          "durationMs": 17940
+        },
+        {
+          "script": "workspace",
+          "passed": true,
+          "durationMs": 2218
+        },
+        {
+          "script": "templates",
+          "passed": true,
+          "durationMs": 5463
+        },
+        {
+          "script": "export",
+          "passed": true,
+          "durationMs": 4975
+        },
+        {
+          "script": "extensions",
+          "passed": true,
+          "durationMs": 7391
+        },
+        {
+          "script": "math",
+          "passed": true,
+          "durationMs": 8139
+        },
+        {
+          "script": "mermaid",
+          "passed": true,
+          "durationMs": 32693
+        },
+        {
+          "script": "extension-delivery",
+          "passed": true,
+          "durationMs": 9381
+        },
+        {
+          "script": "context-menu",
+          "passed": true,
+          "durationMs": 5653
+        },
+        {
+          "script": "commands",
+          "passed": true,
+          "durationMs": 1793
+        },
+        {
+          "script": "tables",
+          "passed": true,
+          "durationMs": 10224
+        },
+        {
+          "script": "content-tools",
+          "passed": true,
+          "durationMs": 13656
+        },
+        {
+          "script": "quick-entry",
+          "passed": true,
+          "durationMs": 10261
+        },
+        {
+          "script": "appearance",
+          "passed": true,
+          "durationMs": 7746
+        },
+        {
+          "script": "session",
+          "passed": true,
+          "durationMs": 2612
+        },
+        {
+          "script": "recent",
+          "passed": true,
+          "durationMs": 5484
+        },
+        {
+          "script": "external",
+          "passed": true,
+          "durationMs": 11149
+        }
+      ],
+      "distIndexSha256": "3fbb9dcba2c54a2c3bbdc1bdb6b8bc4b7702c90e210cbbbfe571614b089d91b0",
+      "finishedAt": "2026-10-15T03:54:13.059Z"
+    },
+    "reports": {
+      "performance": {
+        "verifiedAt": "2026-10-15T03:54:26.227Z",
+        "machine": {
+          "os": "win32",
+          "release": "10.0.26200",
+          "cpu": "Intel(R) Core(TM) 5 220H",
+          "logicalCpus": 16,
+          "memoryGiB": 31.7
+        },
+        "cases": [
+          {
+            "name": "5 MiB text",
+            "bytes": 5242880,
+            "openMs": 1812,
+            "inputSamples": 40,
+            "inputEventToNextFrameP95Ms": 17.5,
+            "targetMs": 50,
+            "targetMet": true,
+            "sourceHighlightLimited": false
+          },
+          {
+            "name": "100 KiB single line",
+            "bytes": 102400,
+            "openMs": 108,
+            "inputSamples": 40,
+            "inputEventToNextFrameP95Ms": 17,
+            "targetMs": 50,
+            "targetMet": true,
+            "sourceHighlightLimited": true,
+            "fullPreviewAndUndoVerified": true
+          },
+          {
+            "name": "table limit",
+            "rowsIncludingHeader": 100,
+            "columns": 20,
+            "cells": 2000,
+            "bytes": 19321,
+            "openMs": 165,
+            "lastCellScrollAndSelectMs": 115,
+            "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+          },
+          {
+            "name": "table limit",
+            "rowsIncludingHeader": 201,
+            "columns": 9,
+            "cells": 1809,
+            "bytes": 16738,
+            "openMs": 123,
+            "lastCellScrollAndSelectMs": 100,
+            "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+          },
+          {
+            "name": "selection overlay positioning and scroll dismissal",
+            "samples": 10,
+            "wallTimeToVisibleP95Ms": 277,
+            "intentionalDebounceMs": 160,
+            "bounded": true,
+            "scrollDismissed": true,
+            "scope": "UI wall time includes debounce and automation; not input-to-frame p95"
+          },
+          {
+            "name": "100 local 800×600 images",
+            "restoreAndDecodeMs": 484,
+            "imageCount": 100,
+            "allDecoded": true
+          },
+          {
+            "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+            "boundaryBytes": 20971520,
+            "accepted": {
+              "durationMs": 48.9,
+              "width": 800,
+              "height": 600
+            },
+            "rejected": {
+              "durationMs": 24.4,
+              "error": "图片文件超过 20 MB。"
+            }
+          }
+        ],
+        "browser": "156.0.8078.4",
+        "passed": true
+      },
+      "search-slow": {
+        "stage": "v0.2-step-1",
+        "verifiedAt": "2026-10-15T03:55:31.548Z",
+        "browser": "156.0.8078.4",
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "Chinese and emoji source offsets",
+          "literal query and replacement",
+          "case and whole word",
+          "forward/reverse wraparound",
+          "single/all replacement undo",
+          "Ctrl+F/Enter/Shift+Enter/Escape",
+          "search input composition guard (synthetic events)",
+          "independent tab queries",
+          "bounded and superseded worker counts",
+          "split source and preview navigation"
+        ]
+      },
+      "templates-slow": {
+        "stage": "v0.2-step-4",
+        "verifiedAt": "2026-10-15T03:56:30.306Z",
+        "browser": "156.0.8078.4",
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "EM template entry",
+          "initial focus, focus trap, Escape/cancel and return focus",
+          "blank/meeting/project templates",
+          "literal Chinese/emoji/dollar/nested placeholder substitutions",
+          "script text does not execute",
+          "independent tabs and preserved source",
+          "untouched blank closes without prompt",
+          "generated draft survives reload",
+          "first browser download preserves exact Markdown",
+          "four themes and compact dialog layout"
+        ]
+      },
+      "native-startup": {
+        "verifiedAt": "2026-10-15T03:39:31.1736273Z",
+        "version": "0.6.0",
+        "executableSha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1",
+        "isolatedProfile": true,
+        "isolatedNativeRegistry": true,
+        "launched": true,
+        "gracefulClose": true,
+        "passed": true,
+        "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance."
+      },
+      "native-extensions": {
+        "verifiedAt": "2026-10-15T03:48:07.493Z",
+        "version": "0.6.0",
+        "passed": true,
+        "checks": [
+          "real release custom-scheme origin, WebView offline emulation, opaque-origin Mermaid iframe and MathML/note/metadata rendering",
+          "four themes, reading/Escape and live source retention; no external requests or page exceptions during exercised workflow"
+        ],
+        "isolatedProfile": true,
+        "executableSha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1",
+        "scope": "Actual Windows release WebView2 over an isolated temporary CDP endpoint. No mocked IPC or source injection; excludes IME, OS save/print and other WebViews.",
+        "browser": "155.0.4283.45",
+        "origin": "http://tauri.localhost",
+        "gracefulClose": true
+      },
+      "portable": {
+        "verifiedAt": "2026-10-15T03:58:46.5084896Z",
+        "version": "0.6.0",
+        "archive": "src-tauri/target/release/bundle/portable/EasyM-0.6.0-windows-x64-dev.zip",
+        "bytes": 6681324,
+        "entries": 313,
+        "sha256": "a504bf1eed6ee1c2ae7ca86cdda0667450fd8bb62e25d8ae2f5d00f2ef9d1118",
+        "executableSha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1",
+        "sampleVersion": "v0.6",
+        "allStagedFileHashesVerified": true,
+        "passed": true
+      },
+      "extension-delivery": {
+        "version": "0.6.0",
+        "verifiedAt": "2026-10-15T03:52:55.460Z",
+        "passed": true,
+        "checks": [
+          "four guide pages with arrow navigation, v0.6 extension/export contract and visible navigation at 960x680",
+          "mixed static HTML has escaped metadata, valid note anchors, MathML, two SVG images, embedded authorized PNG and bordered table; offline file has no active runtime",
+          "actual print PDF and downloaded DOCX retain mixed content, editable exact formula/diagram source, note/metadata warnings, table and embedded PNG; original Markdown unchanged",
+          "both rendering switches preserve mixed source fallbacks in exported HTML and leave local PNG/source intact; no external requests or page errors"
+        ],
+        "scope": "Production Chromium mixed extensions and actual downloaded outputs; OS dialogs, native WebViews and Word are separate checks.",
+        "browser": "156.0.8078.4"
+      },
+      "word": {
+        "verifiedAt": "2026-10-15T03:56:41.9309448Z",
+        "passed": true,
+        "application": "Microsoft Word",
+        "version": "16.0",
+        "checks": [
+          {
+            "sample": "letter-compact",
+            "pages": 1,
+            "tables": 1,
+            "inlineImages": 0,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 194255
+          },
+          {
+            "sample": "placeholders",
+            "pages": 1,
+            "tables": 0,
+            "inlineImages": 0,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 178791
+          },
+          {
+            "sample": "display-image",
+            "pages": 1,
+            "tables": 0,
+            "inlineImages": 1,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 145028
+          },
+          {
+            "sample": "office",
+            "pages": 2,
+            "tables": 1,
+            "inlineImages": 2,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 4313131
+          },
+          {
+            "sample": "multipage",
+            "pages": 25,
+            "tables": 2,
+            "inlineImages": 12,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 437152
+          }
+        ],
+        "build": "16.0.20430",
+        "fileVersion": "16.0.20430.20146"
+      },
+      "word-extensions": {
+        "verifiedAt": "2026-10-15T03:57:47.3530322Z",
+        "passed": true,
+        "application": "Microsoft Word",
+        "version": "16.0",
+        "checks": [
+          {
+            "sample": "combined",
+            "pages": 2,
+            "tables": 1,
+            "inlineImages": 1,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 275941
+          }
+        ],
+        "build": "16.0.20430",
+        "fileVersion": "16.0.20430.20146"
+      }
+    },
+    "dependencyInventory": {
+      "target": "x86_64-pc-windows-msvc",
+      "dependencies": 563,
+      "missingLicenseTexts": [],
+      "completeLicenseTexts": true
+    },
+    "packageMetadata": {
+      "verifiedAt": "2026-10-15T03:58:47.7034201Z",
+      "artifacts": [
+        {
+          "path": "src-tauri/target/release/easym.exe",
+          "bytes": 13950976,
+          "productName": "EasyM",
+          "productVersion": "0.6.0",
+          "sha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1"
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/EasyM_0.6.0_x64-setup.exe",
+          "bytes": 5192808,
+          "productName": "EasyM",
+          "productVersion": "0.6.0",
+          "sha256": "c554314cb39971ec2cc466e1c46323686d95fcee55d1f8addddb0d4cf553858d"
+        }
+      ]
+    }
+  },
+  "logs": {
+    "typecheck": {
+      "path": "logs/typecheck.log",
+      "bytes": 10,
+      "sha256": "1f345e6ac1f9e6ae7c4e70d1f0c8c9f8b8f80218269a1b4473f9ac63a9d4a253"
+    },
+    "unit": {
+      "path": "logs/unit.log",
+      "bytes": 12246,
+      "sha256": "b2ef77978f68f8140e2c55e9b50d233383b18305abc1f360110f4a0ffb4ce84a"
+    },
+    "desktop-build": {
+      "path": "logs/desktop-build.log",
+      "bytes": 9231,
+      "sha256": "92af11bff82d708a395db9df39361c3ba0ae841bbd6bb5ad6a966419b4b286cc"
+    },
+    "rust": {
+      "path": "logs/rust.log",
+      "bytes": 6560,
+      "sha256": "1cfb24f5ee249dff00088f27cdabac6ca7e74b14fc379524208c53a6f8ff5c57"
+    },
+    "regression": {
+      "path": "logs/regression.log",
+      "bytes": 15832,
+      "sha256": "0542ca7ed4ea183820498ad5a97dd682896f6b68c3bb07c7c528502923954f66"
+    },
+    "performance": {
+      "path": "logs/performance.log",
+      "bytes": 2387,
+      "sha256": "5e2c7148b3a14378fcda0121df481bf539c3849d9c825423b92ecb49bc7488cf"
+    },
+    "search-slow": {
+      "path": "logs/search-slow.log",
+      "bytes": 158,
+      "sha256": "05839571eb9ab989004d6ecd4358ed378f5292a4020dd39387c60ab63e420df3"
+    },
+    "templates-slow": {
+      "path": "logs/templates-slow.log",
+      "bytes": 153,
+      "sha256": "9c19afe65b1e242759382890fe50e46b21ba71b5b5d073124f8f42ae54d2f293"
+    },
+    "release": {
+      "path": "logs/release.log",
+      "bytes": 115,
+      "sha256": "d9ffb8e8ba6870e9432871e04c9044353f0fa57b66bab36019f909339bc382a3"
+    },
+    "notices": {
+      "path": "logs/notices.log",
+      "bytes": 88,
+      "sha256": "a44d83ce89c6a4bcd02ad37e3a98abf2029987733a455ca15205f8f39b40fb0d"
+    },
+    "word": {
+      "path": "logs/word.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "word-extensions": {
+      "path": "logs/word-extensions.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "native-startup": {
+      "path": "logs/native-startup.log",
+      "bytes": 403,
+      "sha256": "67d2f7a66031581d1a2d4775c582db86e25c08ad50ace1c4e89c961e41997077"
+    },
+    "native-extensions": {
+      "path": "logs/native-extensions.log",
+      "bytes": 735,
+      "sha256": "ceb56a03902510cd49f229d31a7cf9bc73b982d9897869859ff1eb7e6205e9d7"
+    },
+    "bundle": {
+      "path": "logs/bundle.log",
+      "bytes": 455,
+      "sha256": "8a818da18b27a232beb07687c44fed750e6bb6f4ea8293c75c3e5eaf9723f636"
+    },
+    "portable": {
+      "path": "logs/portable.log",
+      "bytes": 554,
+      "sha256": "ddc1d0bf12e7b3c4713995c0130368578078942ef982d8d06a337109a4523232"
+    }
+  },
+  "pending": [
+    "Current source has not been pushed; three-platform CI and disposable Windows install/remove pending.",
+    "Real IME, native file/print dialogs and pagination, screen reader and macOS/Linux GUI remain manual acceptance.",
+    "macOS/Linux dependency notices must be generated on their own targets; inherited macOS missing license texts remain a release gate.",
+    "Unsigned development build; signing and formal release review pending."
+  ]
+}
