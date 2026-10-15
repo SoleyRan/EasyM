@@ -30,6 +30,7 @@ try {
   const setting = async enabled => {
     await action('设置'); await page.getByRole('checkbox', { name: 'Mermaid 图表渲染', exact: true }).setChecked(enabled)
     await page.getByRole('dialog', { name: '设置', exact: true }).getByRole('button', { name: '完成', exact: true }).click()
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-label') === 'EM 菜单')
   }
   const waitImages = async (count = 2) => {
     await page.waitForFunction(count => {
@@ -87,11 +88,13 @@ try {
   assert.doesNotMatch(await readFile('test-results/mermaid/disabled.html', 'utf8'), /<img /)
   await panel().locator('.statusbar').filter({ hasText: '草稿已保存' }).waitFor(); await page.reload()
   await page.getByRole('dialog', { name: '恢复草稿', exact: true }).getByRole('button', { name: '恢复草稿', exact: true }).click()
+  await page.getByRole('dialog', { name: '恢复草稿', exact: true }).waitFor({ state: 'detached' })
+  assert.equal(await text(), sample)
   await action('设置'); assert.equal(await page.getByRole('checkbox', { name: 'Mermaid 图表渲染', exact: true }).isChecked(), false)
   assert.equal(await page.getByRole('checkbox', { name: '数学公式渲染', exact: true }).isChecked(), true)
   await page.getByRole('dialog', { name: '设置', exact: true }).getByRole('button', { name: '完成', exact: true }).click()
-  await setting(true); await fillSource(page, sample); await page.getByRole('button', { name: '分屏', exact: true }).click(); await waitImages()
-  report.checks.push('independent persisted setting controls preview and HTML source fallback')
+  await setting(true); await page.getByRole('button', { name: '分屏', exact: true }).click(); await waitImages()
+  report.checks.push('complete draft survives reload without rewriting; independent persisted setting controls preview and HTML source fallback')
 
   const downloaded = page.waitForEvent('download'); await exportAction('HTML')
   const htmlPath = `${process.cwd()}/test-results/mermaid/standalone.html`; await (await downloaded).saveAs(htmlPath)

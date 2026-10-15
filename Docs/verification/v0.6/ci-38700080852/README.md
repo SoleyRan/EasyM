@@ -29,3 +29,9 @@ https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/security#for-
 另将原脚本的策略分支重定向到独立 HKCU 沙盒，强制启动失败，确认已有策略内容与 ExpandString 类型恢复、其他可执行文件策略不变、新建叶键移除、环境变量恢复，见 `policy-cleanup-verification.json`。这项检查不等价于实际提权 HKLM/WebView2 验收；本机不是提权进程，最终仍须由修复后的 Windows GitHub runner 确认。
 
 临时日志与原始 CI 产物位于被 Git 忽略的 `test-results/ci-38700080852/` 等目录。此处记录本地验证结果，未宣称远端 CI 已通过。
+
+## 推送后的云端验证及 Mermaid 补充
+
+修复提交 `5f2332a` 对应运行：https://github.com/SoleyRan/EasyM/actions/runs/38707285902
+
+该运行的公式验收已通过。其后的 Mermaid 验收在相同的恢复/关闭设置/重新输入流程失败，截图也只剩第一行 `# Mermaid 离线图表`。同步移除 Mermaid 验收中恢复后的重复输入，并检查完整恢复内容与设置关闭焦点。Linux Node 22 定向 Mermaid 验收通过，见 `mermaid-linux-verification.json`。云端原始日志及截图保存在 `test-results/ci-38707285902/`。
