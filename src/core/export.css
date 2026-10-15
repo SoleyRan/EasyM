@@ -22,6 +22,11 @@
 .export-document img { display: inline-block; max-width: 100%; height: auto; max-height: 240mm; object-fit: contain; break-inside: avoid; }
 .export-document .missing-image { color: #7b331b; border: 1px dashed #999; padding: 4px 8px; }
 .export-document hr { border: 0; border-top: 1px solid #aaa; }
+.export-document .markdown-metadata { border: 1px solid #bbb; padding: 0 12px; margin: 1em 0; }
+.export-document .markdown-metadata > p { font-size: 12px; color: #555; }
+.export-document .footnotes { border-top: 1px solid #aaa; margin-top: 2em; font-size: .9em; }
+.export-document .footnotes > h2 { font-size: 1.1em; }
+.export-document a:focus-visible { outline: 2px solid #135aa1; outline-offset: 2px; }
 .export-document input[type=checkbox] { accent-color: #333; }
 @page { size: auto; margin: 18mm; }
 @media print { .export-document { font-size: 11pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; } }

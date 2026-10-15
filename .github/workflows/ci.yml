@@ -25,6 +25,8 @@ jobs:
         run: pnpm verify:search --slow
       - name: Verify templates with a slower browser
         run: pnpm verify:templates --slow
+      - name: Verify math and draft recovery with a slower browser
+        run: pnpm verify:math --slow
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -50,6 +52,16 @@ jobs:
             test-results/templates-slow-verification.json
             test-results/templates-failure.png
             test-results/export-verification.json
+            test-results/extensions-verification.json
+            test-results/extensions/*
+            test-results/math-verification.json
+            test-results/math/*
+            test-results/math-slow-verification.json
+            test-results/math-slow/*
+            test-results/mermaid-verification.json
+            test-results/mermaid/*
+            test-results/extension-delivery-verification.json
+            test-results/extension-delivery/*
             test-results/context-menu-verification.json
             test-results/commands-verification.json
             test-results/tables-verification.json
@@ -108,6 +120,10 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/verify-native-startup.ps1
+      - name: Verify Windows offline Markdown extensions
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/verify-native-extensions.ps1
       - name: Build Windows installer
         if: runner.os == 'Windows'
         run: pnpm tauri bundle --bundles nsis --no-binary-patching
@@ -127,6 +143,9 @@ jobs:
           path: |
             test-results/installer-verification.json
             test-results/native-startup-verification.json
+            test-results/native-extensions-verification.json
+            test-results/native-extensions/*.png
+            test-results/native-extensions/*.log
             test-results/portable-verification.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4

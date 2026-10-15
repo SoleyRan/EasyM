@@ -2,6 +2,8 @@ import { invoke } from '@tauri-apps/api/core'
 import { version } from '../../package.json'
 
 export const appVersion = version
+export function loadMathRendering(): boolean { return storedPreference('easym-math-rendering') !== 'disabled' }
+export function saveMathRendering(enabled: boolean): boolean { return storePreference('easym-math-rendering', enabled ? 'enabled' : 'disabled') }
 export const themes = { light: '清爽浅色', dark: '午夜深色', paper: '暖纸', forest: '护眼绿' }
 export type Theme = keyof typeof themes
 export interface Appearance {
@@ -45,3 +47,6 @@ export function editorFontSize(): number {
 }
 export interface HistoryDirectory { path: string; documentDirectory: string; custom: boolean; retainedPath?: string; backupPath?: string | null }
 export const historyDirectory = (id: string, action: 'status' | 'choose' | 'reset') => invoke<HistoryDirectory | null>('history_directory', { id, action })
+
+export function loadMermaidRendering(): boolean { return storedPreference('easym-mermaid-rendering') !== 'disabled' }
+export function saveMermaidRendering(enabled: boolean): boolean { return storePreference('easym-mermaid-rendering', enabled ? 'enabled' : 'disabled') }

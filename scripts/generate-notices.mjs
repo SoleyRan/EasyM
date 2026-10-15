@@ -12,6 +12,7 @@ const output = resolve(outputDirectory)
 const appVersion = JSON.parse(await readFile('package.json', 'utf8')).version
 const externalLicenseRoot = resolve('scripts/external-licenses')
 const externalLicenses = {
+  'npm:remark-math@6.0.0': [{ file: 'remark-math-MIT.txt', source: 'https://github.com/remarkjs/remark-math/blob/d5d0660b150810a535bbb07eac6cc96a4510aa24/license' }],
   'npm:hash.js@1.1.7': [{ file: 'hash.js-MIT.txt', source: 'https://github.com/indutny/hash.js/blob/fcd35edcc4e30145be4b7a737477ad54e83afc25/README.md#license' }],
   'npm:isarray@1.0.0': [{ file: 'isarray-MIT.txt', source: 'https://github.com/juliangruber/isarray/blob/2a23a281f369e9ae06394c0fb4d2381355a6ba33/README.md#license' }],
   'npm:pako@1.0.11': [{ file: 'pako-Zlib.txt', source: 'https://github.com/nodeca/pako/blob/a718e4f6e5ce87b0964d8f84541d92a23263365b/lib/zlib/README' }],

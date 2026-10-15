@@ -1,0 +1,135 @@
+{
+  "version": "0.5.0",
+  "startedAt": "2026-10-15T02:31:03.877Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 623
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 5175
+    },
+    {
+      "script": "docx",
+      "passed": true,
+      "durationMs": 10963
+    },
+    {
+      "script": "docx-ui",
+      "passed": true,
+      "durationMs": 39200
+    },
+    {
+      "script": "history",
+      "passed": true,
+      "durationMs": 3539
+    },
+    {
+      "script": "batch-images",
+      "passed": true,
+      "durationMs": 10381
+    },
+    {
+      "script": "settings",
+      "passed": true,
+      "durationMs": 3068
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 6031
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 60483
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 6068
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 15422
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 2171
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 4902
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 4540
+    },
+    {
+      "script": "extensions",
+      "passed": true,
+      "durationMs": 7060
+    },
+    {
+      "script": "math",
+      "passed": true,
+      "durationMs": 7801
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 5415
+    },
+    {
+      "script": "commands",
+      "passed": true,
+      "durationMs": 2084
+    },
+    {
+      "script": "tables",
+      "passed": true,
+      "durationMs": 9250
+    },
+    {
+      "script": "content-tools",
+      "passed": true,
+      "durationMs": 12298
+    },
+    {
+      "script": "quick-entry",
+      "passed": true,
+      "durationMs": 9842
+    },
+    {
+      "script": "appearance",
+      "passed": true,
+      "durationMs": 6888
+    },
+    {
+      "script": "session",
+      "passed": true,
+      "durationMs": 2755
+    },
+    {
+      "script": "recent",
+      "passed": true,
+      "durationMs": 5097
+    },
+    {
+      "script": "external",
+      "passed": true,
+      "durationMs": 10540
+    }
+  ],
+  "distIndexSha256": "eefee668866be6597146a66c50b4223bce0ee8db8077f5a626f561f98bba4e84",
+  "finishedAt": "2026-10-15T02:35:15.485Z"
+}

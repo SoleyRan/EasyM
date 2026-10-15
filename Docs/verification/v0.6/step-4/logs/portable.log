@@ -1,0 +1,13 @@
+x86_64-pc-windows-msvc: 563 dependencies, 296 license files verified; 0 missing texts.
+{
+  "verifiedAt": "2026-10-15T03:58:46.5084896Z",
+  "version": "0.6.0",
+  "archive": "src-tauri/target/release/bundle/portable/EasyM-0.6.0-windows-x64-dev.zip",
+  "bytes": 6681324,
+  "entries": 313,
+  "sha256": "a504bf1eed6ee1c2ae7ca86cdda0667450fd8bb62e25d8ae2f5d00f2ef9d1118",
+  "executableSha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1",
+  "sampleVersion": "v0.6",
+  "allStagedFileHashesVerified": true,
+  "passed": true
+}

@@ -63,6 +63,7 @@ export function DocxDialog({ prepared, source, phase, onGenerate, onCancel, onLo
     }}>
       <h2 id="docx-title">导出 DOCX</h2>
       <p className="panel-note">导出当前正文，包含未保存的编辑。</p>
+      <p className="panel-note">脚注输出为文末脚注；公式和 Mermaid 图表保留可编辑源码，元数据保留原文。具体降级见预检提示。</p>
       {prepared && <>
         <p className="docx-filename">文件名：<strong>{prepared.model.name}</strong></p>
         <div className="docx-options">

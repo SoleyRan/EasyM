@@ -1,11 +1,12 @@
 import type { Definition, Nodes, Root } from 'mdast'
 import { parseMarkdownAst } from './markdown-ast'
+import { indexFootnotes } from './footnotes'
 import { localImagePath } from './export-resource'
 import { inspectImage, MAX_ASSET_BYTES, MAX_IMAGE_BYTES } from './images'
 
 export const DOCX_LIMITS = { textBytes: 10 * 1024 * 1024, nodes: 100_000, images: 500, warnings: 1000, depth: 128 } as const
 export interface DocxRange { from: number; to: number }
-export type DocxWarningCode = 'unsupported_node' | 'unsafe_link' | 'unresolved_reference' | 'unused_definition' | 'wide_table' | 'deep_list' | 'restricted_image' | 'missing_image' | 'invalid_image' | 'font_fallback'
+export type DocxWarningCode = 'unsupported_node' | 'unsafe_link' | 'unresolved_reference' | 'unused_definition' | 'wide_table' | 'deep_list' | 'restricted_image' | 'missing_image' | 'invalid_image' | 'font_fallback' | 'footnote_endnotes' | 'math_source' | 'mermaid_source'
 export interface DocxWarning {
   code: DocxWarningCode
   message: string
@@ -14,7 +15,7 @@ export interface DocxWarning {
   resource?: string
 }
 export interface DocxWarnings { items: DocxWarning[]; total: number; imageFailures: number }
-export interface DocxStyle { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean }
+export interface DocxStyle { bold?: boolean; italic?: boolean; strike?: boolean; code?: boolean; superscript?: boolean }
 export type DocxInline =
   | { type: 'text'; text: string; style: DocxStyle; range: DocxRange }
   | { type: 'break'; range: DocxRange }
@@ -88,6 +89,8 @@ export function createDocxModel(text: string, name: string): DocxModel {
 export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
   if (text.length > DOCX_LIMITS.textBytes || new TextEncoder().encode(text).length > DOCX_LIMITS.textBytes) throw new DocxQuotaError('DOCX 正文最多 10 MiB，请减少内容后重试。')
   checkTree(tree)
+  const footnotes = indexFootnotes(tree)
+  const usedFootnotes = new Set(footnotes.order)
   const warnings: DocxWarnings = { items: [], total: 0, imageFailures: 0 }
   const definitions = new Map<string, Definition>()
   const allDefinitions: Definition[] = []
@@ -134,10 +137,17 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
     switch (node.type) {
       case 'text': return [literal(node, node.value.replace(/\r?\n/g, ' '), style)]
       case 'inlineCode': return [literal(node, node.value, { ...style, code: true })]
+      case 'inlineMath':
+        report(node, 'math_source', '公式以可编辑 LaTeX 原文导出，不生成 Word 原生公式。')
+        return [literal(node, original(node), { ...style, code: true })]
       case 'strong': return inline(node.children, { ...style, bold: true })
       case 'emphasis': return inline(node.children, { ...style, italic: true })
       case 'delete': return inline(node.children, { ...style, strike: true })
       case 'break': return [{ type: 'break', range: range(node) }]
+      case 'footnoteReference': {
+        const number = footnotes.number(node.identifier)
+        return [literal(node, number === undefined ? original(node) : String(number), number === undefined ? style : { ...style, superscript: true })]
+      }
       case 'image': return [image(node, node.url, node.alt ?? '')]
       case 'imageReference': {
         const value = reference(node)
@@ -161,6 +171,7 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
     const source = range(node)
     switch (node.type) {
       case 'definition': return []
+      case 'footnoteDefinition': return usedFootnotes.has(node) ? [] : [raw(node)]
       case 'paragraph': return [{ type: 'paragraph', children: inline(node.children), range: source }]
       case 'heading': return [{ type: 'heading', level: node.depth, children: inline(node.children), range: source }]
       case 'blockquote': return [{ type: 'quote', children: blocks(node.children, depth), range: source }]
@@ -168,7 +179,15 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
         if (depth >= 9) report(node, 'deep_list', '超过 9 层的列表将使用静态编号和缩进。')
         return [{ type: 'list', ordered: node.ordered ?? false, start: node.start ?? 1, depth, staticMarkers: depth >= 9, items: node.children.map(item => ({ checked: item.checked ?? null, children: blocks(item.children, depth + 1), range: range(item) })), range: source }]
       }
-      case 'code': return [{ type: 'code', text: node.value, language: node.lang ?? null, range: source }]
+      case 'code':
+        if (node.lang === 'mermaid') {
+          report(node, 'mermaid_source', 'Mermaid 图表以可编辑围栏源码导出，不生成 Word 图形。')
+          return [{ type: 'raw', text: original(node), label: 'Mermaid 图表源码', range: source }]
+        }
+        return [{ type: 'code', text: node.value, language: node.lang ?? null, range: source }]
+      case 'math':
+        report(node, 'math_source', '公式以可编辑 LaTeX 原文导出，不生成 Word 原生公式。')
+        return [{ type: 'raw', text: original(node), label: 'LaTeX 公式', range: source }]
       case 'thematicBreak': return [{ type: 'separator', range: source }]
       case 'table': {
         if (node.align && node.align.length > 8 || node.children.some(row => row.children.some(cell => original(cell).length > 500))) report(node, 'wide_table', '表格列数或单元格文本较多，请在目标软件检查宽度和分页。')
@@ -178,6 +197,14 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
     }
   })
   const output = blocks(tree.children)
+  if (footnotes.order.length) {
+    const source = range(footnotes.order[0])
+    warning(warnings, { code: 'footnote_endnotes', message: '脚注以可编辑上标编号和文末脚注区导出，不是 Word 原生逐页脚注。', severity: 'information', range: source })
+    output.push({ type: 'heading', level: 2, children: [literal(footnotes.order[0], '脚注', {})], range: source })
+    footnotes.order.forEach((note, index) => {
+      output.push({ type: 'paragraph', children: [literal(note, String(index + 1), { superscript: true })], range: range(note) }, ...blocks(note.children))
+    })
+  }
   for (const node of allDefinitions) if (!usedDefinitions.has(node)) {
     report(node, 'unused_definition', '未引用的链接定义将作为静态原文附录保留。')
     output.push({ type: 'raw', text: original(node), label: 'unused_definition', range: range(node) })

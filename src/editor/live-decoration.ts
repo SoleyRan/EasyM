@@ -35,7 +35,7 @@ class BlockWidget extends WidgetType {
     const body = document.createElement('div'); body.innerHTML = this.block.html
     const button = document.createElement('button')
     button.type = 'button'; button.className = 'live-source-button'; button.textContent = '源码'
-    const labels: Record<string, string> = { code: '代码块', table: '表格', image: '图片', thematicBreak: '分隔线' }
+    const labels: Record<string, string> = { code: '代码块', table: '表格', image: '图片', thematicBreak: '分隔线', math: '公式', mermaid: '图表' }
     button.setAttribute('aria-label', `显示${labels[this.block.type] ?? '块'}源码`)
     const current = () => view.state.doc === this.doc && !view.composing
     const reveal = (offset = this.block.from) => {
@@ -75,6 +75,7 @@ class BlockWidget extends WidgetType {
       if (this.block.type === 'image' && current()) this.host.editImage(this.block.from)
     })
     let alive = true
+    for (const image of body.querySelectorAll<HTMLImageElement>('img[data-mermaid-image]')) image.addEventListener('load', () => { if (alive) view.requestMeasure() }, { once: true })
     const urls: string[] = []
     for (const image of body.querySelectorAll<HTMLImageElement>('img[data-resource]')) {
       image.removeAttribute('src')
@@ -109,7 +110,7 @@ export function liveRendering(host: Host) {
       let decorations = value.decorations
       if (changed && (!enabled || composing || !dragging || transaction.docChanged)) {
         const active = activeSourceRanges(transaction.state, syntaxTree(transaction.state))
-        decorations = enabled && !composing && liveAvailable(transaction.state) ? Decoration.set(blocks.filter(block => block.from >= headerEnd && block.to <= transaction.state.doc.length && block.to - block.from <= MAX_LIVE_BLOCK && !touches(active, block.from, block.to)).map(block => Decoration.replace({ widget: new BlockWidget(block, transaction.state.doc, context, host), block: true }).range(block.from, block.to)), true) : Decoration.none
+        decorations = enabled && !composing && liveAvailable(transaction.state) ? Decoration.set(blocks.filter(block => block.type !== 'mathInline' && block.from >= headerEnd && block.to <= transaction.state.doc.length && block.to - block.from <= MAX_LIVE_BLOCK && !touches(active, block.from, block.to)).map(block => Decoration.replace({ widget: new BlockWidget(block, transaction.state.doc, context, host), block: true }).range(block.from, block.to)), true) : Decoration.none
       }
       return changed ? { enabled, composing, dragging, headerEnd, blocks, context, decorations } : value
     },

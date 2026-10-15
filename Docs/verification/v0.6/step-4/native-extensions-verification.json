@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-15T03:48:07.493Z",
+  "version": "0.6.0",
+  "passed": true,
+  "checks": [
+    "real release custom-scheme origin, WebView offline emulation, opaque-origin Mermaid iframe and MathML/note/metadata rendering",
+    "four themes, reading/Escape and live source retention; no external requests or page exceptions during exercised workflow"
+  ],
+  "isolatedProfile": true,
+  "executableSha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1",
+  "scope": "Actual Windows release WebView2 over an isolated temporary CDP endpoint. No mocked IPC or source injection; excludes IME, OS save/print and other WebViews.",
+  "browser": "155.0.4283.45",
+  "origin": "http://tauri.localhost",
+  "gracefulClose": true
+}

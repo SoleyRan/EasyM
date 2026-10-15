@@ -1,0 +1,114 @@
+$ vitest run "--maxWorkers=2"
+
+ RUN  v3.2.7 D:/Github/EasyM
+
+ ✓ src/platform/docx.test.ts (6 tests) 94ms
+ ✓ src/core/export.test.ts (7 tests) 62ms
+ ✓ src/editor/TablePanel.test.ts (2 tests) 76ms
+stderr | src/App.test.ts > protects all targeted tabs on cancel and closes all without exiting the app on discard
+An update to DocumentEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/editor/QuickEntry.test.ts (2 tests) 50ms
+ ✓ src/editor/navigation.test.ts (2 tests) 34ms
+ ✓ src/editor/useExternalChanges.test.ts (6 tests) 22ms
+ ✓ src/platform/session.test.ts (4 tests) 5ms
+ ✓ src/platform/preferences.test.ts (5 tests) 4ms
+ ✓ src/core/history-diff.test.ts (4 tests) 273ms
+ ✓ src/core/docx.test.ts (5 tests) 216ms
+ ✓ src/core/docx-model.test.ts (13 tests) 171ms
+ ✓ src/editor/content-status.test.ts (3 tests) 63ms
+ ✓ src/core/tables.test.ts (9 tests) 53ms
+ ✓ src/core/markdown.test.ts (5 tests) 45ms
+ ✓ src/core/live-preview.test.ts (7 tests) 36ms
+ ✓ src/editor/live-decoration.test.ts (1 test) 32ms
+ ✓ src/core/links.test.ts (5 tests) 26ms
+ ✓ src/platform/storage.test.ts (5 tests) 22ms
+ ✓ src/platform/history.test.ts (4 tests) 23ms
+ ✓ src/core/content-tools.test.ts (5 tests) 31ms
+ ✓ src/core/search.test.ts (5 tests) 16ms
+ ✓ src/core/formatting.test.ts (9 tests) 20ms
+ ✓ src/core/document.test.ts (7 tests) 17ms
+ ✓ src/core/quick-entry.test.ts (4 tests) 25ms
+ ✓ src/core/batch-images.test.ts (3 tests) 16ms
+ ✓ src/platform/batch-images.test.ts (3 tests) 13ms
+ ✓ src/core/footnotes.test.ts (2 tests) 12ms
+ ✓ src/platform/history-resources.test.ts (3 tests) 13ms
+ ✓ src/core/selection-formatting.test.ts (4 tests) 18ms
+ ✓ src/platform/drafts.test.ts (4 tests) 10ms
+ ✓ src/platform/image-transaction.test.ts (4 tests) 6ms
+ ✓ src/core/commands.test.ts (8 tests) 6ms
+ ✓ src/core/overlays.test.ts (5 tests) 4ms
+ ✓ src/platform/workspace.test.ts (4 tests) 5ms
+ ✓ src/platform/clipboard.test.ts (2 tests) 5ms
+ ✓ src/core/codec.test.ts (5 tests) 5ms
+ ✓ src/editor/large-lines.test.ts (2 tests) 4ms
+ ✓ src/core/image-metadata.test.ts (3 tests) 5ms
+ ✓ src/core/templates.test.ts (2 tests) 10ms
+ ✓ src/core/code-block.test.ts (4 tests) 3ms
+ ✓ src/core/images.test.ts (3 tests) 4ms
+ ✓ src/platform/restore-session.test.ts (1 test) 3ms
+ ✓ src/core/archive.test.ts (2 tests) 4ms
+ ✓ src/platform/export.test.ts (1 test) 2ms
+ ✓ src/platform/window.test.ts (3 tests) 4ms
+ ✓ src/App.test.ts (68 tests) 46553ms
+   ✓ shows an update guide and supports manual reopening in settings with persisted appearance  399ms
+   ✓ closes the right-clicked background tab without changing other dirty documents  313ms
+   ✓ closes other tabs relative to the clicked tab and keeps its edits intact  525ms
+   ✓ protects all targeted tabs on cancel and closes all without exiting the app on discard  580ms
+   ✓ retains only the closing tabs as drafts and preserves the excluded tab  662ms
+   ✓ keeps every target tab open when a batch save is cancelled after an earlier save succeeds  609ms
+   ✓ exports current source without saving or clearing dirty drafts, including cancellation and failure  620ms
+   ✓ exports DOCX from unsaved memory with office options and preserves the draft on native cancellation  404ms
+   ✓ requires explicit DOCX image placeholders and can locate a warning without changing the source  563ms
+   ✓ locks DOCX preflight, cancels immediately, ignores late results and recovers from generation failure  780ms
+   ✓ keeps other tabs readable during DOCX preparation without unlocking or closing the target  885ms
+   ✓ cancels DOCX generation, traps focus and prevents cancellation after native save is dispatched  592ms
+   ✓ refuses DOCX during IME; preflight/save errors release the lock  557ms
+   ✓ prepares a dedicated print root, protects editing, reports missing images and returns with Escape  419ms
+   ✓ rejects output during composition and protects a running export from save and close actions  423ms
+   ✓ cancels obsolete workspace searches and ignores late results and failures  322ms
+   ✓ opens search results at the source line, reuses tabs, and rejects stale disk and dirty local versions  832ms
+   ✓ exposes workspace search limits and cancels a running search on demand  344ms
+   ✓ restores pending crop and alt, then retains them when exiting without applying  405ms
+   ✓ opens workspace files in independent tabs and preserves edits when switching  561ms
+   ✓ retains all dirty tabs on exit and recovers each independently on restart  647ms
+   ✓ recent open reuses a saved tab with edits and cancellation releases only unused fresh handles  767ms
+   ✓ closing one dirty tab saves only that tab and preserves the other draft  524ms
+   ✓ aborts save-all on cancellation and leaves every document open  451ms
+   ✓ retains incompatible drafts while allowing other tabs to be edited and closed  384ms
+   ✓ discards only the closed tab and does not recreate its draft on blur  459ms
+   ✓ discards every open draft on exit without saving  454ms
+   ✓ creates a template in a new tab without replacing the current document  387ms
+   ✓ keeps a non-empty template as a recoverable draft and closes blank templates cleanly  750ms
+   ✓ first saves a template with no disk identity and clears its draft  507ms
+   ✓ toggles formatting globally and persists the preference without a save header  403ms
+   ✓ automatically writes a known file after idle and clears its draft  1676ms
+   ✓ keeps unnamed and recovered documents as drafts without showing save dialogs  2951ms
+   ✓ serializes automatic writes and preserves edits made while a save is in flight  3282ms
+   ✓ pauses autosave after an external conflict and allows a manual retry  3103ms
+   ✓ suspends autosave during close decisions and discards without writing  3061ms
+   ✓ pauses mixed-line-ending autosave without a confirmation prompt  1680ms
+   ✓ waits until IME composition ends before automatically saving  2068ms
+   ✓ preserves a new edit arriving during asynchronous draft cleanup after saving  1756ms
+   ✓ does not recreate a clean draft while saved-draft cleanup is slow  2543ms
+   ✓ uses themed custom window controls and protects dirty content on window close  396ms
+   ✓ enters fullscreen preview reading and restores editing on Escape and the exit button  642ms
+   ✓ closes untouched new tabs directly without creating drafts or changing other edits  1149ms
+   ✓ exits with only untouched new documents without prompting or saving  315ms
+   ✓ refuses stale table targets and preserves the input when applying before export fails  452ms
+   ✓ requires a table draft decision before switching tabs and proceeding with print  484ms
+
+ Test Files  46 passed (46)
+      Tests  261 passed (261)
+   Start at  18:21:02
+   Duration  48.52s (transform 1.84s, setup 0ms, collect 13.11s, tests 48.12s, environment 3.14s, prepare 4.25s)
+

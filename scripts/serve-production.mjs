@@ -5,7 +5,7 @@ import { resolve, extname, sep } from 'node:path'
 // Existing-user regression fixtures explicitly acknowledge onboarding; dedicated tests cover first run.
 export async function acknowledgeGuide(page) {
   const { version } = JSON.parse(await readFile(resolve('package.json'), 'utf8'))
-  await page.addInitScript(version => localStorage.setItem('easym-guide-version', version), version)
+  await page.addInitScript(version => { if (window.top === window) localStorage.setItem('easym-guide-version', version) }, version)
 }
 
 export async function selectAppearanceTheme(page, theme) {

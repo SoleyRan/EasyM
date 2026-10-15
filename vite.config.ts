@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: { port: 1420, strictPort: true },
   envPrefix: ['VITE_', 'TAURI_ENV_'],
-  build: { target: 'es2022' },
+  build: { target: 'es2022', rollupOptions: { input: { main: 'index.html', mermaid: 'mermaid.html' } } },
   // Select DOM-free conditional exports (notably remark's entity decoder).
   resolve: { conditions: ['worker', 'module', 'browser', 'development|production'] },
   test: { include: ['src/**/*.test.ts'] },

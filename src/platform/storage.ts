@@ -45,7 +45,7 @@ export async function saveDocument(file: { id: string | null; name: string; revi
   if (desktop) {
     const copied = saveAs ? await materializeResources(file.id, resources ?? { assets: {}, instances: [] }) : resources
     if (saveAs) {
-      const references = parseDocument(new TextDecoder().decode(bytes)).images
+      const references = parseDocument(new TextDecoder().decode(bytes), { math: false }).images
       if (references.some((image) => !/^https?:\/\//i.test(image.url) && !copied?.assets[decodeURI(image.url)])) throw new Error('另存为包含未托管或缺失图片，请先导入这些图片的本地副本，再另存整个文档。')
     }
     const assets = await Promise.all(Object.entries(copied?.assets ?? {}).map(async ([path, blob]) => ({ path, bytes: Array.from(new Uint8Array(await blob.arrayBuffer())) })))

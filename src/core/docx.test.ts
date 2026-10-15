@@ -15,6 +15,27 @@ function texts(blocks: DocxBlock[]): string[] {
 }
 const escape = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
 
+it('writes original inline/display formula source as editable text without claiming Word equations', async () => {
+  const prepared = await prepareDocxResources(createDocxModel('正文 $E=mc^2$\n\n$$\n\\frac{1}{2}\n$$', '公式.md'), async () => { throw Error('no image') })
+  const result = await xml(await generateDocx(prepared))
+  expect(result.body).toContain('$E=mc^2$')
+  expect(result.body).toContain('\\frac{1}{2}')
+  expect(result.body).toContain('$$')
+  expect(result.body).not.toContain('oMath')
+})
+
+it('writes editable superscript references and endnote content without native Word footnote claims', async () => {
+  const prepared = await prepareDocxResources(createDocxModel('正文[^n] again[^n]\n\n[^n]: **脚注正文**', 'notes.md'), async () => { throw new Error('unused') })
+  const result = await xml(await generateDocx(prepared))
+  expect(result.body.match(/<w:vertAlign w:val="superscript"\/>/g)).toHaveLength(3)
+  expect(result.body).toContain('脚注正文')
+  expect(result.body).toContain('脚注')
+  expect(result.body).not.toContain('<w:footnoteReference')
+  // docx emits a structural footnotes part even when only the built-in
+  // separators exist; document content must remain in the editable body.
+  expect(await result.zip.file('word/footnotes.xml')!.async('string')).not.toContain('脚注正文')
+})
+
 it('generates every frozen sample text, editable structure and exact embedded display bytes', async () => {
   const text = readFileSync('Docs/samples/v0.3/办公导出.md', 'utf8'), png = readFileSync('Docs/samples/v0.3/assets/em.png')
   const prepared = await prepareDocxResources(createDocxModel(text, '办公.md'), async () => new Blob([png]))

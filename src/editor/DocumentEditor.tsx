@@ -82,6 +82,9 @@ export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; 
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
+  mathRendering?: boolean
+  mermaidRendering?: boolean
+  diagramTheme?: string
   quickEntryOpen?: boolean; reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
@@ -91,7 +94,7 @@ interface Props {
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
   onReadOther?: () => void
 }
-export default function DocumentEditor({ quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
+export default function DocumentEditor({ mathRendering = true, mermaidRendering = true, diagramTheme = 'light', quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -218,7 +221,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
   const draftGeneration = useRef(0)
   const discarded = useRef(false)
   const flushDraft = useRef<() => void>(() => undefined)
-  const { parsed, parsedText } = usePreview(text, setError)
+  const { parsed, parsedText } = usePreview(text, setError, mathRendering, mermaidRendering, diagramTheme, active)
   const [statistics, setStatistics] = useState(() => documentStatistics(text))
   useEffect(() => {
     // Keep whole-document statistics out of the typing frame for large files.
@@ -251,6 +254,9 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     if (position.ratio <= .001) { expectedPreview.current = 0; pane.scrollTop = 0; return }
     const top = pane.getBoundingClientRect().top
     const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
+      // Endnotes move definitions out of source order. Their exact forward /
+      // back navigation is handled separately from linear scroll interpolation.
+      if (element.matches('.footnotes')) return null
       const node = element.hasAttribute('data-source-from') ? element as HTMLElement : element.querySelector<HTMLElement>('[data-source-from]')
       return node ? { from: Number(node.dataset.sourceFrom), top: element.getBoundingClientRect().top - top + pane.scrollTop } : null
     }).filter((item): item is { from: number; top: number } => item !== null)
@@ -280,6 +286,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     const ratio = max > 0 ? pane.scrollTop / max : 0
     const top = pane.getBoundingClientRect().top
     const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
+      if (element.matches('.footnotes')) return null
       const node = element.hasAttribute('data-source-from') ? element as HTMLElement : element.querySelector<HTMLElement>('[data-source-from]')
       return node ? { from: Number(node.dataset.sourceFrom), top: element.getBoundingClientRect().top - top + pane.scrollTop } : null
     }).filter((item): item is { from: number; top: number } => item !== null)
@@ -293,7 +300,8 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     if (tableRef.current) { void prepareLeave().then(proceed => { if (proceed) jumpTo(offset) }); return }
     if (reading) {
       const nodes = Array.from(preview.current?.querySelectorAll<HTMLElement>('[data-source-from]') ?? [])
-      const node = nodes.filter((element) => Number(element.dataset.sourceFrom) <= offset).at(-1) ?? nodes[0]
+      const node = nodes.find(element => Number(element.dataset.sourceFrom) === offset)
+        ?? nodes.filter(element => Number(element.dataset.sourceFrom) <= offset).sort((a, b) => Number(b.dataset.sourceFrom) - Number(a.dataset.sourceFrom))[0] ?? nodes[0]
       node?.scrollIntoView({ block: 'start' })
       return
     }
@@ -339,7 +347,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     return () => inserted.forEach(node => node.remove())
   }, [parsed.html, view, reading, active])
   function openedResources(body: string, instances = images.resources.instances) {
-    const paths = new Set(parseDocument(body).images.map((item) => item.url))
+    const paths = new Set(parseDocument(body, { math: false }).images.map((item) => item.url))
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
   }
   const external = useExternalChanges(fileId, revision, active && draftReady && !pendingDraft && !suspended && !busy && !autoSaving && !externalOpen)
@@ -555,7 +563,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
     try {
       // Parse the exact current source; the debounced preview may still be stale.
-      const parsed = await parseForExport(text)
+      const parsed = await parseForExport(text, { math: mathRendering, mermaid: mermaidRendering })
       const output = await createExport(parsed, name, async path => {
         const asset = images.resources.assets[path]
         if (asset) return asset
@@ -768,7 +776,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
       load(decoded.text, file.name, decoded, file.id, file.revision)
       images.setResources(openedResources(decoded.text, file.metadata?.instances ?? []))
       setExternalOpen(false)
-      if (file.warning && parseDocument(decoded.text).images.length) setError(errorMessage(file.warning))
+      if (file.warning && parseDocument(decoded.text, { math: false }).images.length) setError(errorMessage(file.warning))
     } catch (err) { setError(errorMessage(err)); setStatus('重新加载失败'); if (confirmed) throw new Error(errorMessage(err)) }
     finally { setBusy(false) }
   }
@@ -966,7 +974,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
         {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
-        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.5.0-dev</span></div>
+        <div className="sidebar-footer"><span>本地优先</span><span className="version">v0.6.0-dev</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
         <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
@@ -1010,6 +1018,22 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
             const languageAction = target.closest<HTMLElement>('[data-language-offset]')
             if (!reading && languageAction && parsedText.current === text) { openContentTool('language', registry.capture(), Number(languageAction.dataset.languageOffset)); return }
             const link = target.closest<HTMLAnchorElement>('a[href]')
+            if (link && (link.hasAttribute('data-footnote-ref') || link.hasAttribute('data-footnote-backref'))) {
+              event.preventDefault()
+              if (!active || disabled || editor.current?.composing() || tableRef.current || parsedText.current !== text) return
+              const id = link.getAttribute('href')?.slice(1)
+              const destination = Array.from(preview.current?.querySelectorAll<HTMLElement>('[id]') ?? []).find(node => node.id === id)
+              if (!destination) return
+              // Hold preview ownership so source scroll events cannot undo this
+              // exact note jump. The DOM search is confined to the active tab.
+              scrollOwner.current = 'preview'
+              if (!reading && destination.dataset.sourceFrom !== undefined) editor.current?.jump(Number(destination.dataset.sourceFrom))
+              if (!destination.matches('a,button,input,[tabindex]')) destination.tabIndex = -1
+              destination.focus({ preventScroll: true })
+              destination.scrollIntoView({ block: 'start' })
+              expectedPreview.current = preview.current?.scrollTop ?? null
+              return
+            }
             if (link) { event.preventDefault(); if (!reading && parsedText.current === text) { editor.current?.jump(Number(link.dataset.sourceFrom)); openContentTool('link', registry.capture()) }; return }
             const cell = target.closest<HTMLElement>('th,td')
             if (!reading && parsedText.current === text && cell) { execute('table.edit', Number(cell.dataset.sourceFrom)); return }

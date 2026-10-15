@@ -26,9 +26,11 @@ export function ApplicationDialog({ title, onClose, busy = false, children, onKe
   </div>
 }
 
-export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearance, onResetAppearance, onGuide, onClose }: {
+export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearance, onResetAppearance, mathRendering, onMathRendering, mermaidRendering, onMermaidRendering, onGuide, onClose }: {
   fileId: string | null | undefined; theme: Theme; onTheme(value: Theme): void;
   appearance: Appearance; onAppearance(value: Partial<Appearance>): void; onResetAppearance(): void; onGuide(): void; onClose(): void
+  mermaidRendering: boolean; onMermaidRendering(enabled: boolean): void
+  mathRendering: boolean; onMathRendering(enabled: boolean): void
 }) {
   const [directory, setDirectory] = useState<HistoryDirectory | null>(null)
   const [busy, setBusy] = useState(false), [loading, setLoading] = useState(!!fileId && desktop)
@@ -65,6 +67,11 @@ export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearanc
       <p>外观设置仅影响编辑与阅读，不改变正文、版本历史或导出样式。恢复默认外观不会清除草稿、历史或历史保存位置。</p>
       <p>设置即时生效，并保存在本机。已保存文件停止输入后自动保存；新文档先保留本机草稿，首次请另存为。</p>
     </section>
+    <section><h3>Markdown 扩展</h3>
+      <label className="setting-row"><span>Mermaid 图表渲染</span><input type="checkbox" checked={mermaidRendering} onChange={e => onMermaidRendering(e.target.checked)} /></label>
+      <label className="setting-row"><span>数学公式渲染</span><input type="checkbox" checked={mathRendering} onChange={e => onMathRendering(e.target.checked)} /></label>
+      <p>公式使用 $…$ 或独占行的 $$ 围栏；图表使用 mermaid 代码块，支持流程图和时序图。关闭、错误或超限时保留源码。HTML/PDF 使用静态公式和图表；DOCX 保留可编辑源码。</p>
+    </section>
     <section><h3>版本历史保存位置</h3>
       {!desktop ? <p>历史保存位置仅在桌面版中可设置。</p> : !fileId ? <p>请先打开或另存一个文档，再设置其历史保存位置。</p> : <>
         {loading && <p role="status">正在读取历史位置…</p>}
@@ -86,7 +93,7 @@ export function GuideDialog({ previousVersion, onClose }: { previousVersion: str
     <section className="guide-page" key="writing"><h3>开始写作</h3><p>点击 EM 菜单新建、从模板新建、打开文件或工作区。多个文件可以同时打开，右键标签可批量关闭。桌面版通过“最近打开”找回文档和工作区，清空记录不会删除文件。</p><p>按 F1 搜索命令，Ctrl/⌘+Alt+O 快速打开标签或授权工作区文件。EM → 设置可调整行高、宽度、代码外观和跟随系统主题。</p></section>,
     <section className="guide-page" key="editing"><h3>编辑与自动保存</h3><p>使用源码、分屏或即时渲染模式写作。选中文字后用固定或浮动工具栏切换格式；行首输入 / 快捷插入结构。</p><p>表格支持单元格、行列与对齐编辑；链接、段落和代码语言有就地工具。确认操作可撤销，取消保留原文。已保存文件会自动保存；新文档先保留本机草稿，需要首次另存为。重启按上次标签顺序恢复；未完成草稿需确认恢复并另存，不会覆盖原文件。</p></section>,
     <section className="guide-page" key="history"><h3>版本历史 · 找回以前的内容</h3><p>桌面版打开已保存文档后，在 EM → 版本历史中显式启用。之后可自动或手动记录正文与本地图片快照、查看差异、命名或固定版本，并恢复或另存旧版本。</p><p>默认历史位于文档目录的 .easym/history/，可在 EM → 设置中更改。切回应用或标签时检查磁盘变化；有冲突会暂停自动保存，可比较双方内容、另存本地副本或确认加载磁盘版本。草稿与历史仅保存在本机，不能代替备份。</p></section>,
-    <section className="guide-page" key="reading"><h3>图片、导出与阅读</h3><p>粘贴或拖入 PNG/JPEG，双击预览图片可编辑副本。已启用历史的文档可批量缩小或转换图片。</p><p>EM → 导出提供 HTML、DOCX 和 PDF；PDF 通过系统打印窗口另存。阅读模式隐藏编辑区，按 Esc 退出。</p></section>,
+    <section className="guide-page" key="reading"><h3>图片、导出与阅读</h3><p>粘贴或拖入 PNG/JPEG，双击预览图片可编辑副本。阅读模式隐藏编辑区，按 Esc 退出。</p><p>v0.6 支持脚注 [^标识]、文件开头的 YAML/TOML 元数据、$…$ 公式与 mermaid 流程图/时序图。块公式的 $$ 围栏各占一行；设置中可独立关闭公式和图表，错误时保留源码。</p><p>EM → 导出：HTML 离线保留静态公式和图表；PDF 通过系统打印另存。DOCX 将脚注放在文末，公式和图表保留可编辑源码；元数据仅展示原文，不执行配置。</p></section>,
   ]
   return <ApplicationDialog title="EasyM 使用导引" onClose={onClose} onKeyDown={event => {
       if (event.nativeEvent.isComposing || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return

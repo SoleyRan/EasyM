@@ -1,12 +1,16 @@
 import type { ParsedDocument } from './markdown'
 import { inspectImage, MAX_ASSET_BYTES, MAX_IMAGE_BYTES } from './images'
 import exportStyles from './export.css?inline'
+import mathStyles from './math.css?inline'
+import mermaidStyles from './mermaid.css?inline'
+import { mermaidDataUrl } from './mermaid-svg'
 import { localImagePath } from './export-resource'
 export { localImagePath } from './export-resource'
 
 export const MAX_EXPORT_BYTES = 192 * 1024 * 1024
 export interface ExportDocument { html: string; body: string; warnings: string[]; name: string }
-export { exportStyles }
+const combinedStyles = exportStyles + mathStyles + mermaidStyles
+export { combinedStyles as exportStyles }
 
 async function inlineImage(blob: Blob): Promise<string> {
   if (blob.size > MAX_IMAGE_BYTES) throw new Error('图片超过 20 MB')
@@ -29,12 +33,16 @@ export async function createExport(parsed: ParsedDocument, name: string, load: (
   policy.content = "default-src 'none'; img-src data:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
   doc.head.append(policy)
   const viewport = doc.createElement('meta'); viewport.name = 'viewport'; viewport.content = 'width=device-width, initial-scale=1'; doc.head.append(viewport)
-  const style = doc.createElement('style'); style.textContent = `body{margin:0;padding:24px}main{max-width:860px;margin:auto}@media print{body{padding:0}main{max-width:none}}${exportStyles}`; doc.head.append(style)
+  const style = doc.createElement('style'); style.textContent = `body{margin:0;padding:24px}main{max-width:860px;margin:auto}@media print{body{padding:0}main{max-width:none}}${combinedStyles}`; doc.head.append(style)
   const main = doc.createElement('main'); main.className = 'export-document'; main.innerHTML = parsed.html; doc.body.append(main)
   const warnings: string[] = []
   const cache = new Map<string, string | null>()
   let total = 0
   for (const image of main.querySelectorAll('img')) {
+    if (image.dataset.mermaidImage === 'true' && image.src.startsWith('data:image/svg+xml;charset=utf-8,')) {
+      image.src = mermaidDataUrl(decodeURIComponent(image.src.slice('data:image/svg+xml;charset=utf-8,'.length)))
+      continue
+    }
     const resource = image.getAttribute('data-resource') ?? ''
     const path = localImagePath(resource)
     const key = path ?? resource

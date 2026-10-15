@@ -52,7 +52,7 @@ export function TablePanel({ session, error, decision, onComposing, onDraft, onC
   const [rendered, setRendered] = useState('')
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      try { setRendered(parseDocument(`| 单元格 |\n| --- |\n| ${escapeCell(draft)} |`).html) } catch { setRendered('') }
+      try { setRendered(parseDocument(`| 单元格 |\n| --- |\n| ${escapeCell(draft)} |`, { math: false }).html) } catch { setRendered('') }
     }, 120)
     return () => window.clearTimeout(timer)
   }, [draft])

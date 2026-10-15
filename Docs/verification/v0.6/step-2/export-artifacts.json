@@ -1,0 +1,22 @@
+[
+  {
+    "file": "standalone.html",
+    "bytes": 7009,
+    "sha256": "d275878c669d45c6bac0a691e69b1b737811f747bf493f0aa59d83290d44ae7f"
+  },
+  {
+    "file": "disabled.html",
+    "bytes": 5636,
+    "sha256": "85bb779a117fb418f9cfad6b90f782d0b2775053b34fb42557c81a449f06f439"
+  },
+  {
+    "file": "formulas.pdf",
+    "bytes": 105293,
+    "sha256": "33842d1210b138cda9cd7da42a5d53867ee10ccd9bc49d4fb9ab90025f518070"
+  },
+  {
+    "file": "formulas.docx",
+    "bytes": 10806,
+    "sha256": "b258a4dbc4e085f0ad86933154a72100d280bb991c16452408c08c88895d12c8"
+  }
+]
