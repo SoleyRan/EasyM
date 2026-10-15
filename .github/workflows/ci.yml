@@ -21,6 +21,8 @@ jobs:
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm verify:regression
+      - name: Verify modal close and resumed typing with a slower browser
+        run: pnpm verify:focus --slow
       - name: Verify search with a slower browser
         run: pnpm verify:search --slow
       - name: Verify templates with a slower browser
@@ -37,6 +39,10 @@ jobs:
             test-results/docx-verification.json
             test-results/docx-ui-verification.json
             test-results/docx-ui/*.png
+            test-results/focus-verification.json
+            test-results/focus/*
+            test-results/focus-slow-verification.json
+            test-results/focus-slow/*
             test-results/history-verification.json
             test-results/history-diff-performance.json
             test-results/history/*.png

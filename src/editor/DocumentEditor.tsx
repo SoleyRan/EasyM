@@ -449,11 +449,9 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   useEffect(() => () => { docxTask.current?.abort(); docxTask.current = null }, [])
   function closeHistory() {
     setHistoryOpen(false); setBusy(false)
-    window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
   }
   function closeBatch() {
     setBatchOpen(false); setBusy(false)
-    window.setTimeout(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus(), 0)
   }
   async function applyBatch(outputs: BatchOutput[], options: BatchOptions, operationId: string) {
     if (!fileId || !revision || saving.current || editor.current?.composing()) throw new Error('当前文档暂不可提交。')
@@ -511,11 +509,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     if (docxTask.current !== controller) return
     controller.abort(); docxTask.current = null; exporting.current = false
     setDocx(null); setBusy(false); setStatus(message)
-    requestAnimationFrame(() => {
-      if (!activeRef.current) return
-      if (offset !== undefined) jumpTo(offset)
-      else document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
-    })
+    if (offset !== undefined) requestAnimationFrame(() => { if (activeRef.current) jumpTo(offset) })
   }
   function cancelDocx(offset?: number) {
     const controller = docxTask.current
@@ -581,7 +575,6 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   }
   const closePrint = useCallback(() => {
     setPrintable(null); setStatus('准备就绪')
-    requestAnimationFrame(() => document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus())
   }, [])
   useEffect(() => {
     if (!active) return

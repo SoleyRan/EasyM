@@ -4,9 +4,9 @@ import { appVersion, historyDirectory, themes, type Theme, type HistoryDirectory
 import { desktop } from '../platform/storage'
 import { historyError } from '../platform/history'
 
-export function ApplicationDialog({ title, onClose, busy = false, children, onKeyDown }: { title: string; onClose(): void; busy?: boolean; children: ReactNode; onKeyDown?: KeyboardEventHandler<HTMLDivElement> }) {
+export function ApplicationDialog({ title, onClose, busy = false, children, onKeyDown, returnFocus }: { title: string; onClose(): void; busy?: boolean; children: ReactNode; onKeyDown?: KeyboardEventHandler<HTMLDivElement>; returnFocus?: string }) {
   const dialog = useRef<HTMLDivElement>(null)
-  useModalOverlay(dialog)
+  useModalOverlay(dialog, returnFocus)
   useEffect(() => { dialog.current?.focus() }, [])
   return <div className="modal-backdrop application-backdrop" onKeyDown={event => {
     onKeyDown?.(event)
@@ -51,7 +51,7 @@ export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearanc
     } catch (e) { setError(historyError(e)) }
     finally { setBusy(false) }
   }
-  return <ApplicationDialog title="设置" onClose={onClose} busy={busy}>
+  return <ApplicationDialog title="设置" onClose={onClose} busy={busy} returnFocus=".app-menu-trigger">
     <section><h3>外观与编辑</h3>
       <label className="setting-row">配色主题<select aria-label="设置配色主题" value={theme} onChange={e => onTheme(e.target.value as Theme)}>{Object.entries(themes).map(([key, name]) => <option value={key} key={key}>{name}</option>)}</select></label>
       <label className="setting-row"><span>跟随系统主题</span><input type="checkbox" checked={appearance.followSystem} onChange={e => onAppearance({ followSystem: e.target.checked })} /></label>
@@ -95,7 +95,7 @@ export function GuideDialog({ previousVersion, onClose }: { previousVersion: str
     <section className="guide-page" key="history"><h3>版本历史 · 找回以前的内容</h3><p>桌面版打开已保存文档后，在 EM → 版本历史中显式启用。之后可自动或手动记录正文与本地图片快照、查看差异、命名或固定版本，并恢复或另存旧版本。</p><p>默认历史位于文档目录的 .easym/history/，可在 EM → 设置中更改。切回应用或标签时检查磁盘变化；有冲突会暂停自动保存，可比较双方内容、另存本地副本或确认加载磁盘版本。草稿与历史仅保存在本机，不能代替备份。</p></section>,
     <section className="guide-page" key="reading"><h3>图片、导出与阅读</h3><p>粘贴或拖入 PNG/JPEG，双击预览图片可编辑副本。阅读模式隐藏编辑区，按 Esc 退出。</p><p>v0.6 支持脚注 [^标识]、文件开头的 YAML/TOML 元数据、$…$ 公式与 mermaid 流程图/时序图。块公式的 $$ 围栏各占一行；设置中可独立关闭公式和图表，错误时保留源码。</p><p>EM → 导出：HTML 离线保留静态公式和图表；PDF 通过系统打印另存。DOCX 将脚注放在文末，公式和图表保留可编辑源码；元数据仅展示原文，不执行配置。</p></section>,
   ]
-  return <ApplicationDialog title="EasyM 使用导引" onClose={onClose} onKeyDown={event => {
+  return <ApplicationDialog title="EasyM 使用导引" onClose={onClose} returnFocus=".app-menu-trigger" onKeyDown={event => {
       if (event.nativeEvent.isComposing || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return
       event.preventDefault(); event.stopPropagation()
       setPage(current => Math.max(0, Math.min(pages.length - 1, current + (event.key === 'ArrowRight' ? 1 : -1))))

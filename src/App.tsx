@@ -93,7 +93,6 @@ function Application() {
       if (!completeGuide()) setError('无法保存导引记录，下次启动可能再次显示。')
       setGuideOpen(false)
     } else setSettingsOpen(false)
-    requestAnimationFrame(() => menu.current?.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus())
   }
   const restoreTemplateFocus = useRef(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
