@@ -5,7 +5,7 @@ import { serveProduction, acknowledgeGuide, selectAppearanceTheme } from './serv
 import { fillSource } from './source-test-utils.mjs'
 
 const server = await serveProduction(), report = { passed: false, checks: [], scope: 'Production Chromium keyboard/pointer; desktop IPC fixture plus Rust filesystem tests. Real IME/native dialogs remain manual.' }
-let browser, page
+let browser, page, native
 await mkdir('test-results/quick-entry', { recursive: true })
 try {
   browser = await chromium.launch({ channel: process.env.EASYM_TEST_BROWSER || undefined }); report.browser = browser.version()
@@ -64,9 +64,10 @@ try {
   await page.setViewportSize({ width: 760, height: 600 }); await source().press('F1'); await palette.waitFor(); const bounds = await palette.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 760 && bounds.y + bounds.height <= 600); await page.screenshot({ path: 'test-results/quick-entry/compact.png' }); await query.press('Escape')
   report.checks.push('four themes and compact window palette bounds')
 
-  const native = await browser.newPage(); native.on('pageerror', error => errors.push(error.message)); await acknowledgeGuide(native)
+  native = await browser.newPage(); native.on('pageerror', error => errors.push(error.message)); await acknowledgeGuide(native)
   await native.addInitScript(() => {
     window.isTauri = true; window.quickCalls = []; window.quickSlow = false; window.quickFail = false
+    window.quickWorkspaceGate = new Promise(resolve => { window.releaseQuickWorkspace = resolve })
     let callback = 0; window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
     window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' } }, transformCallback: () => ++callback, invoke: async (command, args) => {
         if (command === 'recent_state') return { entries: [], session: { tabs: [], activeDraftKey: null, workspaceId: null } }
@@ -75,7 +76,7 @@ try {
       window.quickCalls.push({ command, args })
       if (command.startsWith('plugin:window|is_')) return false
       if (command.startsWith('plugin:')) return 1
-      if (command === 'open_workspace') return { id: 'work', name: '工作区', entries: [] }
+      if (command === 'open_workspace') { await window.quickWorkspaceGate; return { id: 'work', name: '工作区', entries: [] } }
       if (command === 'search_workspace_filenames') { if (args.query === 'slow') await new Promise(resolve => setTimeout(resolve, 450)); return { paths: args.query === 'none' ? [] : ['中文 notes/同名.md', 'other/同名.md'], scanned: 10000, skipped: 2, limited: true, cancelled: false } }
       if (command === 'open_workspace_document') { if (window.quickSlow) await new Promise(resolve => setTimeout(resolve, 450)); if (window.quickFail) throw new Error('resource_missing'); return { id: args.relativePath.startsWith('other/') ? 'other-doc' : 'doc', name: '同名.md', revision: 'hash', bytes: [...new TextEncoder().encode('# 原文')] } }
       if (command === 'inspect_document') return { revision: args.expectedRevision, bytes: null }
@@ -87,6 +88,12 @@ try {
   })
   await native.goto(server.url); await native.getByRole('button', { name: 'EM 菜单' }).click(); await native.getByRole('menuitem', { name: '打开工作区', exact: true }).click()
   const nsource = () => native.locator('.document-panel:not([hidden])').getByRole('textbox', { name: 'Markdown 源码编辑器' }), nquick = native.getByRole('dialog', { name: '快速打开', exact: true })
+  await native.waitForFunction(() => window.quickCalls.some(call => call.command === 'open_workspace'))
+  await nsource().press('Control+Alt+o')
+  assert.equal(await nquick.count(), 0, 'quick-open remains blocked while workspace selection is pending')
+  await native.evaluate(() => window.releaseQuickWorkspace())
+  await native.locator('button.quick-row:not(:disabled)').filter({ hasText: '刷新文件树' }).waitFor()
+  await native.locator('.new-document:not(:disabled)').waitFor()
   await nsource().press('Control+Alt+o'); await nquick.waitFor(); await nquick.getByRole('option', { name: /工作区 · 中文 notes/ }).waitFor(); assert.match(await nquick.innerText(), /结果受限，请缩小查询/)
   await nquick.getByRole('combobox').fill('slow'); await native.waitForFunction(() => window.quickCalls.some(call => call.command === 'search_workspace_filenames' && call.args.query === 'slow')); await nquick.getByRole('combobox').fill('none'); await native.waitForTimeout(700); assert.equal(await nquick.getByRole('option').count(), 0); assert.ok(await native.evaluate(() => window.quickCalls.some(call => call.command === 'cancel_workspace_search')))
   await nquick.getByRole('combobox').fill('同名'); await nquick.getByRole('option', { name: /工作区 · 中文 notes/ }).click(); await nquick.waitFor({ state: 'detached' }); assert.equal(await native.getByRole('tab').count(), 2)
@@ -95,6 +102,12 @@ try {
   await native.evaluate(() => { window.quickSlow = false; window.quickFail = true }); await nsource().press('Control+Alt+o'); await nquick.getByRole('option', { name: /工作区 · other/ }).click(); await nquick.getByRole('alert').waitFor(); assert.match(await nsource().innerText(), /未保存编辑/); await nquick.getByRole('combobox').press('Escape')
   report.checks.push('desktop IPC fixture: bounded report, same-name paths, debounced cancellation/stale search, tab reuse, cancelled open handle ownership and missing-file preserves body')
   assert.deepEqual(errors, []); report.passed = true
-} catch (error) { report.error = error.stack; if (page) await page.screenshot({ path: 'test-results/quick-entry/failure.png' }).catch(() => {}); throw error }
+} catch (error) {
+  report.error = error.stack
+  for (const [name, target] of [['failure', page], ['native-failure', native]]) if (target) {
+    await target.screenshot({ path: `test-results/quick-entry/${name}.png` }).catch(() => {})
+  }
+  throw error
+}
 finally { await writeFile('test-results/quick-entry-verification.json', JSON.stringify(report, null, 2) + '\n'); await browser?.close(); await server.close() }
 console.log(JSON.stringify(report, null, 2))
