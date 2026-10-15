@@ -21,5 +21,6 @@
 - Ubuntu 24.04 / WSL / Node 22 / Chromium 156：六倍 CPU 降速焦点验收通过，见 `focus-linux-slow-verification.json`。
 - Ubuntu 24.04 / WSL / Node 22：完整 DOCX UI 验收通过，见 `docx-ui-linux-verification.json`。
 - Windows / Node 22：28 组完整生产包回归通过，见 `regression-windows-verification.json`；该报告包含构建首页的 SHA-256，整套运行期间构建未变化。
+- 随后补充父子弹层的焦点优先级边界：子弹层关闭后，优先回到仍存在的父弹层。4 项弹层定向单元测试与类型检查通过；完整 283 项单元测试以最终提交的云端 CI 为准。
 
 浏览器验收不能替代 Word/WPS 的分页、编辑性和人工 GUI 验收；本轮无 Rust 或原生配置变更。云端结果以修复分支及 PR 的 GitHub Actions 为准。

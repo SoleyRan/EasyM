@@ -49,3 +49,15 @@ it('keeps the previous default opener behavior for dialogs without an explicit t
   await render(opener)
   expect(document.activeElement).toBe(container.querySelector('button'))
 })
+
+it('returns to a surviving parent modal before the explicit application menu target', async () => {
+  const menu = createElement('button', { className: 'menu', key: 'menu' }, 'Menu')
+  const parent = createElement(Modal, { key: 'parent' })
+  await render([menu, parent])
+  const parentNode = container.querySelector<HTMLElement>('[role=dialog]')!
+  parentNode.focus()
+  await render([menu, parent, createElement(Modal, { key: 'child', returnFocus: '.menu' })])
+  container.querySelectorAll<HTMLElement>('[role=dialog]')[1].focus()
+  await render([menu, parent])
+  expect(document.activeElement).toBe(parentNode)
+})

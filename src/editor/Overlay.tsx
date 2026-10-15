@@ -53,17 +53,18 @@ export function useModalOverlay(element: RefObject<HTMLElement | null>, returnFo
       const version = context.manager.version()
       queueMicrotask(() => {
         if (!owned || version !== context.manager.version()) return
+        const top = context.manager.top()
+        if (top && top.id !== parent) return
         // A close must not take focus back after the user has already focused
         // another control. Restore in this commit's microtask, never a later frame.
         const focused = document.activeElement
-        if (focused instanceof HTMLElement && focused !== document.body && focused.isConnected && !focused.closest('[inert], [hidden]') && !surface?.contains(focused)) return
-        const top = context.manager.top()
-        if (top && top.id !== parent) return
+        if (focused instanceof HTMLElement && focused !== document.body && focused.isConnected && !focused.closest('[inert], [hidden]') && !surface?.contains(focused)
+          && (!top || focused.closest('[data-overlay-id]')?.getAttribute('data-overlay-id') === String(top.id))) return
         if (top && previous?.closest('[data-overlay-id]')?.getAttribute('data-overlay-id') !== String(top.id)) {
           document.querySelector<HTMLElement>(`[data-overlay-id="${top.id}"] button:not(:disabled), [data-overlay-id="${top.id}"]`)?.focus({ preventScroll: true })
           return
         }
-        const target = returnFocus ? document.querySelector<HTMLElement>(returnFocus) : previous
+        const target = !top && returnFocus ? document.querySelector<HTMLElement>(returnFocus) : previous
         if (target !== document.body && target?.isConnected && !target.closest('[inert], [hidden]')) target.focus({ preventScroll: true })
         else document.querySelector<HTMLElement>('.document-panel:not([hidden]) .cm-content, .app-menu-trigger')?.focus({ preventScroll: true })
       })
