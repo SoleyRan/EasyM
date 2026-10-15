@@ -6,7 +6,7 @@ import { inspectImage, MAX_ASSET_BYTES, MAX_IMAGE_BYTES } from './images'
 
 export const DOCX_LIMITS = { textBytes: 10 * 1024 * 1024, nodes: 100_000, images: 500, warnings: 1000, depth: 128 } as const
 export interface DocxRange { from: number; to: number }
-export type DocxWarningCode = 'unsupported_node' | 'unsafe_link' | 'unresolved_reference' | 'unused_definition' | 'wide_table' | 'deep_list' | 'restricted_image' | 'missing_image' | 'invalid_image' | 'font_fallback' | 'footnote_endnotes'
+export type DocxWarningCode = 'unsupported_node' | 'unsafe_link' | 'unresolved_reference' | 'unused_definition' | 'wide_table' | 'deep_list' | 'restricted_image' | 'missing_image' | 'invalid_image' | 'font_fallback' | 'footnote_endnotes' | 'math_source'
 export interface DocxWarning {
   code: DocxWarningCode
   message: string
@@ -137,6 +137,9 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
     switch (node.type) {
       case 'text': return [literal(node, node.value.replace(/\r?\n/g, ' '), style)]
       case 'inlineCode': return [literal(node, node.value, { ...style, code: true })]
+      case 'inlineMath':
+        report(node, 'math_source', '公式以可编辑 LaTeX 原文导出，不生成 Word 原生公式。')
+        return [literal(node, original(node), { ...style, code: true })]
       case 'strong': return inline(node.children, { ...style, bold: true })
       case 'emphasis': return inline(node.children, { ...style, italic: true })
       case 'delete': return inline(node.children, { ...style, strike: true })
@@ -177,6 +180,9 @@ export function mapDocxAst(tree: Root, text: string, name: string): DocxModel {
         return [{ type: 'list', ordered: node.ordered ?? false, start: node.start ?? 1, depth, staticMarkers: depth >= 9, items: node.children.map(item => ({ checked: item.checked ?? null, children: blocks(item.children, depth + 1), range: range(item) })), range: source }]
       }
       case 'code': return [{ type: 'code', text: node.value, language: node.lang ?? null, range: source }]
+      case 'math':
+        report(node, 'math_source', '公式以可编辑 LaTeX 原文导出，不生成 Word 原生公式。')
+        return [{ type: 'raw', text: original(node), label: 'LaTeX 公式', range: source }]
       case 'thematicBreak': return [{ type: 'separator', range: source }]
       case 'table': {
         if (node.align && node.align.length > 8 || node.children.some(row => row.children.some(cell => original(cell).length > 500))) report(node, 'wide_table', '表格列数或单元格文本较多，请在目标软件检查宽度和分页。')

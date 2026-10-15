@@ -82,6 +82,7 @@ export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; 
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
+  mathRendering?: boolean
   quickEntryOpen?: boolean; reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
@@ -91,7 +92,7 @@ interface Props {
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
   onReadOther?: () => void
 }
-export default function DocumentEditor({ quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
+export default function DocumentEditor({ mathRendering = true, quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -218,7 +219,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
   const draftGeneration = useRef(0)
   const discarded = useRef(false)
   const flushDraft = useRef<() => void>(() => undefined)
-  const { parsed, parsedText } = usePreview(text, setError)
+  const { parsed, parsedText } = usePreview(text, setError, mathRendering)
   const [statistics, setStatistics] = useState(() => documentStatistics(text))
   useEffect(() => {
     // Keep whole-document statistics out of the typing frame for large files.
@@ -344,7 +345,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     return () => inserted.forEach(node => node.remove())
   }, [parsed.html, view, reading, active])
   function openedResources(body: string, instances = images.resources.instances) {
-    const paths = new Set(parseDocument(body).images.map((item) => item.url))
+    const paths = new Set(parseDocument(body, { math: false }).images.map((item) => item.url))
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
   }
   const external = useExternalChanges(fileId, revision, active && draftReady && !pendingDraft && !suspended && !busy && !autoSaving && !externalOpen)
@@ -560,7 +561,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
     exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
     try {
       // Parse the exact current source; the debounced preview may still be stale.
-      const parsed = await parseForExport(text)
+      const parsed = await parseForExport(text, { math: mathRendering })
       const output = await createExport(parsed, name, async path => {
         const asset = images.resources.assets[path]
         if (asset) return asset
@@ -773,7 +774,7 @@ export default function DocumentEditor({ quickEntryOpen = false, reading, readin
       load(decoded.text, file.name, decoded, file.id, file.revision)
       images.setResources(openedResources(decoded.text, file.metadata?.instances ?? []))
       setExternalOpen(false)
-      if (file.warning && parseDocument(decoded.text).images.length) setError(errorMessage(file.warning))
+      if (file.warning && parseDocument(decoded.text, { math: false }).images.length) setError(errorMessage(file.warning))
     } catch (err) { setError(errorMessage(err)); setStatus('重新加载失败'); if (confirmed) throw new Error(errorMessage(err)) }
     finally { setBusy(false) }
   }

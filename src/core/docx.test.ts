@@ -15,6 +15,15 @@ function texts(blocks: DocxBlock[]): string[] {
 }
 const escape = (s: string) => s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
 
+it('writes original inline/display formula source as editable text without claiming Word equations', async () => {
+  const prepared = await prepareDocxResources(createDocxModel('正文 $E=mc^2$\n\n$$\n\\frac{1}{2}\n$$', '公式.md'), async () => { throw Error('no image') })
+  const result = await xml(await generateDocx(prepared))
+  expect(result.body).toContain('$E=mc^2$')
+  expect(result.body).toContain('\\frac{1}{2}')
+  expect(result.body).toContain('$$')
+  expect(result.body).not.toContain('oMath')
+})
+
 it('writes editable superscript references and endnote content without native Word footnote claims', async () => {
   const prepared = await prepareDocxResources(createDocxModel('正文[^n] again[^n]\n\n[^n]: **脚注正文**', 'notes.md'), async () => { throw new Error('unused') })
   const result = await xml(await generateDocx(prepared))

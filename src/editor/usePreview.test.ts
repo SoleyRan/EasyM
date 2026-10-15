@@ -1,0 +1,44 @@
+// @vitest-environment happy-dom
+import { act, createElement } from 'react'
+import { createRoot } from 'react-dom/client'
+import { afterEach, expect, it, vi } from 'vitest'
+import { usePreview } from './usePreview'
+
+Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+
+const tasks = vi.hoisted(() => [] as Array<{ terminate: ReturnType<typeof vi.fn>; postMessage: ReturnType<typeof vi.fn>; onmessage?: (event: { data: unknown }) => void }>)
+vi.mock('../platform/markdown-worker?worker&inline', () => ({ default: class {
+  terminate = vi.fn(); postMessage = vi.fn()
+  constructor() { tasks.push(this) }
+} }))
+afterEach(() => { vi.useRealTimers(); tasks.length = 0 })
+it('terminates pending and timed-out parses, rejects stale text/options and retries after editing', async () => {
+  vi.useFakeTimers()
+  const host = document.createElement('div'), root = createRoot(host), error = vi.fn()
+  let current: ReturnType<typeof usePreview>
+  function Probe({ text, math }: { text: string; math: boolean }) { current = usePreview(text, error, math); return null }
+  const render = async (text: string, math: boolean) => { await act(async () => { root.render(createElement(Probe, {text,math})) }); await act(async () => { await vi.advanceTimersByTimeAsync(120) }) }
+  try {
+    await render('$x$', true)
+    const first = tasks[0], stale = first.onmessage!
+    await render('$x$', false)
+    expect(first.terminate).toHaveBeenCalledTimes(1)
+    expect(current!.parsedText.current).toBe('')
+    expect(tasks[1].postMessage).toHaveBeenCalledWith(expect.objectContaining({ text:'$x$', options:{math:false} }))
+    const parsed = { html:'current', images:[], headings:[] }
+    await act(async () => { stale({data:{revision:1,parsed:{...parsed,html:'stale'}}}); tasks[1].onmessage!({data:{revision:3,parsed}}) })
+    expect(current!.parsed.html).toBe('current')
+    expect(current!.parsedText.current).toBe('$x$')
+    await render('$y$', false)
+    expect(current!.parsedText.current).toBe('$x$')
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(tasks[1].terminate).toHaveBeenCalledTimes(1)
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('超时'))
+    expect(current!.parsed.html).toBe('')
+    await render('$z$', true)
+    expect(tasks).toHaveLength(3)
+    await act(async () => { tasks[2].onmessage!({data:{revision:7,parsed}}) })
+    expect(current!.parsedText.current).toBe('$z$')
+  } finally { await act(async () => { root.unmount() }) }
+  expect(tasks[2].terminate).toHaveBeenCalledTimes(1)
+})

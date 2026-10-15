@@ -1,8 +1,19 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { appVersion, needsGuide, completeGuide, editorFontSize, storedPreference, storePreference, defaultAppearance, loadAppearance, saveAppearance, validateAppearance, appearanceTheme } from './preferences'
+import { loadMathRendering, saveMathRendering } from './preferences'
 beforeEach(() => localStorage.clear())
 afterEach(() => vi.restoreAllMocks())
+it('persists math rendering independently of appearance and rejects malformed disabled values', () => {
+  expect(loadMathRendering()).toBe(true)
+  expect(saveMathRendering(false)).toBe(true)
+  saveAppearance(defaultAppearance)
+  expect(loadMathRendering()).toBe(false)
+  expect(saveMathRendering(true)).toBe(true)
+  expect(loadMathRendering()).toBe(true)
+  localStorage.setItem('easym-math-rendering', 'false')
+  expect(loadMathRendering()).toBe(true)
+})
 it('migrates legacy preferences and validates individual fields without discarding valid settings', () => {
   localStorage.setItem('easym-theme', 'paper'); localStorage.setItem('easym-editor-font-size', '19'); localStorage.setItem('easym-toolbar', 'hidden')
   expect(loadAppearance()).toEqual({ ...defaultAppearance, theme: 'paper', fontSize: 19, toolbar: false })

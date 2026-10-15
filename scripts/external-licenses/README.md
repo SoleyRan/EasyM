@@ -1,5 +1,7 @@
 # License text provenance
 
+- remark-math 6.0.0: copied verbatim from the root license at npm gitHead `d5d0660b150810a535bbb07eac6cc96a4510aa24` on 2026-10-15; the published package omits it. Source URL and byte hash are recorded by the generator.
+
 These files supplement dependencies whose published packages omit a separate license file. The generator records source URLs, package versions and SHA-256 hashes in `Docs/dependencies/license-sources.json`.
 
 Supplemental text is emitted with canonical LF newlines so Windows Git checkout settings do not change provenance hashes. Generated content-addressed license files are marked binary in `.gitattributes` to preserve their exact bytes in Git; this only affects line endings, not the license terms.

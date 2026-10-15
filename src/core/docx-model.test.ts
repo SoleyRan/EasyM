@@ -11,6 +11,16 @@ const imageBlob = () => new Blob([png], { type: 'image/png' })
 const allBlocks = (blocks: DocxBlock[]): DocxBlock[] => blocks.flatMap(block => [block, ...('children' in block && block.type === 'quote' ? allBlocks(block.children) : block.type === 'list' ? block.items.flatMap(item => allBlocks(item.children)) : [])])
 const inlines = (blocks: DocxBlock[]): DocxInline[] => allBlocks(blocks).flatMap(block => block.type === 'paragraph' || block.type === 'heading' ? block.children : block.type === 'table' ? block.rows.flatMap(row => row.flatMap(cell => cell.children)) : [])
 
+it('preserves inline and display TeX with delimiters and explicit DOCX degradation warnings', () => {
+  const block = '$$\n\\frac{1}{2}\n$$', text = `正文 $E=mc^2$\n\n${block}\n\n价格 $5 and $10`
+  const model = createDocxModel(text, '公式.md')
+  expect(inlines(model.blocks)).toContainEqual(expect.objectContaining({type:'text',text:'$E=mc^2$',style:{code:true}}))
+  expect(model.blocks).toContainEqual(expect.objectContaining({type:'raw',text:block,label:'LaTeX 公式'}))
+  expect(model.warnings.items.filter(w => w.code === 'math_source')).toHaveLength(2)
+  expect(model.warnings.items.find(w => w.code === 'math_source')?.message).toContain('不生成 Word 原生公式')
+  expect(inlines(model.blocks).filter(run => run.type === 'text').map(run => run.text).join('')).toContain('价格 $5 and $10')
+})
+
 it('exports first-use numbered editable endnotes, safely maps nested notes and retains unused definitions', async () => {
   const text = '---\ntitle: test\n---\n\nB[^b] A[^a] B[^b] missing[^missing]\n\n[^a]: **A** [link](https://example.com)\n\n    - item\n\n[^b]: B[^a] ![image](assets/em.png)\n\n[^a]: duplicate\n\n[^unused]: unused'
   const model = createDocxModel(text, 'notes.md'), runs = inlines(model.blocks)

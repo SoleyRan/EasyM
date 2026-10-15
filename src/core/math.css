@@ -1,0 +1,9 @@
+/* Native MathML is offline and uses installed math fonts; no font downloads. */
+.markdown-math { color: inherit; }
+.markdown-math math { font-family: 'STIX Two Math', 'Cambria Math', math; font-size: 1.1em; }
+.math-block { overflow-x: auto; max-width: 100%; padding: 12px 4px; margin-block: 1em; }
+.math-block math { display: block; margin: auto; }
+.math-source code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.math-message { font: .85em system-ui, sans-serif; opacity: .8; }
+.math-block.math-source { border: 1px dashed currentColor; padding: 12px; }
+@media print { .math-block { overflow: visible; break-inside: avoid; } }

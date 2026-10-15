@@ -1,0 +1,181 @@
+{
+  "baselineCommit": "afaaac9",
+  "before": {
+    "main": {
+      "file": "index-DMAlmj3p.js",
+      "bytes": 2041523,
+      "gzip": 666939
+    },
+    "assets": {
+      "bytes": 3701885,
+      "gzip": 1251140
+    }
+  },
+  "after": {
+    "main": {
+      "file": "index-DwLGt8WZ.js",
+      "bytes": 2951871,
+      "gzip": 937608
+    },
+    "assets": {
+      "bytes": 4619193,
+      "gzip": 1523699
+    }
+  },
+  "addedDependencies": [
+    {
+      "name": "@types/katex",
+      "version": "0.16.8",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "commander",
+      "version": "15.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "commander",
+      "version": "8.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "entities",
+      "version": "6.0.1",
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause"
+        }
+      ]
+    },
+    {
+      "name": "hast-util-from-html",
+      "version": "2.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "hast-util-from-parse5",
+      "version": "8.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "hast-util-parse-selector",
+      "version": "4.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "hastscript",
+      "version": "9.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "katex",
+      "version": "0.16.47",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "katex",
+      "version": "0.19.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "mdast-util-math",
+      "version": "3.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "micromark-extension-math",
+      "version": "3.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "parse5",
+      "version": "7.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "remark-math",
+      "version": "6.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "unist-util-remove-position",
+      "version": "5.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "vfile-location",
+      "version": "5.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "name": "web-namespaces",
+      "version": "2.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    }
+  ],
+  "noNewFontAssets": true
+}

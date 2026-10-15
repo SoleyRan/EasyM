@@ -3733,6 +3733,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40types/katex@0.16.8",
+      "name": "@types/katex",
+      "version": "0.16.8",
+      "purl": "pkg:npm/%40types/katex@0.16.8",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40types/mdast@4.0.4",
       "name": "@types/mdast",
       "version": "4.0.4",
@@ -3865,6 +3877,30 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/commander@15.0.0",
+      "name": "commander",
+      "version": "15.0.0",
+      "purl": "pkg:npm/commander@15.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/commander@8.3.0",
+      "name": "commander",
+      "version": "8.3.0",
+      "purl": "pkg:npm/commander@8.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/core-util-is@1.0.3",
       "name": "core-util-is",
       "version": "1.0.3",
@@ -3949,6 +3985,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/entities@6.0.1",
+      "name": "entities",
+      "version": "6.0.1",
+      "purl": "pkg:npm/entities@6.0.1",
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/escape-string-regexp@5.0.0",
       "name": "escape-string-regexp",
       "version": "5.0.0",
@@ -4009,6 +4057,42 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/hast-util-from-html@2.0.3",
+      "name": "hast-util-from-html",
+      "version": "2.0.3",
+      "purl": "pkg:npm/hast-util-from-html@2.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/hast-util-from-parse5@8.0.3",
+      "name": "hast-util-from-parse5",
+      "version": "8.0.3",
+      "purl": "pkg:npm/hast-util-from-parse5@8.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/hast-util-parse-selector@4.0.0",
+      "name": "hast-util-parse-selector",
+      "version": "4.0.0",
+      "purl": "pkg:npm/hast-util-parse-selector@4.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/hast-util-sanitize@5.0.2",
       "name": "hast-util-sanitize",
       "version": "5.0.2",
@@ -4037,6 +4121,18 @@
       "name": "hast-util-whitespace",
       "version": "3.0.0",
       "purl": "pkg:npm/hast-util-whitespace@3.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/hastscript@9.0.1",
+      "name": "hastscript",
+      "version": "9.0.1",
+      "purl": "pkg:npm/hastscript@9.0.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -4136,6 +4232,30 @@
       "licenses": [
         {
           "expression": "(MIT OR GPL-3.0-or-later)"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/katex@0.16.47",
+      "name": "katex",
+      "version": "0.16.47",
+      "purl": "pkg:npm/katex@0.16.47",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/katex@0.19.0",
+      "name": "katex",
+      "version": "0.19.0",
+      "purl": "pkg:npm/katex@0.19.0",
+      "licenses": [
+        {
+          "expression": "MIT"
         }
       ]
     },
@@ -4297,6 +4417,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/mdast-util-math@3.0.0",
+      "name": "mdast-util-math",
+      "version": "3.0.0",
+      "purl": "pkg:npm/mdast-util-math@3.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/mdast-util-phrasing@4.1.0",
       "name": "mdast-util-phrasing",
       "version": "4.1.0",
@@ -4445,6 +4577,18 @@
       "name": "micromark-extension-gfm",
       "version": "3.0.0",
       "purl": "pkg:npm/micromark-extension-gfm@3.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/micromark-extension-math@3.1.0",
+      "name": "micromark-extension-math",
+      "version": "3.1.0",
+      "purl": "pkg:npm/micromark-extension-math@3.1.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -4753,6 +4897,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/parse5@7.3.0",
+      "name": "parse5",
+      "version": "7.3.0",
+      "purl": "pkg:npm/parse5@7.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/process-nextick-args@2.0.1",
       "name": "process-nextick-args",
       "version": "2.0.1",
@@ -4853,6 +5009,18 @@
       "name": "remark-gfm",
       "version": "4.0.1",
       "purl": "pkg:npm/remark-gfm@4.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/remark-math@6.0.0",
+      "name": "remark-math",
+      "version": "6.0.0",
+      "purl": "pkg:npm/remark-math@6.0.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -5065,6 +5233,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/unist-util-remove-position@5.0.0",
+      "name": "unist-util-remove-position",
+      "version": "5.0.0",
+      "purl": "pkg:npm/unist-util-remove-position@5.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/unist-util-stringify-position@4.0.0",
       "name": "unist-util-stringify-position",
       "version": "4.0.0",
@@ -5113,6 +5293,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/vfile-location@5.0.3",
+      "name": "vfile-location",
+      "version": "5.0.3",
+      "purl": "pkg:npm/vfile-location@5.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/vfile-message@4.0.3",
       "name": "vfile-message",
       "version": "4.0.3",
@@ -5141,6 +5333,18 @@
       "name": "w3c-keyname",
       "version": "2.2.8",
       "purl": "pkg:npm/w3c-keyname@2.2.8",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/web-namespaces@2.0.1",
+      "name": "web-namespaces",
+      "version": "2.0.1",
+      "purl": "pkg:npm/web-namespaces@2.0.1",
       "licenses": [
         {
           "expression": "MIT"

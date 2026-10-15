@@ -59,7 +59,7 @@ export function useImages(host: Host) {
       const normalized = await processImage(input, undefined, controller.signal)
       if (controller.signal.aborted) return
       if (latest.current.text !== baseText) throw new Error('正文已变化，请重新选择图片。')
-      const sharedReference = parseDocument(baseText).images.filter((item) => item.url === target.url).length > 1
+      const sharedReference = parseDocument(baseText, { math: false }).images.filter((item) => item.url === target.url).length > 1
       const instanceId = old && !sharedReference ? old.instanceId : `img-${crypto.randomUUID()}`
       const sourcePath = old?.sourcePath ?? `assets/.originals/${instanceId}-source.${normalized.mime === 'image/png' ? 'png' : 'jpg'}`
       const source = old ? input : normalized.blob

@@ -52,6 +52,8 @@ jobs:
             test-results/export-verification.json
             test-results/extensions-verification.json
             test-results/extensions/*
+            test-results/math-verification.json
+            test-results/math/*
             test-results/context-menu-verification.json
             test-results/commands-verification.json
             test-results/tables-verification.json

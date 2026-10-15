@@ -3,7 +3,7 @@ import MarkdownWorker from './markdown-worker?worker&inline'
 import type { ParsedDocument } from '../core/markdown'
 import { desktop } from './storage'
 
-export function parseForExport(text: string): Promise<ParsedDocument> {
+export function parseForExport(text: string, options: { math?: boolean } = {}): Promise<ParsedDocument> {
   return new Promise((resolve, reject) => {
     const worker = new MarkdownWorker()
     const finish = () => { clearTimeout(timer); worker.terminate() }
@@ -14,7 +14,7 @@ export function parseForExport(text: string): Promise<ParsedDocument> {
       else resolve(event.data.parsed)
     }
     worker.onerror = () => { finish(); reject(new Error('后台导出不可用，请重试。')) }
-    try { worker.postMessage({ text, revision: 1 }) }
+    try { worker.postMessage({ text, revision: 1, options }) }
     catch (error) { finish(); reject(error) }
   })
 }

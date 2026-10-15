@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-v0.5 已通过 PR #6 合并 main，从 `90c4ce7` 创建 `feature/v0.6`，按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 分四步开发：脚注/Front Matter、数学公式、Mermaid、统一导出与交付。第一步已实现脚注往返导航、静态完整元数据、HTML/打印文末脚注和可编辑 DOCX 上标/文末脚注；本机验收见 [第一步记录](Docs/Easy-Markdown-v0.6-第一步-脚注与元数据.md)，待提交。前三步暂保持版本 0.5.0。
+v0.5 已通过 PR #6 合并 main，从 `90c4ce7` 创建 `feature/v0.6`，按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 分四步开发：脚注/Front Matter、数学公式、Mermaid、统一导出与交付。第一步已提交 `afaaac9`，实现脚注往返导航、静态完整元数据和各渠道导出；第二步已实现数学公式、独立设置开关、离线 MathML HTML/打印和 DOCX LaTeX 原文降级，验收见 [数学公式记录](Docs/Easy-Markdown-v0.6-第二步-数学公式.md)。前三步暂保持版本 0.5.0。
 
 v0.5 已完成会话/草稿恢复、最近文件/工作区、已保存标签重开、外部变化及全文/差异对照，历史 252 项前端/65 项 Windows Rust/23 组生产回归、性能、Word 和 Windows 开发包证据见 [v0.5 交付记录](Docs/Easy-Markdown-v0.5-第四步-验收与交付.md)。真实 IME 与跨平台 GUI 等仍待验收。仅借鉴 MarkText 的交互设计，独立实现，没有引入其代码或资源。
 

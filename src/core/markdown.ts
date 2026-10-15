@@ -6,10 +6,13 @@ import { visit, SKIP } from 'unist-util-visit'
 import type { Nodes } from 'mdast'
 import { parseMarkdownAst } from './markdown-ast'
 import { indexFootnotes } from './footnotes'
+import { renderMath } from './math'
 import type { Root as HtmlRoot, Element } from 'hast'
 import { createLowlight, common } from 'lowlight'
 import powershell from 'highlight.js/lib/languages/powershell'
 import { MAX_LIVE_BLOCK, MAX_LIVE_DOCUMENT } from './live-preview'
+
+declare module 'hast' { interface ElementData { mathResult?: Element } }
 
 const highlighter = createLowlight({ ...common, powershell })
 function highlightCode() {
@@ -74,11 +77,21 @@ function footnoteAnchors() {
 const renderer = unified().use(remarkRehype, {
   allowDangerousHtml: false, footnoteLabel: '脚注', footnoteLabelProperties: {},
   footnoteBackLabel: (index, count) => `返回脚注引用 ${index + 1}${count > 1 ? `（第 ${count} 次）` : ''}`,
-  handlers: { yaml: sourceSection, toml: sourceSection, footnoteDefinition: sourceSection },
+  handlers: { yaml: sourceSection, toml: sourceSection, footnoteDefinition: sourceSection,
+    math: (_state, node) => node.data?.mathResult, inlineMath: (_state, node) => node.data?.mathResult },
 }).use(highlightCode).use(footnoteSourceRanges).use(rehypeSanitize, {
   ...defaultSchema,
   attributes: { ...defaultSchema.attributes, '*': [...(defaultSchema.attributes?.['*'] ?? []), 'dataSourceFrom', 'dataSourceTo', 'dataResource'], section: ['dataFootnotes', ['className', 'footnotes', 'markdown-metadata']], span: [['className', /^hljs-[\w-]+$/, /^[\w-]+_$/]] },
-}).use(footnoteAnchors).use(rehypeStringify)
+}).use(footnoteAnchors).use(restoreMath).use(rehypeStringify)
+
+// Attach already sanitised math after ordinary Markdown sanitisation. Keeping
+// it separate prevents Markdown from gaining access to the MathML schema.
+function restoreMath() {
+  return (tree: HtmlRoot) => visit(tree, 'element', (node: Element) => {
+    const result = node.data?.mathResult as Element | undefined
+    if (result) { node.tagName = result.tagName; node.properties = result.properties; node.children = result.children; delete node.data?.mathResult; return SKIP }
+  })
+}
 
 function plainText(node: Nodes): string {
   if ('value' in node) return node.value
@@ -86,7 +99,7 @@ function plainText(node: Nodes): string {
   return 'alt' in node ? node.alt ?? '' : ''
 }
 
-export function parseDocument(text: string): ParsedDocument {
+export function parseDocument(text: string, options: { math?: boolean } = {}): ParsedDocument {
   const tree = parseMarkdownAst(text)
   const notes = indexFootnotes(tree)
   const retained = new Set(notes.retained)
@@ -97,6 +110,8 @@ export function parseDocument(text: string): ParsedDocument {
   })
   const headings: ParsedDocument['headings'] = []
   const images: ImageReference[] = []
+  const mathBudget = { count: 0, total: 0 }
+  const mathSources: PreviewBlock[] = []
   visit(tree, node => {
     if (node.type === 'footnoteDefinition') return SKIP
     if (node.type === 'heading' && node.position?.start.offset !== undefined) headings.push({ level: node.depth, title: plainText(node), offset: node.position.start.offset })
@@ -108,6 +123,12 @@ export function parseDocument(text: string): ParsedDocument {
     const to = node.position?.end.offset
     if (from === undefined || to === undefined) return
     node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataSourceFrom: from, dataSourceTo: to } }
+    if (node.type === 'math' || node.type === 'inlineMath') {
+      if (node.type === 'inlineMath') mathSources.push({ from, to, type: 'mathInline', html: '' })
+      const result = renderMath(node, text.slice(from, to), options.math !== false, mathBudget)
+      // HAST data is preserved by sanitisation, but is never serialised.
+      node.data.mathResult = { type: 'element', tagName: 'span', properties: {}, data: { mathResult: result, position: {} }, children: [] }
+    }
     if (node.type === 'image' || node.type === 'imageReference') {
       const url = node.type === 'image' ? node.url : definitions.get(node.identifier.toLowerCase())
       if (url === undefined) return
@@ -117,7 +138,7 @@ export function parseDocument(text: string): ParsedDocument {
     }
   })
   const output = renderer.runSync(tree)
-  const blocks: PreviewBlock[] = []
+  const blocks: PreviewBlock[] = text.length <= MAX_LIVE_DOCUMENT ? mathSources : []
   const elements = new Map(output.children.filter((node): node is Element => node.type === 'element').map(node => {
     const inner = node.children.find((child): child is Element => child.type === 'element' && child.properties.dataSourceFrom !== undefined)
     return [Number(node.properties.dataSourceFrom ?? inner?.properties.dataSourceFrom), node]
@@ -127,7 +148,7 @@ export function parseDocument(text: string): ParsedDocument {
     if (from === undefined || to === undefined || to - from > MAX_LIVE_BLOCK) continue
     const element = elements.get(from)
     const type = child.type === 'paragraph' && child.children.length === 1 && /^(image|imageReference)$/.test(child.children[0].type) ? 'image' : child.type
-    if (element && /^(code|table|image|thematicBreak)$/.test(type)) blocks.push({ from, to, type, html: String(renderer.stringify({ type: 'root', children: [element] })) })
+    if (element && /^(code|table|image|thematicBreak|math)$/.test(type)) blocks.push({ from, to, type, html: String(renderer.stringify({ type: 'root', children: [element] })) })
   }
   return { html: String(renderer.stringify(output)), headings, images, blocks }
 }

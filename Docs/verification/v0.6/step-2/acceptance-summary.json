@@ -1,0 +1,74 @@
+{
+  "recordedAt": "2026-10-15T02:37:51.714Z",
+  "baselineCommit": "afaaac9",
+  "branch": "feature/v0.6",
+  "step": 2,
+  "appVersion": "0.5.0",
+  "step2Committed": false,
+  "typecheck": true,
+  "productionBuild": true,
+  "unit": {
+    "files": 48,
+    "tests": 271,
+    "passed": true
+  },
+  "productionRegression": {
+    "groups": 25,
+    "passed": true
+  },
+  "mathVerification": {
+    "passed": true,
+    "browser": "156.0.8078.4",
+    "groups": 6
+  },
+  "dependencies": {
+    "total": 447,
+    "added": 17,
+    "missingLicenseTexts": 0,
+    "target": "x86_64-pc-windows-msvc"
+  },
+  "fixes": [
+    "cancelled/timed-out worker terminated, stale option revisions ignored",
+    "exact source restored by undo keeps displayed preview valid"
+  ],
+  "scope": "Local production Chromium; no installer or native/Word/OS print/other-platform GUI claim",
+  "notes": [
+    "An initial content-tools run exposed undo preview validity and was fixed before final full regression.",
+    "Concurrent browser/unit runs caused App autosave unit timeouts; final unit suite ran alone and passed.",
+    "Existing Vite chunk-size and happy-dom KaTeX quirks/React act warnings are recorded in logs."
+  ],
+  "artifacts": [
+    {
+      "file": "package.json",
+      "sha256": "5dab9e7e442cc1b9caf69699e75fc80de247607c0f2dc82e35b6c274fb538724"
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "sha256": "f098f2b09bdc3390247538d83d75570397c83cb3691dbc278a022b4391726596"
+    },
+    {
+      "file": "src/core/math.ts",
+      "sha256": "62ac8d61c146283a820c94393aab9844d686ef70e5c1874d0b0edca298f78233"
+    },
+    {
+      "file": "src/core/markdown.ts",
+      "sha256": "039261471238068691b4d717e4b2447cf4908dcc07e9fa6f12edc6773735f8a1"
+    },
+    {
+      "file": "src/core/markdown-ast.ts",
+      "sha256": "b6da1b4a3dbac3e9e36c88ea3557fb3a9612750753545ed522daf64b3ead4390"
+    },
+    {
+      "file": "src/editor/usePreview.ts",
+      "sha256": "ae4d148054796640e4e6ceac4b9976d625a88cb47c4dacda957d9ba03e6bd29c"
+    },
+    {
+      "file": "scripts/verify-math.mjs",
+      "sha256": "5360caa29a60fc74d184aef1bfb119306a37c0b424dc87b9e17e2143b9cc647a"
+    },
+    {
+      "file": "dist/index.html",
+      "sha256": "eefee668866be6597146a66c50b4223bce0ee8db8077f5a626f561f98bba4e84"
+    }
+  ]
+}
