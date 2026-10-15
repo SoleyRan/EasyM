@@ -47,3 +47,6 @@ export function editorFontSize(): number {
 }
 export interface HistoryDirectory { path: string; documentDirectory: string; custom: boolean; retainedPath?: string; backupPath?: string | null }
 export const historyDirectory = (id: string, action: 'status' | 'choose' | 'reset') => invoke<HistoryDirectory | null>('history_directory', { id, action })
+
+export function loadMermaidRendering(): boolean { return storedPreference('easym-mermaid-rendering') !== 'disabled' }
+export function saveMermaidRendering(enabled: boolean): boolean { return storePreference('easym-mermaid-rendering', enabled ? 'enabled' : 'disabled') }

@@ -3109,6 +3109,90 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40antfu/install-pkg@2.1.0",
+      "name": "@antfu/install-pkg",
+      "version": "2.1.0",
+      "purl": "pkg:npm/%40antfu/install-pkg@2.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40braintree/sanitize-url@7.1.2",
+      "name": "@braintree/sanitize-url",
+      "version": "7.1.2",
+      "purl": "pkg:npm/%40braintree/sanitize-url@7.1.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40chevrotain/cst-dts-gen@13.2.0",
+      "name": "@chevrotain/cst-dts-gen",
+      "version": "13.2.0",
+      "purl": "pkg:npm/%40chevrotain/cst-dts-gen@13.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40chevrotain/gast@13.2.0",
+      "name": "@chevrotain/gast",
+      "version": "13.2.0",
+      "purl": "pkg:npm/%40chevrotain/gast@13.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40chevrotain/regexp-to-ast@13.2.0",
+      "name": "@chevrotain/regexp-to-ast",
+      "version": "13.2.0",
+      "purl": "pkg:npm/%40chevrotain/regexp-to-ast@13.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40chevrotain/types@13.2.0",
+      "name": "@chevrotain/types",
+      "version": "13.2.0",
+      "purl": "pkg:npm/%40chevrotain/types@13.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40chevrotain/utils@13.2.0",
+      "name": "@chevrotain/utils",
+      "version": "13.2.0",
+      "purl": "pkg:npm/%40chevrotain/utils@13.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40codemirror/autocomplete@6.20.3",
       "name": "@codemirror/autocomplete",
       "version": "6.20.3",
@@ -3481,6 +3565,30 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40iconify/types@2.0.0",
+      "name": "@iconify/types",
+      "version": "2.0.0",
+      "purl": "pkg:npm/%40iconify/types@2.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40iconify/utils@3.1.7",
+      "name": "@iconify/utils",
+      "version": "3.1.7",
+      "purl": "pkg:npm/%40iconify/utils@3.1.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40lezer/common@1.5.3",
       "name": "@lezer/common",
       "version": "1.5.3",
@@ -3697,6 +3805,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40mermaid-js/parser@2.0.1",
+      "name": "@mermaid-js/parser",
+      "version": "2.0.1",
+      "purl": "pkg:npm/%40mermaid-js/parser@2.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40tauri-apps/api@2.12.1",
       "name": "@tauri-apps/api",
       "version": "2.12.1",
@@ -3709,10 +3829,394 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-array@3.2.2",
+      "name": "@types/d3-array",
+      "version": "3.2.2",
+      "purl": "pkg:npm/%40types/d3-array@3.2.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-axis@3.0.6",
+      "name": "@types/d3-axis",
+      "version": "3.0.6",
+      "purl": "pkg:npm/%40types/d3-axis@3.0.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-brush@3.0.6",
+      "name": "@types/d3-brush",
+      "version": "3.0.6",
+      "purl": "pkg:npm/%40types/d3-brush@3.0.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-chord@3.0.6",
+      "name": "@types/d3-chord",
+      "version": "3.0.6",
+      "purl": "pkg:npm/%40types/d3-chord@3.0.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-color@3.1.3",
+      "name": "@types/d3-color",
+      "version": "3.1.3",
+      "purl": "pkg:npm/%40types/d3-color@3.1.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-contour@3.0.6",
+      "name": "@types/d3-contour",
+      "version": "3.0.6",
+      "purl": "pkg:npm/%40types/d3-contour@3.0.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-delaunay@6.0.4",
+      "name": "@types/d3-delaunay",
+      "version": "6.0.4",
+      "purl": "pkg:npm/%40types/d3-delaunay@6.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-dispatch@3.0.7",
+      "name": "@types/d3-dispatch",
+      "version": "3.0.7",
+      "purl": "pkg:npm/%40types/d3-dispatch@3.0.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-drag@3.0.7",
+      "name": "@types/d3-drag",
+      "version": "3.0.7",
+      "purl": "pkg:npm/%40types/d3-drag@3.0.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-dsv@3.0.7",
+      "name": "@types/d3-dsv",
+      "version": "3.0.7",
+      "purl": "pkg:npm/%40types/d3-dsv@3.0.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-ease@3.0.2",
+      "name": "@types/d3-ease",
+      "version": "3.0.2",
+      "purl": "pkg:npm/%40types/d3-ease@3.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-fetch@3.0.7",
+      "name": "@types/d3-fetch",
+      "version": "3.0.7",
+      "purl": "pkg:npm/%40types/d3-fetch@3.0.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-force@3.0.10",
+      "name": "@types/d3-force",
+      "version": "3.0.10",
+      "purl": "pkg:npm/%40types/d3-force@3.0.10",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-format@3.0.4",
+      "name": "@types/d3-format",
+      "version": "3.0.4",
+      "purl": "pkg:npm/%40types/d3-format@3.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-geo@3.1.1",
+      "name": "@types/d3-geo",
+      "version": "3.1.1",
+      "purl": "pkg:npm/%40types/d3-geo@3.1.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-hierarchy@3.1.7",
+      "name": "@types/d3-hierarchy",
+      "version": "3.1.7",
+      "purl": "pkg:npm/%40types/d3-hierarchy@3.1.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-interpolate@3.0.4",
+      "name": "@types/d3-interpolate",
+      "version": "3.0.4",
+      "purl": "pkg:npm/%40types/d3-interpolate@3.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-path@3.1.1",
+      "name": "@types/d3-path",
+      "version": "3.1.1",
+      "purl": "pkg:npm/%40types/d3-path@3.1.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-polygon@3.0.2",
+      "name": "@types/d3-polygon",
+      "version": "3.0.2",
+      "purl": "pkg:npm/%40types/d3-polygon@3.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-quadtree@3.0.6",
+      "name": "@types/d3-quadtree",
+      "version": "3.0.6",
+      "purl": "pkg:npm/%40types/d3-quadtree@3.0.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-random@3.0.4",
+      "name": "@types/d3-random",
+      "version": "3.0.4",
+      "purl": "pkg:npm/%40types/d3-random@3.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-scale-chromatic@3.1.0",
+      "name": "@types/d3-scale-chromatic",
+      "version": "3.1.0",
+      "purl": "pkg:npm/%40types/d3-scale-chromatic@3.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-scale@4.0.9",
+      "name": "@types/d3-scale",
+      "version": "4.0.9",
+      "purl": "pkg:npm/%40types/d3-scale@4.0.9",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-selection@3.0.12",
+      "name": "@types/d3-selection",
+      "version": "3.0.12",
+      "purl": "pkg:npm/%40types/d3-selection@3.0.12",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-shape@3.2.0",
+      "name": "@types/d3-shape",
+      "version": "3.2.0",
+      "purl": "pkg:npm/%40types/d3-shape@3.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-time-format@4.0.3",
+      "name": "@types/d3-time-format",
+      "version": "4.0.3",
+      "purl": "pkg:npm/%40types/d3-time-format@4.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-time@3.0.4",
+      "name": "@types/d3-time",
+      "version": "3.0.4",
+      "purl": "pkg:npm/%40types/d3-time@3.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-timer@3.0.2",
+      "name": "@types/d3-timer",
+      "version": "3.0.2",
+      "purl": "pkg:npm/%40types/d3-timer@3.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-transition@3.0.9",
+      "name": "@types/d3-transition",
+      "version": "3.0.9",
+      "purl": "pkg:npm/%40types/d3-transition@3.0.9",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3-zoom@3.0.9",
+      "name": "@types/d3-zoom",
+      "version": "3.0.9",
+      "purl": "pkg:npm/%40types/d3-zoom@3.0.9",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/d3@7.4.3",
+      "name": "@types/d3",
+      "version": "7.4.3",
+      "purl": "pkg:npm/%40types/d3@7.4.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40types/debug@4.1.13",
       "name": "@types/debug",
       "version": "4.1.13",
       "purl": "pkg:npm/%40types/debug@4.1.13",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40types/geojson@7946.0.16",
+      "name": "@types/geojson",
+      "version": "7946.0.16",
+      "purl": "pkg:npm/%40types/geojson@7946.0.16",
       "licenses": [
         {
           "expression": "MIT"
@@ -3781,6 +4285,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/%40types/trusted-types@2.0.7",
+      "name": "@types/trusted-types",
+      "version": "2.0.7",
+      "purl": "pkg:npm/%40types/trusted-types@2.0.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/%40types/unist@3.0.3",
       "name": "@types/unist",
       "version": "3.0.3",
@@ -3800,6 +4316,18 @@
       "licenses": [
         {
           "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/%40upsetjs/venn.js@2.0.0",
+      "name": "@upsetjs/venn.js",
+      "version": "2.0.0",
+      "purl": "pkg:npm/%40upsetjs/venn.js@2.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
         }
       ]
     },
@@ -3865,6 +4393,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/chevrotain@13.2.0",
+      "name": "chevrotain",
+      "version": "13.2.0",
+      "purl": "pkg:npm/chevrotain@13.2.0",
+      "licenses": [
+        {
+          "expression": "Apache-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/comma-separated-tokens@2.0.3",
       "name": "comma-separated-tokens",
       "version": "2.0.3",
@@ -3881,6 +4421,18 @@
       "name": "commander",
       "version": "15.0.0",
       "purl": "pkg:npm/commander@15.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/commander@7.2.0",
+      "name": "commander",
+      "version": "7.2.0",
+      "purl": "pkg:npm/commander@7.2.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -3913,10 +4465,514 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/cose-base@1.0.3",
+      "name": "cose-base",
+      "version": "1.0.3",
+      "purl": "pkg:npm/cose-base@1.0.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/cose-base@2.2.0",
+      "name": "cose-base",
+      "version": "2.2.0",
+      "purl": "pkg:npm/cose-base@2.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/crelt@1.0.7",
       "name": "crelt",
       "version": "1.0.7",
       "purl": "pkg:npm/crelt@1.0.7",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/cytoscape-cose-bilkent@4.1.0",
+      "name": "cytoscape-cose-bilkent",
+      "version": "4.1.0",
+      "purl": "pkg:npm/cytoscape-cose-bilkent@4.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/cytoscape-fcose@2.2.0",
+      "name": "cytoscape-fcose",
+      "version": "2.2.0",
+      "purl": "pkg:npm/cytoscape-fcose@2.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/cytoscape@3.34.3",
+      "name": "cytoscape",
+      "version": "3.34.3",
+      "purl": "pkg:npm/cytoscape@3.34.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-array@2.12.1",
+      "name": "d3-array",
+      "version": "2.12.1",
+      "purl": "pkg:npm/d3-array@2.12.1",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-array@3.2.4",
+      "name": "d3-array",
+      "version": "3.2.4",
+      "purl": "pkg:npm/d3-array@3.2.4",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-axis@3.0.0",
+      "name": "d3-axis",
+      "version": "3.0.0",
+      "purl": "pkg:npm/d3-axis@3.0.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-brush@3.0.0",
+      "name": "d3-brush",
+      "version": "3.0.0",
+      "purl": "pkg:npm/d3-brush@3.0.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-chord@3.0.1",
+      "name": "d3-chord",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-chord@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-color@3.1.0",
+      "name": "d3-color",
+      "version": "3.1.0",
+      "purl": "pkg:npm/d3-color@3.1.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-contour@4.0.2",
+      "name": "d3-contour",
+      "version": "4.0.2",
+      "purl": "pkg:npm/d3-contour@4.0.2",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-delaunay@6.0.4",
+      "name": "d3-delaunay",
+      "version": "6.0.4",
+      "purl": "pkg:npm/d3-delaunay@6.0.4",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-dispatch@3.0.1",
+      "name": "d3-dispatch",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-dispatch@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-drag@3.0.0",
+      "name": "d3-drag",
+      "version": "3.0.0",
+      "purl": "pkg:npm/d3-drag@3.0.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-dsv@3.0.1",
+      "name": "d3-dsv",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-dsv@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-ease@3.0.1",
+      "name": "d3-ease",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-ease@3.0.1",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-fetch@3.0.1",
+      "name": "d3-fetch",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-fetch@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-force@3.0.0",
+      "name": "d3-force",
+      "version": "3.0.0",
+      "purl": "pkg:npm/d3-force@3.0.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-format@3.1.2",
+      "name": "d3-format",
+      "version": "3.1.2",
+      "purl": "pkg:npm/d3-format@3.1.2",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-geo@3.1.1",
+      "name": "d3-geo",
+      "version": "3.1.1",
+      "purl": "pkg:npm/d3-geo@3.1.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-hierarchy@3.1.2",
+      "name": "d3-hierarchy",
+      "version": "3.1.2",
+      "purl": "pkg:npm/d3-hierarchy@3.1.2",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-interpolate@3.0.1",
+      "name": "d3-interpolate",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-interpolate@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-path@1.0.9",
+      "name": "d3-path",
+      "version": "1.0.9",
+      "purl": "pkg:npm/d3-path@1.0.9",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-path@3.1.0",
+      "name": "d3-path",
+      "version": "3.1.0",
+      "purl": "pkg:npm/d3-path@3.1.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-polygon@3.0.1",
+      "name": "d3-polygon",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-polygon@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-quadtree@3.0.1",
+      "name": "d3-quadtree",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-quadtree@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-random@3.0.1",
+      "name": "d3-random",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-random@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-sankey@0.12.3",
+      "name": "d3-sankey",
+      "version": "0.12.3",
+      "purl": "pkg:npm/d3-sankey@0.12.3",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-scale-chromatic@3.1.0",
+      "name": "d3-scale-chromatic",
+      "version": "3.1.0",
+      "purl": "pkg:npm/d3-scale-chromatic@3.1.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-scale@4.0.2",
+      "name": "d3-scale",
+      "version": "4.0.2",
+      "purl": "pkg:npm/d3-scale@4.0.2",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-selection@3.0.0",
+      "name": "d3-selection",
+      "version": "3.0.0",
+      "purl": "pkg:npm/d3-selection@3.0.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-shape@1.3.7",
+      "name": "d3-shape",
+      "version": "1.3.7",
+      "purl": "pkg:npm/d3-shape@1.3.7",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-shape@3.2.0",
+      "name": "d3-shape",
+      "version": "3.2.0",
+      "purl": "pkg:npm/d3-shape@3.2.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-time-format@4.1.0",
+      "name": "d3-time-format",
+      "version": "4.1.0",
+      "purl": "pkg:npm/d3-time-format@4.1.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-time@3.1.0",
+      "name": "d3-time",
+      "version": "3.1.0",
+      "purl": "pkg:npm/d3-time@3.1.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-timer@3.0.1",
+      "name": "d3-timer",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-timer@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-transition@3.0.1",
+      "name": "d3-transition",
+      "version": "3.0.1",
+      "purl": "pkg:npm/d3-transition@3.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3-zoom@3.0.0",
+      "name": "d3-zoom",
+      "version": "3.0.0",
+      "purl": "pkg:npm/d3-zoom@3.0.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/d3@7.9.0",
+      "name": "d3",
+      "version": "7.9.0",
+      "purl": "pkg:npm/d3@7.9.0",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/dagre-d3-es@7.0.14",
+      "name": "dagre-d3-es",
+      "version": "7.0.14",
+      "purl": "pkg:npm/dagre-d3-es@7.0.14",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/dayjs@1.11.23",
+      "name": "dayjs",
+      "version": "1.11.23",
+      "purl": "pkg:npm/dayjs@1.11.23",
       "licenses": [
         {
           "expression": "MIT"
@@ -3944,6 +5000,18 @@
       "licenses": [
         {
           "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/delaunator@5.1.0",
+      "name": "delaunator",
+      "version": "5.1.0",
+      "purl": "pkg:npm/delaunator@5.1.0",
+      "licenses": [
+        {
+          "expression": "ISC"
         }
       ]
     },
@@ -3985,6 +5053,30 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/dompurify@3.4.17",
+      "name": "dompurify",
+      "version": "3.4.17",
+      "purl": "pkg:npm/dompurify@3.4.17",
+      "licenses": [
+        {
+          "expression": "(MPL-2.0 OR Apache-2.0)"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/elkjs@0.9.3",
+      "name": "elkjs",
+      "version": "0.9.3",
+      "purl": "pkg:npm/elkjs@0.9.3",
+      "licenses": [
+        {
+          "expression": "EPL-2.0"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/entities@6.0.1",
       "name": "entities",
       "version": "6.0.1",
@@ -3992,6 +5084,18 @@
       "licenses": [
         {
           "expression": "BSD-2-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/es-toolkit@1.52.0",
+      "name": "es-toolkit",
+      "version": "1.52.0",
+      "purl": "pkg:npm/es-toolkit@1.52.0",
+      "licenses": [
+        {
+          "expression": "MIT"
         }
       ]
     },
@@ -4037,6 +5141,18 @@
       "name": "format",
       "version": "0.2.2",
       "purl": "pkg:npm/format@0.2.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/hachure-fill@0.5.2",
+      "name": "hachure-fill",
+      "version": "0.5.2",
+      "purl": "pkg:npm/hachure-fill@0.5.2",
       "licenses": [
         {
           "expression": "MIT"
@@ -4177,6 +5293,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/iconv-lite@0.6.3",
+      "name": "iconv-lite",
+      "version": "0.6.3",
+      "purl": "pkg:npm/iconv-lite@0.6.3",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/immediate@3.0.6",
       "name": "immediate",
       "version": "3.0.6",
@@ -4189,10 +5317,46 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/import-meta-resolve@4.2.0",
+      "name": "import-meta-resolve",
+      "version": "4.2.0",
+      "purl": "pkg:npm/import-meta-resolve@4.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/inherits@2.0.4",
       "name": "inherits",
       "version": "2.0.4",
       "purl": "pkg:npm/inherits@2.0.4",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/internmap@1.0.1",
+      "name": "internmap",
+      "version": "1.0.1",
+      "purl": "pkg:npm/internmap@1.0.1",
+      "licenses": [
+        {
+          "expression": "ISC"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/internmap@2.0.3",
+      "name": "internmap",
+      "version": "2.0.3",
+      "purl": "pkg:npm/internmap@2.0.3",
       "licenses": [
         {
           "expression": "ISC"
@@ -4249,6 +5413,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/katex@0.18.11",
+      "name": "katex",
+      "version": "0.18.11",
+      "purl": "pkg:npm/katex@0.18.11",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/katex@0.19.0",
       "name": "katex",
       "version": "0.19.0",
@@ -4261,10 +5437,58 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/khroma@2.1.0",
+      "name": "khroma",
+      "version": "2.1.0",
+      "purl": "pkg:npm/khroma@2.1.0",
+      "licenses": [
+        {
+          "expression": "Unknown"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/layout-base@1.0.2",
+      "name": "layout-base",
+      "version": "1.0.2",
+      "purl": "pkg:npm/layout-base@1.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/layout-base@2.0.1",
+      "name": "layout-base",
+      "version": "2.0.1",
+      "purl": "pkg:npm/layout-base@2.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/lie@3.3.0",
       "name": "lie",
       "version": "3.3.0",
       "purl": "pkg:npm/lie@3.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/lodash-es@4.18.1",
+      "name": "lodash-es",
+      "version": "4.18.1",
+      "purl": "pkg:npm/lodash-es@4.18.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -4301,6 +5525,18 @@
       "name": "markdown-table",
       "version": "3.0.4",
       "purl": "pkg:npm/markdown-table@3.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/marked@16.4.2",
+      "name": "marked",
+      "version": "16.4.2",
+      "purl": "pkg:npm/marked@16.4.2",
       "licenses": [
         {
           "expression": "MIT"
@@ -4469,6 +5705,18 @@
       "name": "mdast-util-to-string",
       "version": "4.0.0",
       "purl": "pkg:npm/mdast-util-to-string@4.0.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/mermaid@12.2.0",
+      "name": "mermaid",
+      "version": "12.2.0",
+      "purl": "pkg:npm/mermaid@12.2.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -4885,6 +6133,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/package-manager-detector@1.9.0",
+      "name": "package-manager-detector",
+      "version": "1.9.0",
+      "purl": "pkg:npm/package-manager-detector@1.9.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/pako@1.0.11",
       "name": "pako",
       "version": "1.0.11",
@@ -4901,6 +6161,42 @@
       "name": "parse5",
       "version": "7.3.0",
       "purl": "pkg:npm/parse5@7.3.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/path-data-parser@0.1.0",
+      "name": "path-data-parser",
+      "version": "0.1.0",
+      "purl": "pkg:npm/path-data-parser@0.1.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/points-on-curve@0.2.0",
+      "name": "points-on-curve",
+      "version": "0.2.0",
+      "purl": "pkg:npm/points-on-curve@0.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/points-on-path@0.2.1",
+      "name": "points-on-path",
+      "version": "0.2.1",
+      "purl": "pkg:npm/points-on-path@0.2.1",
       "licenses": [
         {
           "expression": "MIT"
@@ -5065,10 +6361,58 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/robust-predicates@3.0.3",
+      "name": "robust-predicates",
+      "version": "3.0.3",
+      "purl": "pkg:npm/robust-predicates@3.0.3",
+      "licenses": [
+        {
+          "expression": "Unlicense"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/roughjs@4.6.6",
+      "name": "roughjs",
+      "version": "4.6.6",
+      "purl": "pkg:npm/roughjs@4.6.6",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/rw@1.3.3",
+      "name": "rw",
+      "version": "1.3.3",
+      "purl": "pkg:npm/rw@1.3.3",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/safe-buffer@5.1.2",
       "name": "safe-buffer",
       "version": "5.1.2",
       "purl": "pkg:npm/safe-buffer@5.1.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/safer-buffer@2.1.2",
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "purl": "pkg:npm/safer-buffer@2.1.2",
       "licenses": [
         {
           "expression": "MIT"
@@ -5161,6 +6505,30 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/stylis@4.4.0",
+      "name": "stylis",
+      "version": "4.4.0",
+      "purl": "pkg:npm/stylis@4.4.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/tinyexec@1.3.1",
+      "name": "tinyexec",
+      "version": "1.3.1",
+      "purl": "pkg:npm/tinyexec@1.3.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/trim-lines@3.0.1",
       "name": "trim-lines",
       "version": "3.0.1",
@@ -5177,6 +6545,18 @@
       "name": "trough",
       "version": "2.2.0",
       "purl": "pkg:npm/trough@2.2.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/ts-dedent@2.3.0",
+      "name": "ts-dedent",
+      "version": "2.3.0",
+      "purl": "pkg:npm/ts-dedent@2.3.0",
       "licenses": [
         {
           "expression": "MIT"
@@ -5285,6 +6665,18 @@
       "name": "util-deprecate",
       "version": "1.0.2",
       "purl": "pkg:npm/util-deprecate@1.0.2",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/uuid@14.0.3",
+      "name": "uuid",
+      "version": "14.0.3",
+      "purl": "pkg:npm/uuid@14.0.3",
       "licenses": [
         {
           "expression": "MIT"

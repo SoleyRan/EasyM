@@ -14,7 +14,7 @@ let browser, server
 try {
   // Reuse the application's worker export conditions, including remark's
   // DOM-free character-reference decoder; default browser conditions need DOM.
-  await build({ configFile: resolve('vite.config.ts'), logLevel: 'warn', build: { outDir: output, emptyOutDir: false, lib: { entry: resolve('scripts/fixtures/docx-library-worker.ts'), formats: ['iife'], name: 'DocxProbe', fileName: () => 'probe.js' }, rollupOptions: { plugins: [{ name: 'assert-no-external-imports', generateBundle(_, bundle) { for (const chunk of Object.values(bundle)) if (chunk.type === 'chunk') assert.equal(chunk.imports.length + chunk.dynamicImports.length, 0) } }] } } })
+  await build({ configFile: resolve('vite.config.ts'), logLevel: 'warn', build: { outDir: output, emptyOutDir: false, lib: { entry: resolve('scripts/fixtures/docx-library-worker.ts'), formats: ['iife'], name: 'DocxProbe', fileName: () => 'probe.js' }, rollupOptions: { input: resolve('scripts/fixtures/docx-library-worker.ts'), plugins: [{ name: 'assert-no-external-imports', generateBundle(_, bundle) { for (const chunk of Object.values(bundle)) if (chunk.type === 'chunk') assert.equal(chunk.imports.length + chunk.dynamicImports.length, 0) } }] } } })
   const bundle = await readFile(resolve(output, 'probe.js'))
   const csp = JSON.parse(await readFile('src-tauri/tauri.conf.json', 'utf8')).app.security.csp
   server = createServer((req, res) => {

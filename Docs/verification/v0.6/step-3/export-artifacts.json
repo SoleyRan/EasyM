@@ -1,0 +1,22 @@
+[
+  {
+    "file": "standalone.html",
+    "bytes": 36181,
+    "sha256": "08dde395063ea222c611f17da4db10a6378137c9de7974bc117a1f59be755ee3"
+  },
+  {
+    "file": "disabled.html",
+    "bytes": 5514,
+    "sha256": "27e0b648c401602bb1295dae5b2570f83517aab6a046d80c388419ca10450f6a"
+  },
+  {
+    "file": "diagrams.pdf",
+    "bytes": 141124,
+    "sha256": "242f332106bb35b0450c1ebeb4152dec61884a233f865f788d5f95197d794924"
+  },
+  {
+    "file": "diagrams.docx",
+    "bytes": 10562,
+    "sha256": "03d2750c6e9c7c96661a1a71ae4626ff85ae52f163c973b4bd6dbf263e285615"
+  }
+]

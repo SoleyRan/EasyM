@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import type { ParsedDocument } from '../core/markdown'
 import MarkdownWorker from '../platform/markdown-worker?worker&inline'
 import { MATH_LIMITS } from '../core/math'
+import { renderMermaid } from '../platform/mermaid'
 
 const empty: ParsedDocument = { html: '', headings: [], images: [] }
 
-export function usePreview(text: string, error: (message: string) => void, math = true) {
+export function usePreview(text: string, error: (message: string) => void, math = true, mermaid = true, theme = 'light', active = true) {
   const [parsed, setParsed] = useState(empty)
   const parsedText = useRef('')
   const previousMath = useRef(math)
@@ -17,6 +18,7 @@ export function usePreview(text: string, error: (message: string) => void, math 
 
   useEffect(() => {
     const current = ++revision.current
+    const controller = new AbortController()
     // Returning to the exact displayed source through undo keeps that preview
     // valid. Only an option change invalidates the same-source presentation.
     if (previousMath.current !== math) parsedText.current = ''
@@ -37,13 +39,16 @@ export function usePreview(text: string, error: (message: string) => void, math 
         clearTimeout(deadline); running = null
         if (event.data.error) { fail(event.data.error); return }
         parsedText.current = text; setParsed(event.data.parsed)
+        if (active) void renderMermaid(event.data.parsed, mermaid, theme, controller.signal).then(result => {
+          if (!controller.signal.aborted && current === revision.current) setParsed(result)
+        }).catch(() => { /* Retain the source preview if presentation fails. */ })
       }
       task.onerror = () => fail('后台预览不可用，源码仍可编辑。')
       deadline = window.setTimeout(() => fail('预览解析超时，源码仍可编辑；修改内容可重试。'), MATH_LIMITS.timeout)
       try { task.postMessage({ text, revision: current, options: { math } }) }
       catch { fail('后台预览不可用，源码仍可编辑。') }
     }, 120)
-    return () => { ++revision.current; clearTimeout(timer); clearTimeout(deadline); if (running) { running.terminate(); if (worker.current === running) worker.current = null } }
-  }, [text, math])
+    return () => { controller.abort(); ++revision.current; clearTimeout(timer); clearTimeout(deadline); if (running) { running.terminate(); if (worker.current === running) worker.current = null } }
+  }, [text, math, mermaid, theme, active])
   return { parsed, parsedText }
 }

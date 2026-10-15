@@ -15,7 +15,7 @@ assert.equal(regression.version, config.version)
 assert.equal(regression.passed, true)
 assert.equal(regression.distIndexSha256, createHash('sha256').update(await readFile('dist/index.html')).digest('hex'))
 await mkdir(output, { recursive: true })
-const paths = ['src-tauri/target/release/easym.exe', 'dist/index.html', 'pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json', 'LICENSE',
+const paths = ['src-tauri/target/release/easym.exe', 'dist/index.html', 'dist/mermaid.html', 'dist/mermaid-runtime.js', 'pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'src-tauri/tauri.conf.json', 'LICENSE',
   'Docs/dependencies/THIRD-PARTY-NOTICES.md', 'Docs/dependencies/sbom.cdx.json', 'Docs/dependencies/inventory.json', 'Docs/dependencies/license-sources.json']
 try {
   for (const name of await readdir('src-tauri/target/release/bundle/portable')) {
@@ -42,8 +42,8 @@ async function collectSource(directory) {
     else if (entry.isFile()) sourcePaths.push(path)
   }
 }
-for (const directory of ['src', 'src-tauri', 'scripts', '.github', 'Docs/samples', 'Docs/dependencies']) await collectSource(directory)
-sourcePaths.push('package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'tsconfig.json', 'index.html', '.gitattributes', 'LICENSE')
+for (const directory of ['src', 'src-tauri', 'scripts', '.github', 'Docs/samples', 'Docs/dependencies', 'public']) await collectSource(directory)
+sourcePaths.push('package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'tsconfig.json', 'index.html', 'mermaid.html', '.gitattributes', 'LICENSE')
 const sourceHash = createHash('sha256')
 for (const path of sourcePaths.sort()) {
   sourceHash.update(path + '\0')
@@ -53,7 +53,7 @@ const native = JSON.parse((await readFile('test-results/native-startup-verificat
 assert.equal(native.version, config.version)
 assert.equal(native.passed, true)
 assert.equal(native.executableSha256, artifacts.find(item => item.path.endsWith('/easym.exe')).sha256)
-for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'extensions-verification.json', 'math-verification.json', 'context-menu-verification.json', 'docx-library-verification.json', 'docx-verification.json', 'docx-ui-verification.json', 'history-verification.json', 'batch-images-verification.json', 'regression-verification.json', 'native-startup-verification.json', 'settings-verification.json', 'commands-verification.json', 'tables-verification.json', 'content-tools-verification.json', 'quick-entry-verification.json', 'appearance-verification.json', 'portable-verification.json', 'session-verification.json', 'recent-verification.json', 'external-verification.json']) {
+for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'extensions-verification.json', 'math-verification.json', 'mermaid-verification.json', 'context-menu-verification.json', 'docx-library-verification.json', 'docx-verification.json', 'docx-ui-verification.json', 'history-verification.json', 'batch-images-verification.json', 'regression-verification.json', 'native-startup-verification.json', 'settings-verification.json', 'commands-verification.json', 'tables-verification.json', 'content-tools-verification.json', 'quick-entry-verification.json', 'appearance-verification.json', 'portable-verification.json', 'session-verification.json', 'recent-verification.json', 'external-verification.json']) {
   await copyFile(resolve('test-results', file), resolve(output, file))
 }
 await writeFile(resolve(output, 'windows-build.json'), JSON.stringify({

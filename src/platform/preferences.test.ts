@@ -1,9 +1,20 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { appVersion, needsGuide, completeGuide, editorFontSize, storedPreference, storePreference, defaultAppearance, loadAppearance, saveAppearance, validateAppearance, appearanceTheme } from './preferences'
-import { loadMathRendering, saveMathRendering } from './preferences'
+import { loadMathRendering, saveMathRendering, loadMermaidRendering, saveMermaidRendering } from './preferences'
 beforeEach(() => localStorage.clear())
 afterEach(() => vi.restoreAllMocks())
+it('keeps Mermaid independent of math and appearance, including failed writes', () => {
+  expect(loadMermaidRendering()).toBe(true)
+  expect(saveMermaidRendering(false)).toBe(true)
+  saveMathRendering(true); saveAppearance(defaultAppearance)
+  expect(loadMermaidRendering()).toBe(false)
+  const storage = localStorage
+  vi.stubGlobal('localStorage', { getItem: storage.getItem.bind(storage), setItem: () => { throw Error('quota') } })
+  try { expect(saveMermaidRendering(true)).toBe(false); expect(loadMermaidRendering()).toBe(false) }
+  finally { vi.unstubAllGlobals() }
+  expect(saveMermaidRendering(true)).toBe(true)
+})
 it('persists math rendering independently of appearance and rejects malformed disabled values', () => {
   expect(loadMathRendering()).toBe(true)
   expect(saveMathRendering(false)).toBe(true)

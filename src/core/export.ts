@@ -2,12 +2,14 @@ import type { ParsedDocument } from './markdown'
 import { inspectImage, MAX_ASSET_BYTES, MAX_IMAGE_BYTES } from './images'
 import exportStyles from './export.css?inline'
 import mathStyles from './math.css?inline'
+import mermaidStyles from './mermaid.css?inline'
+import { mermaidDataUrl } from './mermaid-svg'
 import { localImagePath } from './export-resource'
 export { localImagePath } from './export-resource'
 
 export const MAX_EXPORT_BYTES = 192 * 1024 * 1024
 export interface ExportDocument { html: string; body: string; warnings: string[]; name: string }
-const combinedStyles = exportStyles + mathStyles
+const combinedStyles = exportStyles + mathStyles + mermaidStyles
 export { combinedStyles as exportStyles }
 
 async function inlineImage(blob: Blob): Promise<string> {
@@ -37,6 +39,10 @@ export async function createExport(parsed: ParsedDocument, name: string, load: (
   const cache = new Map<string, string | null>()
   let total = 0
   for (const image of main.querySelectorAll('img')) {
+    if (image.dataset.mermaidImage === 'true' && image.src.startsWith('data:image/svg+xml;charset=utf-8,')) {
+      image.src = mermaidDataUrl(decodeURIComponent(image.src.slice('data:image/svg+xml;charset=utf-8,'.length)))
+      continue
+    }
     const resource = image.getAttribute('data-resource') ?? ''
     const path = localImagePath(resource)
     const key = path ?? resource

@@ -7,6 +7,7 @@ import type { Nodes } from 'mdast'
 import { parseMarkdownAst } from './markdown-ast'
 import { indexFootnotes } from './footnotes'
 import { renderMath } from './math'
+import type { MermaidSource } from './mermaid'
 import type { Root as HtmlRoot, Element } from 'hast'
 import { createLowlight, common } from 'lowlight'
 import powershell from 'highlight.js/lib/languages/powershell'
@@ -34,6 +35,7 @@ export interface ParsedDocument {
   headings: Array<{ level: number; title: string; offset: number }>
   images: ImageReference[]
   blocks?: PreviewBlock[]
+  diagrams?: MermaidSource[]
 }
 
 function sourceSection(_state: unknown, node: Nodes): Element | undefined {
@@ -110,6 +112,7 @@ export function parseDocument(text: string, options: { math?: boolean } = {}): P
   })
   const headings: ParsedDocument['headings'] = []
   const images: ImageReference[] = []
+  const diagrams: MermaidSource[] = []
   const mathBudget = { count: 0, total: 0 }
   const mathSources: PreviewBlock[] = []
   visit(tree, node => {
@@ -122,6 +125,7 @@ export function parseDocument(text: string, options: { math?: boolean } = {}): P
     const from = node.position?.start.offset
     const to = node.position?.end.offset
     if (from === undefined || to === undefined) return
+    if (node.type === 'code' && node.lang === 'mermaid') diagrams.push({ from, to, source: node.value, raw: text.slice(from, to) })
     node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataSourceFrom: from, dataSourceTo: to } }
     if (node.type === 'math' || node.type === 'inlineMath') {
       if (node.type === 'inlineMath') mathSources.push({ from, to, type: 'mathInline', html: '' })
@@ -150,7 +154,7 @@ export function parseDocument(text: string, options: { math?: boolean } = {}): P
     const type = child.type === 'paragraph' && child.children.length === 1 && /^(image|imageReference)$/.test(child.children[0].type) ? 'image' : child.type
     if (element && /^(code|table|image|thematicBreak|math)$/.test(type)) blocks.push({ from, to, type, html: String(renderer.stringify({ type: 'root', children: [element] })) })
   }
-  return { html: String(renderer.stringify(output)), headings, images, blocks }
+  return { html: String(renderer.stringify(output)), headings, images, blocks, diagrams }
 }
 
 export const renderMarkdown = (text: string): string => parseDocument(text).html

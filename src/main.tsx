@@ -7,3 +7,5 @@ import './editor/themes.css'
 import './core/math.css'
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+
+import './core/mermaid.css'

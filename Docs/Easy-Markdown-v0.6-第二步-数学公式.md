@@ -16,7 +16,7 @@
 
 覆盖行内/块公式、分数/根号/求和/矩阵、中文邻接、货币/转义/代码、脚注/表格嵌套、危险命令、宏展开、尺寸与总量限额、错误后继续渲染、设置开关及持久化、多标签/过期任务、即时渲染回源码和撤销、四主题/紧凑窗口、独立离线 HTML、打印 PDF 与 DOCX 降级。类型检查、前端测试、生产构建及全量生产回归完成后归档到 `Docs/verification/v0.6/step-2/`。
 
-当前状态：实现及本机验收已完成；第二步尚未提交。
+当前状态：实现及本机验收已完成；第二步已提交 `ff81da3`（`feat: add bounded offline math rendering and export support`）。下方验收归档保留提交前的历史状态。
 
 类型检查、生产构建、48 个文件的 271 项单测与全部 25 组生产回归通过。归档见 [验收摘要](verification/v0.6/step-2/acceptance-summary.json)、[数学专项报告](verification/v0.6/step-2/math-verification.json)、[全量回归报告](verification/v0.6/step-2/regression-verification.json)、[单测日志](verification/v0.6/step-2/unit-output.txt)、[回归日志](verification/v0.6/step-2/regression-output.txt) 和 [深色主题截图](verification/v0.6/step-2/screenshots/dark.png)。生成的 HTML/PDF/DOCX 在本机 `test-results/math/`，字节数与哈希见 [导出产物记录](verification/v0.6/step-2/export-artifacts.json)。
 

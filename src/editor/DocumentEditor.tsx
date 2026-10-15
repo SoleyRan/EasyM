@@ -83,6 +83,8 @@ export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'e
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   mathRendering?: boolean
+  mermaidRendering?: boolean
+  diagramTheme?: string
   quickEntryOpen?: boolean; reading: boolean; readingBusy: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
@@ -92,7 +94,7 @@ interface Props {
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
   onReadOther?: () => void
 }
-export default function DocumentEditor({ mathRendering = true, quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
+export default function DocumentEditor({ mathRendering = true, mermaidRendering = true, diagramTheme = 'light', quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -219,7 +221,7 @@ export default function DocumentEditor({ mathRendering = true, quickEntryOpen = 
   const draftGeneration = useRef(0)
   const discarded = useRef(false)
   const flushDraft = useRef<() => void>(() => undefined)
-  const { parsed, parsedText } = usePreview(text, setError, mathRendering)
+  const { parsed, parsedText } = usePreview(text, setError, mathRendering, mermaidRendering, diagramTheme, active)
   const [statistics, setStatistics] = useState(() => documentStatistics(text))
   useEffect(() => {
     // Keep whole-document statistics out of the typing frame for large files.
@@ -561,7 +563,7 @@ export default function DocumentEditor({ mathRendering = true, quickEntryOpen = 
     exporting.current = true; setBusy(true); setError(''); setStatus('正在准备文档…')
     try {
       // Parse the exact current source; the debounced preview may still be stale.
-      const parsed = await parseForExport(text, { math: mathRendering })
+      const parsed = await parseForExport(text, { math: mathRendering, mermaid: mermaidRendering })
       const output = await createExport(parsed, name, async path => {
         const asset = images.resources.assets[path]
         if (asset) return asset

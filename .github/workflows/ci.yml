@@ -54,6 +54,8 @@ jobs:
             test-results/extensions/*
             test-results/math-verification.json
             test-results/math/*
+            test-results/mermaid-verification.json
+            test-results/mermaid/*
             test-results/context-menu-verification.json
             test-results/commands-verification.json
             test-results/tables-verification.json

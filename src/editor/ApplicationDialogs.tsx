@@ -26,9 +26,10 @@ export function ApplicationDialog({ title, onClose, busy = false, children, onKe
   </div>
 }
 
-export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearance, onResetAppearance, mathRendering, onMathRendering, onGuide, onClose }: {
+export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearance, onResetAppearance, mathRendering, onMathRendering, mermaidRendering, onMermaidRendering, onGuide, onClose }: {
   fileId: string | null | undefined; theme: Theme; onTheme(value: Theme): void;
   appearance: Appearance; onAppearance(value: Partial<Appearance>): void; onResetAppearance(): void; onGuide(): void; onClose(): void
+  mermaidRendering: boolean; onMermaidRendering(enabled: boolean): void
   mathRendering: boolean; onMathRendering(enabled: boolean): void
 }) {
   const [directory, setDirectory] = useState<HistoryDirectory | null>(null)
@@ -67,6 +68,7 @@ export function SettingsDialog({ fileId, theme, onTheme, appearance, onAppearanc
       <p>设置即时生效，并保存在本机。已保存文件停止输入后自动保存；新文档先保留本机草稿，首次请另存为。</p>
     </section>
     <section><h3>Markdown 扩展</h3>
+      <label className="setting-row"><span>Mermaid 图表渲染</span><input type="checkbox" checked={mermaidRendering} onChange={e => onMermaidRendering(e.target.checked)} /></label>
       <label className="setting-row"><span>数学公式渲染</span><input type="checkbox" checked={mathRendering} onChange={e => onMathRendering(e.target.checked)} /></label>
     </section>
     <section><h3>版本历史保存位置</h3>

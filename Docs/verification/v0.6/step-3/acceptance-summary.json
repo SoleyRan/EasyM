@@ -1,0 +1,115 @@
+{
+  "recordedAt": "2026-10-15T03:14:23.282Z",
+  "baselineCommit": "ff81da3",
+  "branch": "feature/v0.6",
+  "step": 3,
+  "appVersion": "0.5.0",
+  "step3Committed": false,
+  "typecheck": true,
+  "productionBuild": true,
+  "unit": {
+    "files": 49,
+    "tests": 279,
+    "passed": true
+  },
+  "productionRegression": {
+    "groups": 26,
+    "passed": true,
+    "startedAt": "2026-10-15T03:07:34.321Z",
+    "finishedAt": "2026-10-15T03:13:25.745Z"
+  },
+  "mermaidVerification": {
+    "passed": true,
+    "browser": "156.0.8078.4",
+    "groups": 6
+  },
+  "dependencies": {
+    "total": 563,
+    "added": 116,
+    "missingLicenseTexts": 0,
+    "target": "x86_64-pc-windows-msvc"
+  },
+  "scope": "Local production Chromium; no installer, native WebView, OS print, Word or other-platform GUI claim. Native code unchanged.",
+  "notes": [
+    "Opaque-origin sandbox with strict engine, bounded input, allowlist-rebuilt static SVG images and complete source fallback.",
+    "An initial full regression exposed Vite multi-page input leaking into the DOCX IIFE library probe. Explicit probe entry fixed it before the final 26-group passing run.",
+    "Sandbox frames are excluded from the onboarding test harness localStorage init script.",
+    "SVG sanitiser retains safe paint/font rules while dropping default Mermaid animations; light/dark/sequence and offline export screenshots inspected.",
+    "Main bundle adds 8004 bytes; lazily loaded bundled official engine adds 5494801 bytes. All diagram types other than flowchart/sequence remain source fallback.",
+    "Iframe timeout removes the frame but is not a separate-process CPU hard-interrupt guarantee.",
+    "Existing large-chunk, happy-dom quirks and React act warnings remain visible in logs.",
+    "sequence.png is a supplemental screenshot from the same build; other screenshots and export hashes come from the final full regression."
+  ],
+  "artifacts": [
+    {
+      "file": "package.json",
+      "bytes": 3518,
+      "sha256": "e21ee77d67dbe102857d09013ac8602c5b2d9ac4a41a18370b701b31c5d0f6fe"
+    },
+    {
+      "file": "pnpm-lock.yaml",
+      "bytes": 138378,
+      "sha256": "6483351a01617009d4dcb6c0b00f1ea11c3491177a65cddd82d0edd9fab3154a"
+    },
+    {
+      "file": "mermaid.html",
+      "bytes": 349,
+      "sha256": "83268fade4e82823f6cd67e9a18bc498877001556d94a3193fc026a8d08c3a05"
+    },
+    {
+      "file": "public/mermaid-runtime.js",
+      "bytes": 1922,
+      "sha256": "da39256734fa9bb5932abdd7e2f686cf4af086d849472e640d91db7cdfc26c53"
+    },
+    {
+      "file": "src/core/mermaid.ts",
+      "bytes": 955,
+      "sha256": "196a96326f997cd7e76d830e6ab2b54fb336df7dd4dfe3cd365e43c7a1fbe7d5"
+    },
+    {
+      "file": "src/core/mermaid-svg.ts",
+      "bytes": 3934,
+      "sha256": "e4bc039458a88d7f3025fffab088d2db0c76a3758a040d239367280cd8c0918a"
+    },
+    {
+      "file": "src/platform/mermaid.ts",
+      "bytes": 4429,
+      "sha256": "54eb990944c2cb0dd5eb297837324b7c996598439c778e7e344c6b43ec52836e"
+    },
+    {
+      "file": "src/editor/usePreview.ts",
+      "bytes": 3119,
+      "sha256": "4c1ea0c5e6e466aca4073fdf1cb2abd000e25bc77e0880ad84582acde0229070"
+    },
+    {
+      "file": "scripts/verify-mermaid.mjs",
+      "bytes": 12608,
+      "sha256": "87ef1083b79da283ed6dd4532924cd3659c82672ff40924841cd27cbc7b20dcb"
+    },
+    {
+      "file": "dist/index.html",
+      "bytes": 480,
+      "sha256": "2cf793044370f95fb0bfff3a82f3793a4d9624934516170647ba4444fc22769d"
+    },
+    {
+      "file": "dist/mermaid.html",
+      "bytes": 349,
+      "sha256": "83268fade4e82823f6cd67e9a18bc498877001556d94a3193fc026a8d08c3a05"
+    },
+    {
+      "file": "dist/mermaid-runtime.js",
+      "bytes": 1922,
+      "sha256": "da39256734fa9bb5932abdd7e2f686cf4af086d849472e640d91db7cdfc26c53"
+    },
+    {
+      "file": "dist/assets/main-zS1wTCXG.js",
+      "bytes": 2959875,
+      "sha256": "097166e5a06685ea8568008e54ed856ffaf4515eea307612d8fc83574fda2e95"
+    },
+    {
+      "file": "dist/assets/mermaid.min-CDSj-a4E.js",
+      "bytes": 5494801,
+      "sha256": "a8a6a6f805b074a8261a2825c86f99c8054acb3b35f50bb7e24a4f9f2c3c3b9f"
+    }
+  ]
+}

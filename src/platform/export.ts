@@ -2,8 +2,12 @@ import { invoke } from '@tauri-apps/api/core'
 import MarkdownWorker from './markdown-worker?worker&inline'
 import type { ParsedDocument } from '../core/markdown'
 import { desktop } from './storage'
+import { renderMermaid } from './mermaid'
 
-export function parseForExport(text: string, options: { math?: boolean } = {}): Promise<ParsedDocument> {
+export async function parseForExport(text: string, options: { math?: boolean; mermaid?: boolean } = {}): Promise<ParsedDocument> {
+  return renderMermaid(await parseExportSource(text, options), options.mermaid !== false)
+}
+function parseExportSource(text: string, options: { math?: boolean }): Promise<ParsedDocument> {
   return new Promise((resolve, reject) => {
     const worker = new MarkdownWorker()
     const finish = () => { clearTimeout(timer); worker.terminate() }

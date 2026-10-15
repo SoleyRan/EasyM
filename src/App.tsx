@@ -22,7 +22,7 @@ import { decodeFile } from './core/codec'
 import { RecentDialog } from './editor/RecentDialog'
 import { recentState, rememberSession, reopenRecentFile, reopenRecentWorkspace, recentError, type RecentState, type RecentEntry } from './platform/recent'
 import { planRestoration } from './platform/restore-session'
-import { loadMathRendering, saveMathRendering } from './platform/preferences'
+import { loadMathRendering, saveMathRendering, loadMermaidRendering, saveMermaidRendering } from './platform/preferences'
 
 interface Tab { id: string; draftKey: string; restoredName?: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation }
 const first: Tab = { id: 'current', draftKey: 'current' }
@@ -57,6 +57,11 @@ function Application() {
   const [recentOpen, setRecentOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(needsGuide)
   const [appearance, setAppearance] = useState(loadAppearance)
+  const [mermaidRendering, setMermaidRendering] = useState(loadMermaidRendering)
+  const updateMermaidRendering = (enabled: boolean) => {
+    setMermaidRendering(enabled)
+    if (!saveMermaidRendering(enabled)) setError('无法保存 Mermaid 设置，当前会话仍可使用。')
+  }
   const [mathRendering, setMathRendering] = useState(loadMathRendering)
   const updateMathRendering = (enabled: boolean) => {
     setMathRendering(enabled)
@@ -494,9 +499,9 @@ function Application() {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
-      } : undefined} mathRendering={mathRendering} />
+      } : undefined} mathRendering={mathRendering} mermaidRendering={mermaidRendering} diagramTheme={theme} />
     </section>)}
-    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} appearance={appearance} onAppearance={updateAppearance} onResetAppearance={() => setAppearance({ ...defaultAppearance })} mathRendering={mathRendering} onMathRendering={updateMathRendering} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
+    {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} appearance={appearance} onAppearance={updateAppearance} onResetAppearance={() => setAppearance({ ...defaultAppearance })} mathRendering={mathRendering} onMathRendering={updateMathRendering} mermaidRendering={mermaidRendering} onMermaidRendering={updateMermaidRendering} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {recentOpen && <RecentDialog open={openRecent} close={() => setRecentOpen(false)} />}
     {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
