@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "scope": "Production Chromium with real CodeMirror input, IndexedDB and page reload. No native file permissions or OS crash claim.",
+  "checks": [
+    "real multi-draft input, independent persistence, reload retains active tab and order, explicit recovery keeps Chinese/emoji bodies",
+    "missing active index target is dropped, surviving order retained, orphan draft is appended and recoverable",
+    "future schema remains byte-for-byte intact through draft recovery, edits and tab creation",
+    "denied index writes visibly report failure, independent drafts persist and recover as orphans after reload"
+  ],
+  "browser": "155.0.4283.45"
+}

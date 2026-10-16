@@ -19,7 +19,7 @@ EasyM 是本地优先的 Markdown 桌面编辑器，使用 React、CodeMirror �
 
 ## 下载和使用
 
-正式下载以 [GitHub Releases](https://github.com/SoleyRan/EasyM/releases) 为准。Windows x64 包需要 WebView2 Runtime；当前没有签名或自动更新。macOS/Linux 自动构建通过不等于完成实机验收，暂不承诺正式平台支持。
+正式下载以 [GitHub Releases](https://github.com/SoleyRan/EasyM/releases) 为准。Windows x64 包需要 WebView2 Runtime；当前没有签名或自动更新。1.0 按三平台同时正式发布；正在等待 Windows/macOS/Linux 实机验收，自动构建通过不代替该验收。首发目标为 Windows x64、macOS Apple Silicon、Ubuntu 24.04 x86_64。
 
 目标文件名：EasyM_1.0.0_x64-setup.exe、EasyM-1.0.0-windows-x64.zip。下载后可使用 PowerShell 的 Get-FileHash -Algorithm SHA256 核对同次发行的 SHA256SUMS.txt。便携包附带 [体验指南与样例](Docs/samples/v1.0/README.md)，练习前复制到临时目录。
 
@@ -90,7 +90,7 @@ Windows 构建产物位于 src-tauri/target/release/。安装包使用 pnpm.cmd 
 
 ## 发行流程
 
-CI 为 Windows 生成安装包、便携包、SHA-256 和绑定提交的 release-manifest.json，保存为 easym-windows-release-candidate artifact。三平台测试及严格许可检查全部成功后，在同一提交上手动运行 Draft EasyM release，填写对应 Validate EasyM 的 run ID。流程核对提交、版本、完整测试和所有文件哈希，复用测试过的包创建草稿，不重新构建。未完成上传或校验不得公开草稿；发布前按发行说明完成实机检查并明确未签名分发范围。流程不自动公开 Release、不替代人工验收。
+CI 为 Windows 生成 NSIS/ZIP、macOS ARM64 生成 DMG、Linux x86_64 生成 DEB，各自附带 SHA-256 和绑定提交的 manifest，保存为对应 release-candidate artifact。三平台测试及严格许可检查全部成功后，在同一提交上手动运行 Draft EasyM release，填写对应 Validate EasyM 的 run ID。流程核对三平台提交、版本、完整测试和所有文件哈希，复用测试过的包创建草稿，不重新构建；缺任一平台候选则失败。未完成上传或校验不得公开草稿；发布前按发行说明完成实机检查并确定签名/分发方式。流程不自动公开 Release、不替代人工验收。
 
 本地可运行 node scripts/prepare-release.mjs 收集包；有未提交源码时会标明 sourceDirty，发布校验拒绝该候选。node scripts/record-build.mjs Docs/verification/v1.0/local 记录本机产物及回归证据。
 

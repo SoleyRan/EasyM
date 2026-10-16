@@ -1,0 +1,152 @@
+[
+  {
+    "path": "test-results/extension-delivery/combined-word-edited.docx",
+    "bytes": 26359,
+    "sha256": "6256eed8dcec18358309e6fae7156757d2f4ae75f346d34b5f6ed28e3aa10d98"
+  },
+  {
+    "path": "test-results/extension-delivery/combined-word.pdf",
+    "bytes": 275941,
+    "sha256": "6b5a0718dec44c63830a7619f456ca4f123418b44f78c7123f9ac2476f8142ba"
+  },
+  {
+    "path": "test-results/extension-delivery/combined.docx",
+    "bytes": 19608,
+    "sha256": "dd7ec851e5a4ac5237bb9ec7411bef69d9dd681fe1e3f470d887f32ec53f5d2c"
+  },
+  {
+    "path": "test-results/extension-delivery/combined.html",
+    "bytes": 44352,
+    "sha256": "595a6c1c820a2276d7fc8508c8af6c62ff40592ce17c7db06f57a7fa45776d94"
+  },
+  {
+    "path": "test-results/extension-delivery/combined.pdf",
+    "bytes": 194350,
+    "sha256": "e8f4628177e5142bf6631616cac18e36b62eda2672888bf251a0edaf690fb410"
+  },
+  {
+    "path": "test-results/extension-delivery/disabled.html",
+    "bytes": 17962,
+    "sha256": "cefede9302443802e2caf5b7b107b75268fb1f29c43ee9afae9bbf5806fbc5ca"
+  },
+  {
+    "path": "test-results/math/disabled.html",
+    "bytes": 6112,
+    "sha256": "beead44b2159f3d6d2d2d069c0d371aab61a0d8b884fe8c2847b5af3c4d007e6"
+  },
+  {
+    "path": "test-results/math/formulas.docx",
+    "bytes": 10808,
+    "sha256": "6b423ce41395e370aa647eb50545ab8375e979ec5f4d36ce0caa9aa5dff44965"
+  },
+  {
+    "path": "test-results/math/formulas.pdf",
+    "bytes": 105422,
+    "sha256": "76e17c6766819e8a123e9740ca10ea166027e1bc72abf9d5d6f5fb621b3a29cf"
+  },
+  {
+    "path": "test-results/math/standalone.html",
+    "bytes": 7485,
+    "sha256": "cb724714094473179f35c562a5e9ab82ee4a6fee1c508917ae019c3e90ccbf22"
+  },
+  {
+    "path": "test-results/mermaid/diagrams.docx",
+    "bytes": 10565,
+    "sha256": "3614e0c7f9a28d814e6beb3d2f7a3c0e0739bcc41714d76615d33829295d60c6"
+  },
+  {
+    "path": "test-results/mermaid/diagrams.pdf",
+    "bytes": 136689,
+    "sha256": "50349d3b8bce18be2f3e28c11e4d54bff96ddfd3ddc077e03d473b31e54f02db"
+  },
+  {
+    "path": "test-results/mermaid/disabled.html",
+    "bytes": 5514,
+    "sha256": "27e0b648c401602bb1295dae5b2570f83517aab6a046d80c388419ca10450f6a"
+  },
+  {
+    "path": "test-results/mermaid/standalone.html",
+    "bytes": 36181,
+    "sha256": "08dde395063ea222c611f17da4db10a6378137c9de7974bc117a1f59be755ee3"
+  },
+  {
+    "path": "test-results/docx-ui/display-image-word-edited.docx",
+    "bytes": 24245,
+    "sha256": "72d5c8fd5212bb055f9bb93238cf32cedcf7f061c7cb6f94c38fd8f517776de0"
+  },
+  {
+    "path": "test-results/docx-ui/display-image-word.pdf",
+    "bytes": 145028,
+    "sha256": "b0a34a03850ee846236e69337724274b580acd62ec7173517fdf3ecb0b26bd6a"
+  },
+  {
+    "path": "test-results/docx-ui/display-image.docx",
+    "bytes": 18085,
+    "sha256": "3c4a17e1324859e3583f614a45895e56533e58c201268f27f7081b27bea56c2a"
+  },
+  {
+    "path": "test-results/docx-ui/large.docx",
+    "bytes": 37834,
+    "sha256": "b673255e800d8eaaf1089ebe5061ff0e64030de0188a8ecbfcf0fc951eef6caa"
+  },
+  {
+    "path": "test-results/docx-ui/letter-compact-word-edited.docx",
+    "bytes": 16650,
+    "sha256": "e34b528570ab6f251ef996a3121988ba24ccd3f2cb9e258791b905f6f56daed9"
+  },
+  {
+    "path": "test-results/docx-ui/letter-compact-word.pdf",
+    "bytes": 194255,
+    "sha256": "12cd85ff4d39eeab7fc92ea7fd28dadcd3ebb0156b6fe938c0acaa8aedd702d0"
+  },
+  {
+    "path": "test-results/docx-ui/letter-compact.docx",
+    "bytes": 10315,
+    "sha256": "4080cce756691b22447f8ee8ad01a3989ef3e12b345f40e49b637c870cd4ebab"
+  },
+  {
+    "path": "test-results/docx-ui/multipage-word-edited.docx",
+    "bytes": 30758,
+    "sha256": "b0583b0e0f126bc7ba1840e573a1b35ca151d6e00c536869994ddb5cdd01119c"
+  },
+  {
+    "path": "test-results/docx-ui/multipage-word.pdf",
+    "bytes": 440750,
+    "sha256": "f788fbf0228aeee0de66c5b0c35fef1735b32bfd80bbbd0216474343a5a5c7ec"
+  },
+  {
+    "path": "test-results/docx-ui/multipage.docx",
+    "bytes": 20776,
+    "sha256": "f4c4ff69f07489b5aafe6da79939cd23bebb414de5b5f92613e0e061616eb34f"
+  },
+  {
+    "path": "test-results/docx-ui/office-word-edited.docx",
+    "bytes": 27135,
+    "sha256": "4ed2c21cfceadbfa38fd4c1d5aaf28dcef7ae5d780094e97dc94f9dc497f05fb"
+  },
+  {
+    "path": "test-results/docx-ui/office-word.pdf",
+    "bytes": 4313131,
+    "sha256": "13cd785398fc219bbba7c65592e6e6873268321d1ea66c09ce4a92f45b5d3e91"
+  },
+  {
+    "path": "test-results/docx-ui/office.docx",
+    "bytes": 20208,
+    "sha256": "2effb28c8bb23ba65002e8b7b0e143509254a15203a0b4ee64099ede7134484d"
+  },
+  {
+    "path": "test-results/docx-ui/placeholders-word-edited.docx",
+    "bytes": 15991,
+    "sha256": "c24d78787d42e0c17de4b06efd269c95ba0d5fdfc25c3941b0c2127205e2e87c"
+  },
+  {
+    "path": "test-results/docx-ui/placeholders-word.pdf",
+    "bytes": 178791,
+    "sha256": "7ce3174c61e10ec989f1e4063eda3c6f3bff9c1f5c495a0d31e38f77f19b298f"
+  },
+  {
+    "path": "test-results/docx-ui/placeholders.docx",
+    "bytes": 9879,
+    "sha256": "affa9b70bbb485c73aebe8ac45dffda2904464d70caa746852c4346ec942d412"
+  }
+]

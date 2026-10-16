@@ -1,0 +1,74 @@
+[
+  {
+    "package": "cargo:alloc-stdlib@0.3.0",
+    "file": "licenses/c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae-alloc-stdlib-LICENSE.txt",
+    "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+    "source": "https://github.com/dropbox/rust-alloc-no-stdlib/blob/0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE"
+  },
+  {
+    "package": "cargo:defmt-parser@1.0.0",
+    "file": "licenses/2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50-defmt-LICENSE-MIT.txt",
+    "sha256": "2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50",
+    "source": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-MIT"
+  },
+  {
+    "package": "cargo:defmt-parser@1.0.0",
+    "file": "licenses/8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90-defmt-LICENSE-APACHE.txt",
+    "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+    "source": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-APACHE"
+  },
+  {
+    "package": "cargo:dlopen2_derive@0.4.3",
+    "file": "licenses/39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2-dlopen2-LICENSE.txt",
+    "sha256": "39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2",
+    "source": "https://github.com/OpenByteDev/dlopen2/blob/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE"
+  },
+  {
+    "package": "cargo:dlopen2@0.8.2",
+    "file": "licenses/39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2-dlopen2-LICENSE.txt",
+    "sha256": "39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2",
+    "source": "https://github.com/OpenByteDev/dlopen2/blob/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE"
+  },
+  {
+    "package": "cargo:libappindicator-sys@0.9.0",
+    "file": "licenses/eb227437252b2a7a9c1fc342c93ade1f3d7ce38cc6dd754f613db07d53ceff0b-libappindicator-LICENSE-MIT.txt",
+    "sha256": "eb227437252b2a7a9c1fc342c93ade1f3d7ce38cc6dd754f613db07d53ceff0b",
+    "source": "https://github.com/tauri-apps/libappindicator-rs/blob/eafd1e3682a1247f595410266091e9684021cb6f/LICENSE-MIT"
+  },
+  {
+    "package": "cargo:selectors@0.38.0",
+    "file": "licenses/3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04-MPL-2.0.txt",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+    "source": "https://www.mozilla.org/media/MPL/2.0/index.txt"
+  },
+  {
+    "package": "npm:format@0.2.2",
+    "file": "licenses/c2ac933bc58e267006523e6cb995ff8c5cba9ff94f95b202572efe9c8a0340a3-format-MIT.txt",
+    "sha256": "c2ac933bc58e267006523e6cb995ff8c5cba9ff94f95b202572efe9c8a0340a3",
+    "source": "https://github.com/samsonjs/format/blob/4f898096759776b7c84fa7a25b13c923dadfe46e/format.js"
+  },
+  {
+    "package": "npm:hash.js@1.1.7",
+    "file": "licenses/7261b3ab93df04c6d8f3398f87275d28f0e87d88cbd0033b788fb50402de03c5-hash.js-MIT.txt",
+    "sha256": "7261b3ab93df04c6d8f3398f87275d28f0e87d88cbd0033b788fb50402de03c5",
+    "source": "https://github.com/indutny/hash.js/blob/fcd35edcc4e30145be4b7a737477ad54e83afc25/README.md#license"
+  },
+  {
+    "package": "npm:isarray@1.0.0",
+    "file": "licenses/a1bd5deadb6a06dd74efa852c1b8b23f63b67f2214fbe9c8bd591da51da69268-isarray-MIT.txt",
+    "sha256": "a1bd5deadb6a06dd74efa852c1b8b23f63b67f2214fbe9c8bd591da51da69268",
+    "source": "https://github.com/juliangruber/isarray/blob/2a23a281f369e9ae06394c0fb4d2381355a6ba33/README.md#license"
+  },
+  {
+    "package": "npm:pako@1.0.11",
+    "file": "licenses/d8b499598e43d755ea8918448128259ff01820c50d94d5a48c8883d0a594ddb1-pako-Zlib.txt",
+    "sha256": "d8b499598e43d755ea8918448128259ff01820c50d94d5a48c8883d0a594ddb1",
+    "source": "https://github.com/nodeca/pako/blob/a718e4f6e5ce87b0964d8f84541d92a23263365b/lib/zlib/README"
+  },
+  {
+    "package": "npm:remark-math@6.0.0",
+    "file": "licenses/cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9-remark-math-MIT.txt",
+    "sha256": "cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9",
+    "source": "https://github.com/remarkjs/remark-math/blob/d5d0660b150810a535bbb07eac6cc96a4510aa24/license"
+  }
+]

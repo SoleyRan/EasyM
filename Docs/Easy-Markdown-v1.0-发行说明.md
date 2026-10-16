@@ -1,6 +1,6 @@
 # EasyM 1.0.0
 
-这是 0.1–0.7 桌面功能的稳定版收尾，不增加新的功能范围。当前为待验收候选，实际发布状态以 GitHub Releases 为准。
+这是 0.1–0.7 桌面功能的稳定版收尾，不增加新的功能范围。按用户决定，三平台同时正式发布，等待补齐实机验收。当前为待验收候选，实际发布状态以 GitHub Releases 为准。
 
 ## 功能
 
@@ -13,7 +13,7 @@
 
 ## 安装和升级
 
-Windows x64 安装包为 `EasyM_1.0.0_x64-setup.exe`，便携包为 `EasyM-1.0.0-windows-x64.zip`。需要 WebView2 Runtime。便携包附带许可和操作样例。
+Windows x64 安装包为 `EasyM_1.0.0_x64-setup.exe`，便携包为 `EasyM-1.0.0-windows-x64.zip`。需要 WebView2 Runtime。便携包附带许可和操作样例。macOS Apple Silicon 候选为 EasyM-1.0.0-macos-arm64.dmg；Ubuntu 24.04 x86_64 候选为 EasyM-1.0.0-linux-amd64.deb。macOS/Linux 安装包附带许可，样例在仓库 Docs/samples/v1.0 中。其他 CPU/发行版尚未验收。
 
 升级前保存当前文档并退出旧版本，复制重要文档及其 `.easym` 目录；自定义历史目录也需单独备份。可先使用“文档备份与恢复”生成独立文档包。便携版解压到新目录，避免混放不同版本文件。
 
@@ -25,7 +25,7 @@ Windows x64 安装包为 `EasyM_1.0.0_x64-setup.exe`，便携包为 `EasyM-1.0.0
 
 当前没有代码签名、自动更新或更新签名机制；升级采用手工下载安装。未签名安装包可能受到 Windows SmartScreen 提示，下载后可与同次发行的 `SHA256SUMS.txt` 核对。
 
-Windows 自动化覆盖原生启动、WebView2 离线渲染及 CI 隔离安装/卸载。真实输入法、原生选择器、系统打印和读屏需实机确认；macOS/Linux 目前只有构建和自动测试，正式支持尚未确认。macOS objc2 家族完整许可复核仍待补齐，不随此次 Windows 包分发 macOS 二进制。
+Windows 自动化覆盖原生启动、WebView2 离线渲染及 CI 隔离安装/卸载。真实输入法、原生选择器、系统打印和读屏需实机确认；macOS/Linux 的安装包构建与资源验证加入 CI，真实 GUI 尚待验收，完成前不公开正式 Release。macOS objc2 家族已补上游声明与完整 MIT 标准条款，Apple SDK 分发复核仍单独保留。未签名 macOS 包没有 Developer ID/公证，可能受 Gatekeeper 限制；正式签名决定尚待确认。
 
 PDF 使用系统打印，不含专用 PDF 引擎。DOCX 中公式/Mermaid 保留可编辑源码，HTML/打印使用静态 MathML/SVG。历史默认需显式启用；草稿和历史不能替代异盘备份。备份只覆盖当前文档，不是整个工作区或云同步。
 
@@ -39,3 +39,5 @@ PDF 使用系统打印，不含专用 PDF 引擎。DOCX 中公式/Mermaid 保留
 - [ ] 打印/PDF 分页与键盘/读屏使用；CI 安装/卸载通过。
 
 未勾选不代表通过。自动证据见 `Docs/verification/v1.0/`，发布计划见 [发布计划](Easy-Markdown-v1.0-发布计划.md)。
+
+三平台逐项验收记录见 [实机验收表](Easy-Markdown-v1.0-实机验收.md)，必须填写实际目标、版本、结果和问题，不能只把待验项改为勾选。

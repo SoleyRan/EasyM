@@ -1,0 +1,1 @@
+TypeScript checking passed in pnpm typecheck and both production builds; see build.txt and desktop-build.txt.

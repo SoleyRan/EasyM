@@ -1,0 +1,15 @@
+$ node scripts/verify-math.mjs "--slow"
+{
+  "passed": true,
+  "checks": [
+    "native fractions/roots/sums/matrices, Chinese, prices, code, note/table math and recoverable syntax errors",
+    "four themes and compact layout without document horizontal overflow",
+    "live block source reveal, unchanged source, undo and reading mode",
+    "complete draft survives reload without rewriting; rendering setting persists and controls export fallback",
+    "offline static MathML and TeX annotation, print PDF, explicit DOCX source fallback/download without source mutation",
+    "blocked resource/macro commands, subsequent valid math and independent tabs; zero external network requests or page errors"
+  ],
+  "cpuThrottlingRate": 6,
+  "scope": "Production Chromium MathML, static HTML, print PDF and DOCX source fallback; native Word, OS print and other WebViews require release acceptance.",
+  "browser": "155.0.4283.45"
+}

@@ -34,3 +34,32 @@ test('release verification rejects changed bytes, a different commit, dirty sour
     assert.notEqual(verify().status, 0)
   } finally { await rm(directory, { recursive: true, force: true }) }
 })
+
+test('macOS and Linux release verification binds package bytes, target, notices and source commit', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'easym-platform-release-'))
+  const sha = bytes => createHash('sha256').update(bytes).digest('hex')
+  const commit = 'c'.repeat(40)
+  try {
+    for (const [platform, label, target, extension] of [['darwin', 'macos-arm64', 'aarch64-apple-darwin', 'dmg'], ['linux', 'linux-amd64', 'x86_64-unknown-linux-gnu', 'deb']]) {
+      const name = `EasyM-1.0.0-${label}.${extension}`, bytes = Buffer.from(`package fixture ${platform}`)
+      await writeFile(join(directory, name), bytes)
+      const manifestName = `release-manifest-${label}.json`
+      const manifest = { version: '1.0.0', sourceCommit: commit, sourceDirty: false, target, signed: false, automaticUpdates: false, bundledNoticesVerified: true,
+        artifacts: [{ name, bytes: bytes.length, sha256: sha(bytes) }] }
+      async function save() {
+        const data = Buffer.from(JSON.stringify(manifest) + '\n')
+        await writeFile(join(directory, manifestName), data)
+        await writeFile(join(directory, `SHA256SUMS-${label}.txt`), `${sha(bytes)}  ${name}\n${sha(data)}  ${manifestName}\n`)
+      }
+      const verify = (ref = commit) => spawnSync(process.execPath, ['scripts/prepare-platform-release.mjs', '--verify', directory, ref, platform], { encoding: 'utf8' })
+      await save(); assert.equal(verify().status, 0)
+      assert.notEqual(verify('d'.repeat(40)).status, 0)
+      manifest.target = 'wrong-target'; await save(); assert.notEqual(verify().status, 0)
+      manifest.target = target; manifest.bundledNoticesVerified = false
+      await save(); assert.notEqual(verify().status, 0)
+      manifest.bundledNoticesVerified = true; await save()
+      await writeFile(join(directory, name), 'changed package')
+      assert.notEqual(verify().status, 0)
+    }
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})

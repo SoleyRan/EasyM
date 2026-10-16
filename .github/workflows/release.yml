@@ -39,9 +39,13 @@ jobs:
               throw new Error('A successful repository push CI run for the selected release commit is required');
             }
             const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts, {...context.repo, run_id: Number(runId)});
-            const candidates = artifacts.filter(item => item.name === 'easym-windows-release-candidate' && !item.expired);
-            if (candidates.length !== 1) throw new Error('Expected one unexpired Windows release candidate');
-            core.setOutput('artifact-id', candidates[0].id);
+            const names = ['easym-windows-release-candidate', 'easym-macOS-release-candidate', 'easym-Linux-release-candidate'];
+            const candidates = names.map(name => {
+              const matches = artifacts.filter(item => item.name === name && !item.expired);
+              if (matches.length !== 1) throw new Error(`Expected one unexpired candidate: ${name}`);
+              return matches[0];
+            });
+            core.setOutput('artifact-id', candidates.map(item => item.id).join(','));
       - uses: actions/download-artifact@v4
         with:
           artifact-ids: ${{ steps.candidate.outputs.artifact-id }}
@@ -50,15 +54,23 @@ jobs:
           path: candidate
           merge-multiple: true
       - name: Verify version, commit and all release hashes
-        run: node scripts/prepare-release.mjs --verify candidate "$GITHUB_SHA"
+        run: |
+          node scripts/prepare-release.mjs --verify candidate "$GITHUB_SHA"
+          node scripts/prepare-platform-release.mjs --verify candidate "$GITHUB_SHA" darwin
+          node scripts/prepare-platform-release.mjs --verify candidate "$GITHUB_SHA" linux
       - name: Create draft with the tested artifacts
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const crypto = require('crypto');
             const manifest = JSON.parse(fs.readFileSync('candidate/release-manifest.json', 'utf8'));
+            const manifestNames = ['release-manifest.json', 'release-manifest-macos-arm64.json', 'release-manifest-linux-amd64.json'];
+            const manifests = manifestNames.map(name => JSON.parse(fs.readFileSync(`candidate/${name}`, 'utf8')));
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            if (manifest.version !== pkg.version) throw new Error('Repository version mismatch');
+            if (manifests.some(item => item.version !== pkg.version || item.sourceCommit !== context.sha)) throw new Error('Repository version/commit mismatch');
+            const assets = [...manifests.flatMap(item => item.artifacts.map(artifact => artifact.name)), ...manifestNames];
+            fs.writeFileSync('candidate/SHA256SUMS.txt', assets.map(name => `${crypto.createHash('sha256').update(fs.readFileSync(`candidate/${name}`)).digest('hex')}  ${name}\n`).join(''));
             const tag = `v${manifest.version}`;
             const releases = await github.paginate(github.rest.repos.listReleases, context.repo);
             if (releases.some(release => release.tag_name === tag)) throw new Error('Release already exists; review it rather than replacing assets');
@@ -69,8 +81,8 @@ jobs:
               if (object.type !== 'commit' || object.sha !== context.sha) throw new Error('Existing tag points at another commit');
             } catch (error) { if (error.status !== 404) throw error; }
             const notes = fs.readFileSync('candidate/RELEASE-NOTES.md', 'utf8');
-            const {data: release} = await github.rest.repos.createRelease({...context.repo, tag_name: tag, target_commitish: context.sha, name: `EasyM ${manifest.version}`, draft: true, prerelease: false, body: notes + `\n\nCandidate commit: ${context.sha}\nCI: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.RUN_ID}\n\nDraft only: confirm the manual acceptance checklist and unsigned Windows distribution before publishing.\n`});
-            for (const name of [...manifest.artifacts.map(item => item.name), 'release-manifest.json', 'SHA256SUMS.txt']) {
+            const {data: release} = await github.rest.repos.createRelease({...context.repo, tag_name: tag, target_commitish: context.sha, name: `EasyM ${manifest.version}`, draft: true, prerelease: false, body: notes + `\n\nCandidate commit: ${context.sha}\nCI: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.RUN_ID}\n\nDraft only: confirm manual acceptance on all three platforms and the signing/distribution decision before publishing.\n`});
+            for (const name of [...assets, 'SHA256SUMS.txt']) {
               const data = fs.readFileSync(`candidate/${name}`);
               await github.rest.repos.uploadReleaseAsset({...context.repo, release_id: release.id, name, data, headers: {'content-type': 'application/octet-stream', 'content-length': data.length}});
             }

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "legacy migration; bounded source width, independent code font, code-only horizontal scrolling; appearance preserves text and undo",
+    "split, live and reading typography; enabled code wrap removes horizontal overflow",
+    "HTML byte equality, DOCX document/styles XML equality and print DOM/computed styles unchanged by appearance",
+    "live system transitions, separate theme memory across reload; reset retains draft, guide and unrelated history record",
+    "four theme and compact screenshots; denied persistence is reported without losing session settings"
+  ],
+  "scope": "Production Chromium appearance, emulated system color scheme, real keyboard and pointer. Native OS settings and WebViews remain device checks.",
+  "browser": "155.0.4283.45"
+}

@@ -1,0 +1,200 @@
+[
+  {
+    "package": "cargo:alloc-stdlib@0.3.0",
+    "file": "licenses/c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae-alloc-stdlib-LICENSE.txt",
+    "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+    "source": "https://github.com/dropbox/rust-alloc-no-stdlib/blob/0a81fd6928ea3b33c8cd484aa4575d50ffb98012/LICENSE"
+  },
+  {
+    "package": "cargo:block2@0.6.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md"
+  },
+  {
+    "package": "cargo:block2@0.6.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:defmt-parser@1.0.0",
+    "file": "licenses/2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50-defmt-LICENSE-MIT.txt",
+    "sha256": "2710a622a896bba67356913d4d0492cab5465f61b2ecce6d880aeb483834fb50",
+    "source": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-MIT"
+  },
+  {
+    "package": "cargo:defmt-parser@1.0.0",
+    "file": "licenses/8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90-defmt-LICENSE-APACHE.txt",
+    "sha256": "8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90",
+    "source": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-APACHE"
+  },
+  {
+    "package": "cargo:dispatch2@0.3.1",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
+  },
+  {
+    "package": "cargo:dispatch2@0.3.1",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-app-kit@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-app-kit@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-core-foundation@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-core-foundation@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-core-graphics@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-core-graphics@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-encode@4.1.0",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-encode@4.1.0",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-exception-helper@0.1.1",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-exception-helper@0.1.1",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-foundation@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-foundation@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-io-surface@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-io-surface@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-quartz-core@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-quartz-core@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2-web-kit@0.3.2",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2-web-kit@0.3.2",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:objc2@0.6.5",
+    "file": "licenses/7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54-objc2-LICENSE.txt",
+    "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+    "source": "https://github.com/madsmtm/objc2/blob/d7d2fa23ceaa5e6096c923b081040e5d81b3b9df/LICENSE.md"
+  },
+  {
+    "package": "cargo:objc2@0.6.5",
+    "file": "licenses/b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5-objc2-MIT-template.txt",
+    "sha256": "b05785f9f18e6716bab63424b11454513b9943a222595b70411009202fc592b5",
+    "source": "https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt"
+  },
+  {
+    "package": "cargo:selectors@0.38.0",
+    "file": "licenses/3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04-MPL-2.0.txt",
+    "sha256": "3f3d9e0024b1921b067d6f7f88deb4a60cbe7a78e76c64e3f1d7fc3b779b9d04",
+    "source": "https://www.mozilla.org/media/MPL/2.0/index.txt"
+  },
+  {
+    "package": "npm:format@0.2.2",
+    "file": "licenses/c2ac933bc58e267006523e6cb995ff8c5cba9ff94f95b202572efe9c8a0340a3-format-MIT.txt",
+    "sha256": "c2ac933bc58e267006523e6cb995ff8c5cba9ff94f95b202572efe9c8a0340a3",
+    "source": "https://github.com/samsonjs/format/blob/4f898096759776b7c84fa7a25b13c923dadfe46e/format.js"
+  },
+  {
+    "package": "npm:hash.js@1.1.7",
+    "file": "licenses/7261b3ab93df04c6d8f3398f87275d28f0e87d88cbd0033b788fb50402de03c5-hash.js-MIT.txt",
+    "sha256": "7261b3ab93df04c6d8f3398f87275d28f0e87d88cbd0033b788fb50402de03c5",
+    "source": "https://github.com/indutny/hash.js/blob/fcd35edcc4e30145be4b7a737477ad54e83afc25/README.md#license"
+  },
+  {
+    "package": "npm:isarray@1.0.0",
+    "file": "licenses/a1bd5deadb6a06dd74efa852c1b8b23f63b67f2214fbe9c8bd591da51da69268-isarray-MIT.txt",
+    "sha256": "a1bd5deadb6a06dd74efa852c1b8b23f63b67f2214fbe9c8bd591da51da69268",
+    "source": "https://github.com/juliangruber/isarray/blob/2a23a281f369e9ae06394c0fb4d2381355a6ba33/README.md#license"
+  },
+  {
+    "package": "npm:pako@1.0.11",
+    "file": "licenses/d8b499598e43d755ea8918448128259ff01820c50d94d5a48c8883d0a594ddb1-pako-Zlib.txt",
+    "sha256": "d8b499598e43d755ea8918448128259ff01820c50d94d5a48c8883d0a594ddb1",
+    "source": "https://github.com/nodeca/pako/blob/a718e4f6e5ce87b0964d8f84541d92a23263365b/lib/zlib/README"
+  },
+  {
+    "package": "npm:remark-math@6.0.0",
+    "file": "licenses/cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9-remark-math-MIT.txt",
+    "sha256": "cb992262f361a5359e6771c28740d33c7041e15332ae8537fae40538992591a9",
+    "source": "https://github.com/remarkjs/remark-math/blob/d5d0660b150810a535bbb07eac6cc96a4510aa24/license"
+  }
+]

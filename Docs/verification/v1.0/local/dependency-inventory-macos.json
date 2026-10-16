@@ -1,0 +1,6 @@
+{
+  "target": "aarch64-apple-darwin",
+  "dependencies": 558,
+  "missingLicenseTexts": [],
+  "completeLicenseTexts": true
+}

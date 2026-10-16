@@ -1,0 +1,477 @@
+$ node scripts/verify-regression.mjs
+
+Verify workers
+All five production workers initialise without a DOM; Markdown, DOCX, history diff, three-way merge analysis, search counting and sanitisation pass.
+
+Verify docx-library
+DOCX 9.10.0 browser Worker probe passed (13642 output bytes).
+
+Verify docx
+DOCX pipeline passed: 10 checks; 15521 bytes; 16 workers terminated.
+
+Verify focus
+{
+  "passed": true,
+  "cpuThrottlingRate": 1,
+  "checks": [
+    "DOCX cancel: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "DOCX download: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "PDF preview: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "settings: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "guide: resumed typing keeps focus and full multiline source; immediate DOCX export completes"
+  ],
+  "browser": "155.0.4283.45"
+}
+
+Verify docx-ui
+DOCX UI verification passed; 3652113 bytes, preflight 4272 ms, export 2040 ms.
+
+Verify history
+History production UI, worker comparison, restoration, undo/redo and cleanup pass.
+
+Verify batch-images
+Batch images production UI, workers, transparency/metadata, atomic apply and undo/redo pass.
+
+Verify settings
+
+Verify browser
+Production browser verification passed: image pixels/EXIF and editor/image/draft flows.
+
+Verify writing
+{
+  "verifiedAt": "2026-10-16T09:46:48.490Z",
+  "browser": "155.0.4283.45",
+  "checks": [
+    "code contrast and language-specific source/preview highlighting",
+    "language insertion/change/removal and undo/redo",
+    "bidirectional scrolling at middle/top/bottom without caret movement or feedback",
+    "resize and tab scroll retention",
+    "multiple files, independent edits and undo histories, draft restart recovery",
+    "four themes through settings and persistent preference",
+    "1440/960 writing area and optional outline",
+    "outline jumps both panes after preview scrolling and repeated selection",
+    "both sidebar pointer resizing and width persistence",
+    "long filename ellipsis",
+    "EM file menu and wheel navigation of overflowing tabs",
+    "discard dirty tab without saving",
+    "untouched new tab closes without confirmation",
+    "3px tab scrollbar transparent until hover without layout shift",
+    "Export submenu opens only on click to the right",
+    "save header removed; hideable formatting toolbar and persistent visibility",
+    "file panel remains open on import into a new tab",
+    "visible table cell borders and column alignment in all four themes",
+    "fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention",
+    "native mouse selection visible in four themes and source/split views",
+    "forward/reverse Chinese and emoji selection; multiline and soft-wrapped selection",
+    "selected-range toolbar toggles, keyboard activation and undo/redo",
+    "bold/italic/link/heading/lists/quote/code cancel without stacking; pressed/mixed state follows selection and undo"
+  ],
+  "styles": {
+    "color": "rgb(39, 56, 82)",
+    "background": "rgba(0, 0, 0, 0)",
+    "parentColor": "rgb(39, 56, 82)"
+  },
+  "themeColors": [
+    "rgb(255, 255, 255)",
+    "rgb(24, 33, 48)",
+    "rgb(250, 244, 232)",
+    "rgb(234, 242, 231)"
+  ],
+  "tableBorders": [
+    {
+      "theme": "light",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(255, 255, 255)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(255, 255, 255)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(255, 255, 255)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(99, 116, 142)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(255, 255, 255)"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(24, 33, 48)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(24, 33, 48)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(24, 33, 48)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(161, 178, 201)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(24, 33, 48)"
+        }
+      ]
+    },
+    {
+      "theme": "paper",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(250, 244, 232)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(250, 244, 232)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(250, 244, 232)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(122, 107, 88)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(250, 244, 232)"
+        }
+      ]
+    },
+    {
+      "theme": "forest",
+      "cells": [
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(234, 242, 231)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(234, 242, 231)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-left",
+          "background": "rgb(234, 242, 231)"
+        },
+        {
+          "border": "1px",
+          "color": "rgb(91, 114, 96)",
+          "kind": "solid",
+          "alignment": "-webkit-right",
+          "background": "rgb(234, 242, 231)"
+        }
+      ]
+    }
+  ]
+}
+
+Verify search
+Search verification passed: Unicode, replace/undo, keyboard/IME guards, tabs, worker limits and split navigation.
+
+Verify live-preview
+Live preview verification passed: inline/blocks, source roundtrip and safe image handling.
+
+Verify workspace
+Workspace frontend search, navigation, cancellation and revision checks pass.
+
+Verify templates
+Template verification passed: generation, safe text, tabs, draft recovery, download, keyboard and themes.
+
+Verify export
+Export/print verification passed; multi-page PDF: 12 pages.
+
+Verify extensions
+{
+  "passed": true,
+  "checks": [
+    "mouse forward / keyboard back jump, exact source selection, repeated references, retained definitions and source unchanged",
+    "duplicate IDs isolated across tabs; keyboard navigation in reading mode and Escape preserves editor",
+    "four theme / compact screenshots with metadata source and visible note heading",
+    "standalone HTML anchors, offline output, print/PDF endnotes and explicit DOCX preflight/download leave source unchanged",
+    "TOML escaped raw data, cyclic notes bounded, live footnote source visible, undo, early-definition jumps and reading outline"
+  ],
+  "scope": "Production Chromium: footnotes and static Front Matter, browser export/print; no native Word, system print dialog or screen-reader claim.",
+  "browser": "155.0.4283.45"
+}
+
+Verify math
+{
+  "passed": true,
+  "checks": [
+    "native fractions/roots/sums/matrices, Chinese, prices, code, note/table math and recoverable syntax errors",
+    "four themes and compact layout without document horizontal overflow",
+    "live block source reveal, unchanged source, undo and reading mode",
+    "complete draft survives reload without rewriting; rendering setting persists and controls export fallback",
+    "offline static MathML and TeX annotation, print PDF, explicit DOCX source fallback/download without source mutation",
+    "blocked resource/macro commands, subsequent valid math and independent tabs; zero external network requests or page errors"
+  ],
+  "cpuThrottlingRate": 1,
+  "scope": "Production Chromium MathML, static HTML, print PDF and DOCX source fallback; native Word, OS print and other WebViews require release acceptance.",
+  "browser": "155.0.4283.45"
+}
+
+Verify mermaid
+{
+  "passed": true,
+  "checks": [
+    "engine absent on ordinary Markdown; offline flowchart/sequence images, syntax/unsupported source fallback and static SVG paint",
+    "four theme palettes, compact layout, live source reveal and reading mode without source mutation",
+    "complete draft survives reload without rewriting; independent persisted setting controls preview and HTML source fallback",
+    "offline standalone HTML/static images/exact source, light print PDF and explicit DOCX source fallback",
+    "configuration/click/HTML/style/oversized inputs and per-document count limits fall back without external requests",
+    "engine load failure, timeout removal, canceled stale results and document isolation; no external network or page errors"
+  ],
+  "scope": "Production Chromium sandbox, static SVG images, offline HTML, browser print PDF and DOCX source fallback. Native WebViews/OS print remain step-4 acceptance.",
+  "browser": "155.0.4283.45"
+}
+
+Verify extension-delivery
+{
+  "version": "1.0.0",
+  "verifiedAt": "2026-10-16T09:48:36.351Z",
+  "passed": true,
+  "checks": [
+    "four guide pages with arrow navigation, extension/export contract and visible navigation at 960x680",
+    "mixed static HTML has escaped metadata, valid note anchors, MathML, two SVG images, embedded authorized PNG and bordered table; offline file has no active runtime",
+    "actual print PDF and downloaded DOCX retain mixed content, editable exact formula/diagram source, note/metadata warnings, table and embedded PNG; original Markdown unchanged",
+    "both rendering switches preserve mixed source fallbacks in exported HTML and leave local PNG/source intact; no external requests or page errors"
+  ],
+  "scope": "Production Chromium mixed extensions and actual downloaded outputs; OS dialogs, native WebViews and Word are separate checks.",
+  "browser": "155.0.4283.45"
+}
+
+Verify context-menu
+Context menu verification passed.
+
+Verify commands
+Commands and overlays: 6 production checks passed
+
+Verify tables
+{
+  "passed": true,
+  "checks": [
+    "default blank insertion, first-header focus and atomic undo/redo",
+    "Markdown cell draft, escaped code pipe, Enter/Tab, cancel and cell undo",
+    "final Tab commits plus appends in one transaction; first Shift+Tab returns to source",
+    "row/column insertion, alignment, nonempty deletion cancel/confirm and atomic restoration",
+    "invalid newline preserves draft; mode change cancel/apply guard",
+    "preview cell edits same source; new/switch tab and close preserve unapplied draft",
+    "four themes, compact viewport, live table entry and read-only reading",
+    "synthetic composition guards Tab and pointer commit; failed apply blocks navigation and retains draft",
+    "desktop IPC fixture: no autosave with unsubmitted draft; EM cancel retains draft; applied source autosaves afterward"
+  ],
+  "scope": "Production browser pointer/keyboard and simulated desktop IPC; real IME/native dialogs remain manual.",
+  "browser": "155.0.4283.45"
+}
+
+Verify content-tools
+{
+  "passed": true,
+  "checks": [
+    "real drag is passive until release; selection retained, toggle, pressed state, undo and Alt+F10 navigation",
+    "mixed strike and inline code toggles; typing hides selection tools; multiline/code cannot be misformatted",
+    "link prefill with empty address, cancel, unsafe rejection, nested label, reference unlink and atomic undo",
+    "split link click/edit and heading anchor open; preview/live language tags, Chinese search, unknown preservation, info-only patch and undo",
+    "paragraph target explanation, structural conversion preserving inline syntax, and one undo",
+    "composition guards prevent selection actions and modal cancel until completion",
+    "four theme screenshots, compact positioning and independent persisted selection setting",
+    "desktop IPC fixture: bounded relative path, explicit external open, relative heading navigation, cancelled async result preserves existing tab handle"
+  ],
+  "scope": "Production Chromium mouse/keyboard; synthetic composition events verify guards, real IME/native URL launch require manual testing.",
+  "browser": "155.0.4283.45"
+}
+
+Verify quick-entry
+{
+  "passed": true,
+  "checks": [
+    "slash passive focus, Chinese/English and empty filtering, nontriggers, navigation, atomic undo/redo and Escape preserves query",
+    "table/image follow-up cancel retains slash input; confirmation replaces trigger and one undo restores it",
+    "F1 palette searches shared commands, preserves selected range, shows disabled reasons, guards modal nesting and supports settings handoff",
+    "opened-tab quick switch retains edits without duplicate tabs; synthetic composition blocks acceptance and Escape",
+    "four themes and compact window palette bounds",
+    "desktop IPC fixture: bounded report, same-name paths, debounced cancellation/stale search, tab reuse, cancelled open handle ownership and missing-file preserves body"
+  ],
+  "scope": "Production Chromium keyboard/pointer; desktop IPC fixture plus Rust filesystem tests. Real IME/native dialogs remain manual.",
+  "browser": "155.0.4283.45"
+}
+
+Verify appearance
+
+Verify session
+
+Verify recent
+{
+  "passed": true,
+  "checks": [
+    "browser does not pretend to retain native disk permission",
+    "native IPC: autosave registers persistent identity, same-name paths are distinct, repeated open reuses tab and preserves edits",
+    "reload restores saved tab plus independent dirty recovery copy, active order, and explicit original-disk reopen without draft writeback",
+    "workspace reopen persists selection, missing-file failure preserves body, per-record removal and cancelled asynchronous open release unused handle",
+    "clear history only removes registry entries, leaves disk bodies and open tabs, Escape restores menu focus"
+  ],
+  "scope": "Production Chromium pointer/keyboard and IndexedDB with deterministic desktop IPC. Native registry/path IO is covered separately by Rust tests; no real OS dialog or native restart claim.",
+  "browser": "155.0.4283.45"
+}
+
+Verify external
+{
+  "passed": true,
+  "checks": [
+    "three-way analysis uses the actual opened baseline, previews disk-only change read-only and preserves both inputs",
+    "clean-file notice preserves memory, comparison supports selection/copy, Escape retains body, explicit reload updates baseline",
+    "conflicting local/disk edits retain the last reloaded common ancestor and expose no writable candidate",
+    "dirty conflict pauses autosave, stale confirmation refuses newer disk revision, save-copy preserves external original",
+    "missing/revoked/over-limit inspection retains body and can retry, own saves update baseline without repeated conflict",
+    "tab switch discards late inspection result and keeps each file baseline separate",
+    "BOM-only disk change is detected even with identical normalized body and zero text differences",
+    "external inspection preserves unsubmitted table draft, reload is gated, applying the cell keeps autosave paused until explicit resolution",
+    "pending image recipe survives external change; apply cannot write stale disk or source, comparison remains within compact viewport",
+    "independent changes combine without losing final newline; collapse/reopen/Escape retain both versions and keep autosave blocked"
+  ],
+  "scope": "Production Chromium with deterministic native IPC; raw filesystem inspection has separate Rust tests. No real native window/IME claim.",
+  "browser": "155.0.4283.45"
+}
+
+Verify merge
+{
+  "passed": true,
+  "checks": [
+    "independent changes require explicit review; failed mandatory archive blocks commit and preserves both versions",
+    "prepare then immutable commit persists candidate; one undo/redo restores complete local/merged body without changing the disk baseline",
+    "mandatory recovery is accessible from EM without opt-in history and restores to a new directory",
+    "all conflicts require a choice, manual edits invalidate review, stale commit preserves local and archived versions, fresh analysis can resolve with disk",
+    "explicit disk BOM/CRLF policy changes bytes while preserving normalized editor content",
+    "unverifiable disk images block prepare even when choosing local text; compact layout stays in bounds"
+  ],
+  "scope": "Actual production UI and workers with deterministic native IPC. Native filesystem/archives are covered by Rust tests; no real IME/native-dialog claim.",
+  "browser": "155.0.4283.45"
+}
+
+Verify backup
+{
+  "passed": true,
+  "startedAt": "2026-10-16T09:50:16.008Z",
+  "checks": [
+    "new unsaved document uses frozen current bytes with history off; canceled creation and selection do not save or restore",
+    "busy create locks editing, tabs, duplicate submission, and Escape; success preserves the editor",
+    "opened document includes history only after opt-in, retains original BOM/CRLF/revision, and reports existing-backup refusal",
+    "actual resource Worker rejects absent image inventory, releases rejected tokens, and native corrupt-package errors block restore",
+    "explicit restore review uses Worker-scanned AST references, excludes inline fake images, and handles canceled, changed, and expired packages",
+    "reselection invalidates confirmation and releases old token; long names fit compact layout; busy restore is locked and leaves editor/disk unchanged",
+    "closing releases the active token and F1 exposes the same backup action with fresh default state"
+  ],
+  "scope": "Production UI and actual resource Worker with deterministic native IPC. Real archive/filesystem behavior is covered by Rust tests; native dialogs, native GUI, and IME are not asserted.",
+  "browser": "155.0.4283.45",
+  "finishedAt": "2026-10-16T09:50:18.559Z"
+}
+
+Verify protection-delivery
+{
+  "version": "1.0.0",
+  "startedAt": "2026-10-16T09:50:19.298Z",
+  "passed": true,
+  "checks": [
+    "upgrade from v0.7 shows four pages, explains merge/recovery/backup on page three, fits 960x680 and persists acknowledgement",
+    "settings reopens guide at page one; Escape closes it",
+    "distributed clean/conflict samples match actual production merge Worker; backup sample references the included PNG with no unsafe resources"
+  ],
+  "samples": [
+    {
+      "path": "Docs/samples/v1.0/merge/clean/base.md",
+      "bytes": 72,
+      "sha256": "cbea5bc651116b5a275978ad4c5edd959d845168c037d9f15b4733b0b9dea45c"
+    },
+    {
+      "path": "Docs/samples/v1.0/merge/clean/local.md",
+      "bytes": 83,
+      "sha256": "2864484b5455d3aeaad16ebbefe98a70f1ed9d635082e30b2516427179d53a61"
+    },
+    {
+      "path": "Docs/samples/v1.0/merge/clean/disk.md",
+      "bytes": 81,
+      "sha256": "6dcd0ee60fe4831fa3f61d3431487dad2faacba9e7b57e9d14eaa700c24f5a13"
+    },
+    {
+      "path": "Docs/samples/v1.0/merge/clean/expected.md",
+      "bytes": 92,
+      "sha256": "cb884f71d9d42d277cd1e93afd5ffa2205c023729fa5941dc46e5e7f8305ee8b"
+    },
+    {
+      "path": "Docs/samples/v1.0/merge/conflict/base.md",
+      "bytes": 44,
+      "sha256": "e7b3363dc93464aa70148e38bec0697e1223e4534777d3d54617b9e85cc6b880"
+    },
+    {
+      "path": "Docs/samples/v1.0/merge/conflict/local.md",
+      "bytes": 44,
+      "sha256": "40296deda41f04525c1cdde2a8538bd70a0662ea8f47315ed76f6b3e24f93144"
+    },
+    {
+      "path": "Docs/samples/v1.0/merge/conflict/disk.md",
+      "bytes": 44,
+      "sha256": "18fde649968aa1fa9cb143d979baaa13546e9523c363527fa2b7b11aa702519f"
+    },
+    {
+      "path": "Docs/samples/v1.0/备份示例.md",
+      "bytes": 389,
+      "sha256": "e9eb7f966c036c379cd4d682b4b87774ea811f9e183b35f2a1f47618eba7cbc8"
+    },
+    {
+      "path": "Docs/samples/v1.0/assets/em.png",
+      "bytes": 2898,
+      "sha256": "2b9f6aa880321a0d689f078e05a363fb8aa1cae0e5553fea72626664f28b783d"
+    }
+  ],
+  "scope": "Production Chromium guide and actual shipped merge/resource Worker on distributed v1.0 samples. Existing merge/backup UI suites and native Rust tests cover application/archive behavior; no native dialog or real IME claim.",
+  "browser": "155.0.4283.45",
+  "finishedAt": "2026-10-16T09:50:20.851Z"
+}
