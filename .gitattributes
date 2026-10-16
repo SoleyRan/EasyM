@@ -5,3 +5,4 @@ scripts/fixtures/pdf-evaluation/package-lock.json text eol=lf
 scripts/external-licenses/*.txt text eol=lf
 # Acceptance logs retain original bytes, including tool-emitted trailing lines.
 Docs/verification/**/logs/*.log -text whitespace=-blank-at-eof,cr-at-eol
+Docs/verification/**/logs/*.txt -text whitespace=-blank-at-eof,cr-at-eol

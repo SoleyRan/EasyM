@@ -45,6 +45,7 @@
     "verify:session": "node scripts/verify-session.mjs",
     "verify:recent": "node scripts/verify-recent.mjs",
     "verify:external": "node scripts/verify-external.mjs",
+    "verify:merge": "node scripts/verify-merge.mjs",
     "verify:mermaid": "node scripts/verify-mermaid.mjs",
     "verify:extension-delivery": "node scripts/verify-extension-delivery.mjs"
   },

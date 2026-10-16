@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "engine absent on ordinary Markdown; offline flowchart/sequence images, syntax/unsupported source fallback and static SVG paint",
+    "four theme palettes, compact layout, live source reveal and reading mode without source mutation",
+    "complete draft survives reload without rewriting; independent persisted setting controls preview and HTML source fallback",
+    "offline standalone HTML/static images/exact source, light print PDF and explicit DOCX source fallback",
+    "configuration/click/HTML/style/oversized inputs and per-document count limits fall back without external requests",
+    "engine load failure, timeout removal, canceled stale results and document isolation; no external network or page errors"
+  ],
+  "scope": "Production Chromium sandbox, static SVG images, offline HTML, browser print PDF and DOCX source fallback. Native WebViews/OS print remain step-4 acceptance.",
+  "browser": "156.0.8078.4"
+}

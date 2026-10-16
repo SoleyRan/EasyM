@@ -64,6 +64,7 @@ export const commandDefinitions = [
   definition('file.exportDocx', '导出 DOCX', '导出', ['export docx']),
   definition('file.print', '打印 / PDF', '导出', ['print', 'pdf'], 'Mod+P'),
   definition('file.history', '版本历史', '文件', ['history']),
+  definition('file.mergeRecovery', '合并恢复记录', '文件', ['merge recovery']),
   definition('file.batchImages', '批量处理图片', '文件', ['batch images']),
   definition('app.template', '从模板新建', '文件', ['template']),
   definition('app.settings', '设置', '应用', ['settings']),

@@ -1,0 +1,155 @@
+{
+  "version": "0.6.0",
+  "startedAt": "2026-10-16T03:36:52.720Z",
+  "browser": "chromium",
+  "passed": true,
+  "checks": [
+    {
+      "script": "workers",
+      "passed": true,
+      "durationMs": 484
+    },
+    {
+      "script": "docx-library",
+      "passed": true,
+      "durationMs": 4370
+    },
+    {
+      "script": "docx",
+      "passed": true,
+      "durationMs": 7514
+    },
+    {
+      "script": "focus",
+      "passed": true,
+      "durationMs": 5019
+    },
+    {
+      "script": "docx-ui",
+      "passed": true,
+      "durationMs": 26244
+    },
+    {
+      "script": "history",
+      "passed": true,
+      "durationMs": 2666
+    },
+    {
+      "script": "batch-images",
+      "passed": true,
+      "durationMs": 9208
+    },
+    {
+      "script": "settings",
+      "passed": true,
+      "durationMs": 2666
+    },
+    {
+      "script": "browser",
+      "passed": true,
+      "durationMs": 5978
+    },
+    {
+      "script": "writing",
+      "passed": true,
+      "durationMs": 64130
+    },
+    {
+      "script": "search",
+      "passed": true,
+      "durationMs": 5832
+    },
+    {
+      "script": "live-preview",
+      "passed": true,
+      "durationMs": 15757
+    },
+    {
+      "script": "workspace",
+      "passed": true,
+      "durationMs": 2239
+    },
+    {
+      "script": "templates",
+      "passed": true,
+      "durationMs": 5340
+    },
+    {
+      "script": "export",
+      "passed": true,
+      "durationMs": 4352
+    },
+    {
+      "script": "extensions",
+      "passed": true,
+      "durationMs": 6925
+    },
+    {
+      "script": "math",
+      "passed": true,
+      "durationMs": 7662
+    },
+    {
+      "script": "mermaid",
+      "passed": true,
+      "durationMs": 31371
+    },
+    {
+      "script": "extension-delivery",
+      "passed": true,
+      "durationMs": 9303
+    },
+    {
+      "script": "context-menu",
+      "passed": true,
+      "durationMs": 5221
+    },
+    {
+      "script": "commands",
+      "passed": true,
+      "durationMs": 1770
+    },
+    {
+      "script": "tables",
+      "passed": true,
+      "durationMs": 9410
+    },
+    {
+      "script": "content-tools",
+      "passed": true,
+      "durationMs": 12699
+    },
+    {
+      "script": "quick-entry",
+      "passed": true,
+      "durationMs": 10224
+    },
+    {
+      "script": "appearance",
+      "passed": true,
+      "durationMs": 6522
+    },
+    {
+      "script": "session",
+      "passed": true,
+      "durationMs": 2454
+    },
+    {
+      "script": "recent",
+      "passed": true,
+      "durationMs": 5177
+    },
+    {
+      "script": "external",
+      "passed": true,
+      "durationMs": 13606
+    },
+    {
+      "script": "merge",
+      "passed": true,
+      "durationMs": 4230
+    }
+  ],
+  "distIndexSha256": "cd4d866c30dd0541cc506e05e0d7fbed6a8c32849ead1b4316b4c748cdbacc80",
+  "finishedAt": "2026-10-16T03:41:41.104Z"
+}

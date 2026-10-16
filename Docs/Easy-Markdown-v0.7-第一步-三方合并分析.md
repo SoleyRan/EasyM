@@ -1,6 +1,6 @@
 # v0.7 第1步：三方合并分析
 
-完成日期：2026-10-16。基线 `main` / `36b8163`，当前分支 `feature/v0.7`，实现与验证本次提交，未推送。范围见 [冻结计划](Easy-Markdown-v0.7-设计与实施计划.md)。
+完成日期：2026-10-16。基线 `main` / `36b8163`，当前分支 `feature/v0.7`，实现与验证已提交为 `12d8b8f`，未推送。范围见 [冻结计划](Easy-Markdown-v0.7-设计与实施计划.md)。
 
 ## 使用方式
 
@@ -35,6 +35,6 @@
 | 焦点生产页面 | 六倍 CPU 降速下 5 组浮层关闭/恢复输入/DOCX 导出检查通过 |
 | 版本与差异 | `verify-release-metadata`、`git diff --check` 通过；产品仍为 `0.6.0` |
 
-报告、日志和截图已归档至 [step-1](verification/v0.7/step-1/manifest.json)：[全量单测](verification/v0.7/step-1/logs/v07-step1-unit.log)、[外部版本验收](verification/v0.7/step-1/external-verification.json)、[历史验收](verification/v0.7/step-1/history-verification.json)、[慢速焦点验收](verification/v0.7/step-1/focus-slow-verification.json)。可查看 [合并候选截图](verification/v0.7/step-1/screenshots/merge-preview.png)、[冲突截图](verification/v0.7/step-1/screenshots/merge-conflict.png) 与 [窄窗口截图](verification/v0.7/step-1/screenshots/merge-conflict-compact.png)。
+报告、日志和截图已归档至 [step-1](verification/v0.7/step-1/manifest.json)：[全量单测](verification/v0.7/step-1/logs/v07-step1-unit.txt)、[外部版本验收](verification/v0.7/step-1/external-verification.json)、[历史验收](verification/v0.7/step-1/history-verification.json)、[慢速焦点验收](verification/v0.7/step-1/focus-slow-verification.json)。可查看 [合并候选截图](verification/v0.7/step-1/screenshots/merge-preview.png)、[冲突截图](verification/v0.7/step-1/screenshots/merge-conflict.png) 与 [窄窗口截图](verification/v0.7/step-1/screenshots/merge-conflict-compact.png)。第2步补录原先被全局 `*.log` 忽略的日志为 `.txt`，原始字节及校验和保持不变。
 
 本次为 Windows 本机 Chromium 生产页面与确定性原生 IPC 模拟，不等于真实文件系统/原生窗口/IME 验收。未改 Rust、未重跑 Rust 或全部 28 组回归、未运行新一轮云 CI、未打包；完整交付留到第四步。v0.6 已通过的三平台 CI 记录继续保留，不作为本次未提交改动的云端结果。

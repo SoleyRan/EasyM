@@ -8,6 +8,11 @@ export function ApplicationDialog({ title, onClose, busy = false, children, onKe
   const dialog = useRef<HTMLDivElement>(null)
   useModalOverlay(dialog, returnFocus)
   useEffect(() => { dialog.current?.focus() }, [])
+  useEffect(() => {
+    // Disabling the submitting button may move focus to body. Keep Escape/Tab
+    // within this modal after a failed task, without stealing a valid control.
+    if (!busy && !dialog.current?.contains(document.activeElement)) dialog.current?.focus({ preventScroll: true })
+  }, [busy])
   return <div className="modal-backdrop application-backdrop" onKeyDown={event => {
     onKeyDown?.(event)
     if (event.defaultPrevented) return

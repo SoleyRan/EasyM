@@ -45,6 +45,8 @@ import { openExternalLink, relativeDocumentTarget } from '../platform/links'
 import { insertStructure, validSlash, insertKinds, type InsertKind, type SlashTrigger } from '../core/quick-entry'
 import { useExternalChanges } from './useExternalChanges'
 import { ExternalChangeDialog } from './ExternalChangeDialog'
+import { MergeRecoveryDialog } from './MergeRecoveryDialog'
+import { commitMerge, mergeBytes, mergeError, prepareMerge, type MergeCandidate } from '../platform/merge-transaction'
 
 type ViewMode = 'source' | 'split' | 'live'
 type Command = Format
@@ -79,7 +81,7 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; recentId?: string | null; tableDecision?: boolean }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages'
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages' | 'mergeRecovery'
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   mathRendering?: boolean
@@ -108,6 +110,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   const [dirty, setDirty] = useState(!file && !!seed?.text)
   const [busy, setBusy] = useState(false)
   const [externalOpen, setExternalOpen] = useState(false)
+  const [mergeRecoveryOpen, setMergeRecoveryOpen] = useState(false)
   const [printable, setPrintable] = useState<ExportDocument | null>(null)
   const exporting = useRef(false)
   const docxTask = useRef<AbortController | null>(null)
@@ -351,6 +354,8 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     return { assets: {}, instances: instances.filter((item) => paths.has(item.displayPath)) }
   }
   const external = useExternalChanges(fileId, revision, active && draftReady && !pendingDraft && !suspended && !busy && !autoSaving && !externalOpen)
+  const mergeWitness = useRef({ fileId, revision, snapshot, text, change: external.change })
+  mergeWitness.current = { fileId, revision, snapshot, text, change: external.change }
   const images = useImages({
     text, fileId, blocked: externalOpen || external.checking || !!external.change || reading || busy || !!printable || autoSaving || !!pendingDraft || !draftReady || !!editor.current?.composing(),
     selection: () => editor.current?.selection() ?? { anchor: text.length, head: text.length },
@@ -389,6 +394,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       if (commandId === 'content.language') return { enabled: !!editor.current?.fencedCode(), reason: '请将光标放在围栏代码块中。' }
       if (commandId === 'edit.undo' || commandId === 'edit.redo') return { enabled: editor.current?.historyState?.()[commandId.slice(5) as 'undo' | 'redo'] ?? true, reason: '没有可撤销或重做的修改。' }
       if (commandId === 'file.reload' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
+      if (commandId === 'file.mergeRecovery' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
       if (commandId === 'file.save' && (external.checking || external.change)) return { enabled: false, reason: '磁盘版本待检查或已变化，请比较或另存本地副本。' }
       if (commandId === 'view.reading' && readingBusy) return { enabled: false, reason: '正在切换窗口模式。' }
       if (commandId.startsWith('view.')) return { enabled: true, checked: commandId === 'view.reading' ? reading : commandId === 'view.files' ? showFiles : commandId === 'view.outline' ? showOutline : commandId === 'view.toolbar' ? showToolbar : commandId === `view.${view}` }
@@ -422,6 +428,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       else if (action === 'reload') return reloadExternal()
       else if (action === 'exportDocx') return exportDocxDocument()
       else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
+      else if (action === 'mergeRecovery') { setMergeRecoveryOpen(true); setBusy(true) }
       else if (action === 'batchImages') { setBatchOpen(true); setBusy(true) }
       else if (action === 'exportHtml' || action === 'print') return exportDocument(action)
       else if (action === 'save' || action === 'saveAs') return save(action === 'saveAs')
@@ -452,6 +459,31 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   }
   function closeBatch() {
     setBatchOpen(false); setBusy(false)
+  }
+  function closeMergeRecovery() {
+    setMergeRecoveryOpen(false); setBusy(false)
+  }
+  async function applyMerge(candidate: MergeCandidate, diskSnapshot: FileSnapshot, diskRevision: string) {
+    if (!fileId || !revision || !candidate.confirmed || candidate.base !== snapshot.originalText || candidate.local !== text || candidate.disk !== diskSnapshot.text) throw new Error('正文或磁盘版本已变化，请关闭窗口后重新分析。')
+    if (saving.current || editor.current?.composing() || images.busy || images.applying || images.session) throw new Error('当前文档暂不可提交，请完成图片或输入操作。')
+    saving.current = true; setError(''); setStatus('正在保存合并归档…')
+    const witness = mergeWitness.current, version = changeRevision.current
+    const valid = () => activeRef.current && mergeWitness.current.fileId === witness.fileId && mergeWitness.current.revision === witness.revision && mergeWitness.current.snapshot === witness.snapshot && textRef.current === witness.text && changeRevision.current === version && mergeWitness.current.change === witness.change
+    try {
+      const format = candidate.format === 'disk' ? diskSnapshot : snapshot
+      const resultBytes = mergeBytes(candidate.text, format)
+      const prepared = await prepareMerge(fileId, revision, diskRevision, snapshot, text, diskSnapshot, resultBytes, images.resources)
+      if (!valid()) throw new Error('正文或磁盘检查已变化，未提交合并。请重新分析；恢复记录仍已保留。')
+      const committed = await commitMerge(fileId, prepared.operationId)
+      if (!valid() || !editor.current?.patch([{ from: 0, to: text.length, insert: candidate.text }], { anchor: 0, head: 0 })) {
+        setAutoSavePaused(true); external.recheck()
+        throw new Error('磁盘已提交，但编辑器未能应用合并正文；本地编辑保留，请从合并恢复记录取回候选。')
+      }
+      setRevision(committed.revision); setSnapshot(decodeFile(resultBytes)); setDirty(false); setAutoSavePaused(false); persistedTextRevision.current = changeRevision.current
+      try { await clearDraft(changeRevision.current) } catch (error) { setError(errorMessage(error)) }
+      setExternalOpen(false); setStatus('合并已保存；双方版本可从恢复记录取回'); if (committed.warning) setError(committed.warning)
+    } catch (error) { setStatus('合并未完成'); throw new Error(mergeError(error)) }
+    finally { saving.current = false }
   }
   async function applyBatch(outputs: BatchOutput[], options: BatchOptions, operationId: string) {
     if (!fileId || !revision || saving.current || editor.current?.composing()) throw new Error('当前文档暂不可提交。')
@@ -942,7 +974,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   const commands: Array<[Command, string, string]> = [['bold', 'B', '加粗'], ['italic', 'I', '斜体'], ['strike', 'S̶', '删除线'], ['inlineCode', '‹›', '行内代码'], ['heading', 'H', '标题'], ['bullet', '☷', '无序列表'], ['ordered', '1.', '有序列表'], ['task', '☑', '任务列表'], ['quote', '❞', '引用'], ['code', '{ }', '代码块'], ['link', '↗', '链接']]
   const languages = ['', 'javascript', 'typescript', 'python', 'rust', 'java', 'c', 'cpp', 'csharp', 'go', 'html', 'css', 'json', 'yaml', 'sql', 'bash', 'powershell', 'markdown', 'text']
 
-  return <>{externalOpen && active && external.change && 'snapshot' in external.change && <ExternalChangeDialog disk={external.change.snapshot} local={text} base={fileId && revision ? snapshot.originalText : null} onClose={() => { setExternalOpen(false); requestAnimationFrame(() => editor.current?.focus()) }} onReload={() => reloadExternal(external.change && 'revision' in external.change ? external.change.revision : undefined, true)} onSaveCopy={async () => { if (await save(true)) setExternalOpen(false) }} onLocate={offset => { setExternalOpen(false); requestAnimationFrame(() => { setView('source'); jumpTo(offset) }) }} />}<div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={externalOpen || !!contentTool || tableDecision || busy || !!printable}>
+  return <>{mergeRecoveryOpen && active && fileId && <MergeRecoveryDialog fileId={fileId} onClose={closeMergeRecovery} />}{externalOpen && active && external.change && 'snapshot' in external.change && <ExternalChangeDialog disk={external.change.snapshot} local={text} base={fileId && revision ? snapshot.originalText : null} baseline={snapshot} onMerge={candidate => applyMerge(candidate, external.change && 'revision' in external.change ? external.change.snapshot : snapshot, external.change && 'revision' in external.change ? external.change.revision : '')} onClose={() => { setExternalOpen(false); requestAnimationFrame(() => editor.current?.focus()) }} onReload={() => reloadExternal(external.change && 'revision' in external.change ? external.change.revision : undefined, true)} onSaveCopy={async () => { if (await save(true)) setExternalOpen(false) }} onLocate={offset => { setExternalOpen(false); requestAnimationFrame(() => { setView('source'); jumpTo(offset) }) }} />}<div className={`app-shell ${reading ? 'reading-document' : ''}`} inert={externalOpen || !!contentTool || tableDecision || busy || !!printable}>
     <input hidden ref={imagePicker} type="file" accept="image/png,image/jpeg" onChange={(event) => {
       const target = imageInsert.current; imageInsert.current = null
       if (target && (!registry.status('insert.image', target.context).enabled || !validSlash(textRef.current, target.context.selection, target.slash))) { setError('图片插入位置已变化，请重新选择。'); event.target.value = ''; return }

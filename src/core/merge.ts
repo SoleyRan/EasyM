@@ -7,6 +7,23 @@ export type MergePlan =
   | { status: 'unavailable'; reason: string }
   | { status: 'clean' | 'conflicts'; chunks: MergeChunk[]; conflicts: number; text?: string }
 interface Change { from: number; to: number; lines: string[]; side: 'local' | 'disk' }
+export type MergeResolution = { kind: 'local' | 'disk' } | { kind: 'manual'; text: string }
+/** Resolves entire line regions; an empty manual replacement means deletion, not a blank line. */
+export function resolveMerge(plan: MergePlan, choices: Record<number, MergeResolution>): string {
+  if (plan.status === 'unavailable') throw new Error(plan.reason)
+  const lines: string[] = []
+  let index = 0
+  for (const chunk of plan.chunks) {
+    if (chunk.kind !== 'conflict') { for (const line of chunk.lines) lines.push(line); continue }
+    const choice = choices[index++]
+    if (!choice) throw new Error('仍有未解决的冲突。')
+    const selected = choice.kind === 'manual' ? (choice.text === '' ? [] : choice.text.replace(/\r\n/g, '\n').split('\n')) : chunk[choice.kind]
+    for (const line of selected) lines.push(line)
+  }
+  const result = lines.join('\n')
+  if (new TextEncoder().encode(result).length > 10 * 1024 * 1024 || result.includes('\0')) throw new Error('合并结果无效或超过 10 MiB。')
+  return result
+}
 const MAX_BYTES = 5 * 1024 * 1024, MAX_REGIONS = 2000
 export const unavailableMerge = (reason: string): MergePlan => ({ status: 'unavailable', reason })
 

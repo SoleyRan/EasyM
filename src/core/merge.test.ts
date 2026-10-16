@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { planMerge, type MergePlan } from './merge'
+import { planMerge, resolveMerge, type MergePlan } from './merge'
 
 function clean(base: string, local: string, disk: string, expected: string) {
   const result = planMerge(base, local, disk)
@@ -94,4 +94,17 @@ it('refuses missing ancestors, oversized inputs, excessive regions and expired d
   const local = base.flatMap((line, i) => i % 2 === 0 ? ['local', line] : [line])
   const disk = base.flatMap((line, i) => i % 2 === 1 ? ['disk', line] : [line])
   expect(planMerge(base.join('\n'), local.join('\n'), disk.join('\n'))).toMatchObject({ status: 'unavailable', reason: expect.stringContaining('2,000') })
+})
+it('requires every conflict choice and supports local, disk, manual and deletion without markers', () => {
+  const plan = planMerge('a\nb\nc\nd\ne', 'a\nL1\nc\nL2\ne', 'a\nR1\nc\nR2\ne')
+  expect(() => resolveMerge(plan, {})).toThrow('未解决')
+  expect(() => resolveMerge(plan, { 0: { kind: 'local' } })).toThrow('未解决')
+  expect(resolveMerge(plan, { 0: { kind: 'local' }, 1: { kind: 'disk' } })).toBe('a\nL1\nc\nR2\ne')
+  expect(resolveMerge(plan, { 0: { kind: 'manual', text: '手工\r\n😀' }, 1: { kind: 'manual', text: '' } })).toBe('a\n手工\n😀\nc\ne')
+  expect(() => resolveMerge({ status: 'unavailable', reason: 'failed' }, {})).toThrow('failed')
+  expect(() => resolveMerge(plan, { 0: { kind: 'manual', text: '\0' }, 1: { kind: 'disk' } })).toThrow('无效')
+})
+it('resolves long unchanged documents without spreading arrays past engine argument limits', () => {
+  const text = 'a\n'.repeat(95000)
+  expect(resolveMerge(planMerge(text, text, text), {})).toBe(text)
 })

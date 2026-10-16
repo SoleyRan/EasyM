@@ -88,7 +88,7 @@ try {
   await analysis().getByText(/有 \d+ 处文本冲突/).waitFor()
   assert.equal(await analysis().getByRole('textbox', { name: '冲突 1 共同祖先' }).inputValue(), '# 磁盘变更\n\n中文 😀')
   assert.equal(await candidate().count(), 0)
-  assert.equal(await analysis().getByRole('button').count(), 0)
+  assert.equal(await analysis().getByRole('button', { name: '应用合并并保存', exact: true }).isDisabled(), true)
   await analysis().getByRole('textbox', { name: '冲突 1 共同祖先' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: 'test-results/external/merge-conflict.png' })
   await page.setViewportSize({ width: 430, height: 600 })

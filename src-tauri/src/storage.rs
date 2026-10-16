@@ -20,7 +20,7 @@ pub struct ImageFile { bytes: Vec<u8>, mime: String }
 
 fn hash(bytes: &[u8]) -> String { format!("sha256:{:x}", Sha256::digest(bytes)) }
 fn name(path: &Path) -> String { path.file_name().unwrap_or_default().to_string_lossy().to_string() }
-fn read_text(path: &Path) -> Result<Vec<u8>, String> {
+pub(crate) fn read_text(path: &Path) -> Result<Vec<u8>, String> {
     if !path.is_file() { return Err("invalid_data".into()); }
     if fs::metadata(path).map_err(|_| "resource_missing")?.len() > MAX_TEXT as u64 { return Err("quota_exceeded".into()); }
     let mut bytes = Vec::new();
@@ -31,7 +31,7 @@ fn read_text(path: &Path) -> Result<Vec<u8>, String> {
 
 // Check every component of the canonical path recorded by the file picker.
 // A replaced parent link/junction must not silently expand that authorization.
-fn checked_document(path: &Path) -> Result<(), String> {
+pub(crate) fn checked_document(path: &Path) -> Result<(), String> {
     let mut current = PathBuf::new();
     for part in path.components() {
         current.push(part.as_os_str());

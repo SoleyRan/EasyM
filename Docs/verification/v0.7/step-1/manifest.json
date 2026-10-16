@@ -32,22 +32,22 @@
       "bytes": 852
     },
     {
-      "path": "logs/v07-step1-build.log",
+      "path": "logs/v07-step1-build.txt",
       "sha256": "44574834300f929f054620a553cc63f4c4dd0305b154f983dfc776c2ea2633e9",
       "bytes": 8872
     },
     {
-      "path": "logs/v07-step1-external.log",
+      "path": "logs/v07-step1-external.txt",
       "sha256": "e06c7a655b1645219fb74edcc8ea4bf1537284b32f2c3f525bb2fd085dac279d",
       "bytes": 1456
     },
     {
-      "path": "logs/v07-step1-merge-unit.log",
+      "path": "logs/v07-step1-merge-unit.txt",
       "sha256": "c1c02f7b2333560c2574c5be6ac90d7fcaca9f2505c80992d8ae92062caf85a6",
       "bytes": 372
     },
     {
-      "path": "logs/v07-step1-unit.log",
+      "path": "logs/v07-step1-unit.txt",
       "sha256": "48e2ff7b1371de6d19361000ae5de255adae947605c7392107ff24956b52f387",
       "bytes": 8213
     },
@@ -91,5 +91,6 @@
       "sha256": "76d887e40e4d87953a4d1fbbe7a902026ea3ee38b0ec0735e28523b06d291430",
       "bytes": 68249
     }
-  ]
+  ],
+  "evidenceNote": "Original step-1 log bytes were copied to .txt during step 2 because *.log is globally ignored. Hashes and original verification date are unchanged."
 }

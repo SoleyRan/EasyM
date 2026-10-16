@@ -447,6 +447,7 @@ function Application() {
             </PositionedOverlay>}
           </div>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.history').enabled} onClick={() => fileAction('history')}>版本历史</button>
+          <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.mergeRecovery').enabled} onClick={() => fileAction('mergeRecovery')}>合并恢复记录</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.batchImages').enabled} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => executeApp('app.settings')}>设置</button>

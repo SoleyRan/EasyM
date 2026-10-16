@@ -1,0 +1,250 @@
+{
+  "archivedAt": "2026-10-16T03:45:52.892Z",
+  "branch": "feature/v0.7",
+  "baseCommit": "12d8b8f0a268a45be7669e5036a9c1295e7c7209",
+  "uncommitted": true,
+  "version": "0.6.0",
+  "node": "v24.20.0",
+  "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "scope": "v0.7 step 2 local working-tree implementation. Production Chromium and actual workers with deterministic native IPC; Windows Rust filesystem tests. No new native GUI, real IME, cloud CI, performance suite, or installer claim.",
+  "regressionStartedAt": "2026-10-16T03:36:52.720Z",
+  "regressionFinishedAt": "2026-10-16T03:41:41.104Z",
+  "distIndexSha256": "cd4d866c30dd0541cc506e05e0d7fbed6a8c32849ead1b4316b4c748cdbacc80",
+  "checks": {
+    "frontend": {
+      "passed": true,
+      "files": 54,
+      "tests": 307
+    },
+    "windowsRust": {
+      "passed": true,
+      "tests": 74,
+      "newTests": 9
+    },
+    "typescriptAndProductionBuild": {
+      "passed": true
+    },
+    "productionRegression": {
+      "passed": true,
+      "groups": 29
+    },
+    "mergeProduction": {
+      "passed": true,
+      "groups": 6
+    },
+    "slowFocus": {
+      "passed": true,
+      "groups": 5,
+      "cpuThrottlingRate": 6
+    },
+    "releaseMetadata": {
+      "passed": true,
+      "version": "0.6.0"
+    }
+  },
+  "limitations": [
+    "Base or disk Markdown referencing local images blocks merge application because prior image bytes cannot be verified. Only supported in-memory new images with complete source/display bytes and metadata may be included.",
+    "Revision checks use the existing optimistic save mechanism; the check-to-replace window is not an operating-system compare-and-swap.",
+    "Unix-specific link tests await three-platform CI. Native dialog, accessibility and IME checks are not asserted."
+  ],
+  "evidenceNotes": [
+    "Worker checks emit to the archived full regression log and do not create a separate workers report.",
+    "The browser and writing reports have no passed field; their successful process exits are recorded by the regression runner.",
+    "The first regression exposed a fixed-count keyboard navigation assumption in the batch-images test. Bounded traversal to the Export item fixed it, then all 29 groups passed.",
+    "Logs were copied byte-for-byte to .txt because *.log is globally ignored. Reports and screenshots were copied from this run only.",
+    "Step-1 historical logs were separately recovered with their original hashes; they do not represent new test executions."
+  ],
+  "artifacts": [
+    {
+      "path": "docx-library-verification.json",
+      "sha256": "4c8b8c4aabecaf02f42908de9be4be7985477cc90530a7620eb228068c53ae0e",
+      "bytes": 1014
+    },
+    {
+      "path": "docx-verification.json",
+      "sha256": "c5bf981b3c80199bb3881b72d8eb33a9dd15009374240ad338cba84e487e8fa6",
+      "bytes": 964
+    },
+    {
+      "path": "focus-verification.json",
+      "sha256": "60de2883c3821a3841a5e20ef8bb8953b676830388e209d6fffdc190a6194d04",
+      "bytes": 617
+    },
+    {
+      "path": "docx-ui-verification.json",
+      "sha256": "47b8174c4008564e2ff982475050f2c6a4c88b45b098fc00e7b58c22c2ed4014",
+      "bytes": 1697
+    },
+    {
+      "path": "history-verification.json",
+      "sha256": "984667f3e333abf10857a8b08fb89ebb148b306915cb92e770e06f2147138a9a",
+      "bytes": 852
+    },
+    {
+      "path": "batch-images-verification.json",
+      "sha256": "98fb44ca44c02a401d425c80751895aff338dc089cf565eec105cc297e59d6d9",
+      "bytes": 2096
+    },
+    {
+      "path": "settings-verification.json",
+      "sha256": "5a795c119796b23fb4d94fecbb1fdefe37ed70412dc16e7905887c7f1274f854",
+      "bytes": 600
+    },
+    {
+      "path": "browser-verification.json",
+      "sha256": "045d8bbd75381ecc83a6511c0d3e5c560f809c963370c663e4167df0b0147411",
+      "bytes": 505
+    },
+    {
+      "path": "writing-verification.json",
+      "sha256": "5de1b2aa23c111fcfac389375aab2c95aa0a69985db857e4c70931be5ed90d2f",
+      "bytes": 5381
+    },
+    {
+      "path": "search-verification.json",
+      "sha256": "12512a2398277425ddd5cba4357b6cc977c856ba87e97721b13f98eb358e2ea5",
+      "bytes": 551
+    },
+    {
+      "path": "live-preview-verification.json",
+      "sha256": "ae7f3819a596e1ec6fe0e7ccac1fee372d4ae11f578c428112dea371ddeafbee",
+      "bytes": 1081
+    },
+    {
+      "path": "workspace-verification.json",
+      "sha256": "3a65aee6bdb917dd516dc2ed5f6a8241fb8120a364c4340a62895385a6b48a96",
+      "bytes": 635
+    },
+    {
+      "path": "templates-verification.json",
+      "sha256": "430c30cf447e4987ac69e31f0af8f9281018d125a9c5214bea473d9aa6afd132",
+      "bytes": 627
+    },
+    {
+      "path": "export-verification.json",
+      "sha256": "a433a82bcafa3ac579f33b677ef0fe28ec4ca87f52e4f9b5f702998188b099ee",
+      "bytes": 825
+    },
+    {
+      "path": "extensions-verification.json",
+      "sha256": "36ad39c86ddf9a5f54254025fac07b5d305c8ecdfaa1d12e2aa26113093c1e61",
+      "bytes": 801
+    },
+    {
+      "path": "math-verification.json",
+      "sha256": "32bcdc51c83e9fe2895a0c972ed1a7eb9980c9ec9f1c448dd756b607d9ffc604",
+      "bytes": 882
+    },
+    {
+      "path": "mermaid-verification.json",
+      "sha256": "9e90997abc519587bdc8e418413a314a9272b42d54241eea4d891b96a9ed137f",
+      "bytes": 963
+    },
+    {
+      "path": "extension-delivery-verification.json",
+      "sha256": "1d1f3800118c4693366f9e98581affb4086c17cc15b7b6b62087b33c4a32becd",
+      "bytes": 888
+    },
+    {
+      "path": "context-menu-verification.json",
+      "sha256": "3271372fcf5317cfe29439e74d8881a29401bba95e26c17f4ac4cb6ffda812d5",
+      "bytes": 616
+    },
+    {
+      "path": "commands-verification.json",
+      "sha256": "8c59358cfb590c2e3ce13696a2ebd88e7568fabd33fed0217d39a2b45d2a06a3",
+      "bytes": 491
+    },
+    {
+      "path": "tables-verification.json",
+      "sha256": "d50dc4311b8314f33ab82b1db684d3732296fcc504b328ddf3ca42c979c0fadc",
+      "bytes": 993
+    },
+    {
+      "path": "content-tools-verification.json",
+      "sha256": "63ae06458149649d1475b20a7179606dd05cce79882de003a125051223bcc8b9",
+      "bytes": 1134
+    },
+    {
+      "path": "quick-entry-verification.json",
+      "sha256": "a751a19451cd2f63a8506e65c6d33f2334ed84f78bd18bc3e6268a07c2bfa12c",
+      "bytes": 944
+    },
+    {
+      "path": "appearance-verification.json",
+      "sha256": "52f6e4d1753db75f7c743b0575f75ee889c6ee433f1a0f414a4690e3aad70dad",
+      "bytes": 797
+    },
+    {
+      "path": "session-verification.json",
+      "sha256": "e89c538e310276bf49f95b8eaf023c716aace3d759b72ee8b1f2dbf88310b07c",
+      "bytes": 666
+    },
+    {
+      "path": "recent-verification.json",
+      "sha256": "c202993d69bdc01994e3490bba6f59561ae6b6a3b352b407477999dc83faf11f",
+      "bytes": 878
+    },
+    {
+      "path": "external-verification.json",
+      "sha256": "68b3e6e9e7d92a27a479b660e68015c8311782ff8f1f3a1371c143e8e0e110f5",
+      "bytes": 1439
+    },
+    {
+      "path": "merge-verification.json",
+      "sha256": "c088805230395aba208c5ce605e901731f4840dd083bf0186b8d8ae5301dcfea",
+      "bytes": 959
+    },
+    {
+      "path": "regression-verification.json",
+      "sha256": "209fd70e050e86254f4312cf5cda860095bc343d890667face1d79cd2eab43c7",
+      "bytes": 2831
+    },
+    {
+      "path": "focus-slow-verification.json",
+      "sha256": "ab681aafd870c5bee10ec63eff06149b1a4121c7cbfaee16857a109cc8a87253",
+      "bytes": 617
+    },
+    {
+      "path": "logs/v07-step2-unit.txt",
+      "sha256": "4d7e0688b8bc1e04515679e9bd9d4d2b4ce1135b3a5b538884133052dd48afd8",
+      "bytes": 10868
+    },
+    {
+      "path": "logs/v07-step2-rust.txt",
+      "sha256": "8ee7c5842907c8cc0292e9e7a8b43548fcf0de6af82ddc51aaea1476a2e76702",
+      "bytes": 7415
+    },
+    {
+      "path": "logs/v07-step2-build.txt",
+      "sha256": "873424da7aedc41d7be970259115d6f22493e215f48668ba185aa883160cfe56",
+      "bytes": 8872
+    },
+    {
+      "path": "logs/v07-step2-regression.txt",
+      "sha256": "2b7b440701099c55c6db7a300f082049e48e0a72a1a4ada13aeae5ab41d94087",
+      "bytes": 17935
+    },
+    {
+      "path": "logs/v07-step2-focus-slow.txt",
+      "sha256": "a436dc63e3b8b565192d41f05b5757e3fa3440632733f01b4aa7510f03002a78",
+      "bytes": 629
+    },
+    {
+      "path": "screenshots/recovery.png",
+      "sha256": "0ba4b63c1e67d4aa2962f9dc369536903a7236a72fc4299c180a971dadd59e48",
+      "bytes": 71357
+    },
+    {
+      "path": "screenshots/conflict-choice.png",
+      "sha256": "f6bcceeef8eaa2644c0be35806d93f226612929857bae853854659f92f4add10",
+      "bytes": 62821
+    },
+    {
+      "path": "screenshots/compact.png",
+      "sha256": "f690c2de3e322dbb0f8ed5f294013884cfd8001d932b1cd4b2017e455be622e2",
+      "bytes": 21698
+    }
+  ]
+}
