@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "sourceCommit": "70867453976b1551ac3540b797a6e1c23310cd7d",
+  "sourceDirty": false,
+  "target": "aarch64-apple-darwin",
+  "signed": false,
+  "automaticUpdates": false,
+  "createdAt": "2026-10-16T10:02:48.310Z",
+  "bundledNoticesVerified": true,
+  "nativeGuiAcceptance": "pending",
+  "artifacts": [
+    {
+      "name": "EasyM-1.0.0-macos-arm64.dmg",
+      "bytes": 6645942,
+      "sha256": "192e3ec296b6de75919b74e658391db28ec51a7632b9a7b766a5c5a764be7a9e"
+    }
+  ]
+}

@@ -1,0 +1,253 @@
+{
+  "recordedAt": "2026-10-16T10:11:00.820Z",
+  "version": "1.0.0",
+  "sourceCommit": "70867453976b1551ac3540b797a6e1c23310cd7d",
+  "ciRun": 38883944619,
+  "ciConclusion": "success",
+  "downloadedArtifactDigestsVerified": true,
+  "candidateBytesVerified": true,
+  "nativeGuiAcceptance": "pending",
+  "formalReleaseReady": false,
+  "files": [
+    {
+      "path": "remote-metadata.json",
+      "bytes": 9574,
+      "sha256": "6679eb9d9e475576f9c3837421de12d3b8afc5302d948c7f42fc3e24b8887094"
+    },
+    {
+      "path": "windows/release-manifest.json",
+      "bytes": 1251,
+      "sha256": "6b561ef6bd057ab49c3801244d954403bcf9d7be8c3f469d0e5d42bc79399581"
+    },
+    {
+      "path": "windows/RELEASE-NOTES.md",
+      "bytes": 4162,
+      "sha256": "76c12c338475cbe3436f4f2fbeef8831756cb720fd187a6b242786432b7bcf73"
+    },
+    {
+      "path": "windows/SHA256SUMS.txt",
+      "bytes": 357,
+      "sha256": "88872a44ee7c6f85cf30d19717c82576cd0784010b0658c208c49fa23f035fc9"
+    },
+    {
+      "path": "macos/release-manifest-macos-arm64.json",
+      "bytes": 494,
+      "sha256": "06be4e98451e100ed0e8001f4797e30180384fdd7410af26d01071cc479803e3"
+    },
+    {
+      "path": "macos/SHA256SUMS-macos-arm64.txt",
+      "bytes": 194,
+      "sha256": "639f446127e3b44784ecbac9d27f904a97f31e2acfe12cbb189481d8ed746ab3"
+    },
+    {
+      "path": "linux/release-manifest-linux-amd64.json",
+      "bytes": 498,
+      "sha256": "46068f4ac7c59da2d3d6de1da6ffaab4e09d0d06035b7edd2ab7988af419dd95"
+    },
+    {
+      "path": "linux/SHA256SUMS-linux-amd64.txt",
+      "bytes": 194,
+      "sha256": "f4310b6584f66101de21c6a9af210b5b641f6df7c5434fc378a92e9a70b97e7c"
+    },
+    {
+      "path": "browser-verification/appearance-verification.json",
+      "bytes": 797,
+      "sha256": "52f6e4d1753db75f7c743b0575f75ee889c6ee433f1a0f414a4690e3aad70dad"
+    },
+    {
+      "path": "browser-verification/backup-verification.json",
+      "bytes": 1258,
+      "sha256": "1622e23d5c14b305ae33379a94432b56c662cc27e450f01efea32f5e5b9daa52"
+    },
+    {
+      "path": "browser-verification/batch-images-verification.json",
+      "bytes": 2122,
+      "sha256": "517a2089faff1eb5e1408f103afab43b99c203b9330f095d60ff012d152c7d83"
+    },
+    {
+      "path": "browser-verification/browser-verification.json",
+      "bytes": 505,
+      "sha256": "142c375a408e21a720758f135cc9238ad2521341c667e746c5647e1fec1e7615"
+    },
+    {
+      "path": "browser-verification/commands-verification.json",
+      "bytes": 491,
+      "sha256": "8c59358cfb590c2e3ce13696a2ebd88e7568fabd33fed0217d39a2b45d2a06a3"
+    },
+    {
+      "path": "browser-verification/content-tools-verification.json",
+      "bytes": 1134,
+      "sha256": "63ae06458149649d1475b20a7179606dd05cce79882de003a125051223bcc8b9"
+    },
+    {
+      "path": "browser-verification/context-menu-verification.json",
+      "bytes": 616,
+      "sha256": "c372403d500f024585590cb3286ab4da9abe7ff90ad2467fc8ba3c1d17f96e8d"
+    },
+    {
+      "path": "browser-verification/docx-library-verification.json",
+      "bytes": 1014,
+      "sha256": "6bebd48affd5ca7be3ca2d9345303f8c83f88c995d106ca9e87ae4c4cccc1712"
+    },
+    {
+      "path": "browser-verification/docx-ui-verification.json",
+      "bytes": 1723,
+      "sha256": "76a8748cc3b54f499eaad4cb2f18d215541352925ebd3be56596c7f154cfc59a"
+    },
+    {
+      "path": "browser-verification/docx-verification.json",
+      "bytes": 964,
+      "sha256": "418f246b5f10703506264e086dd54df68470e81c20ef3123ba1abc34aaaf181d"
+    },
+    {
+      "path": "browser-verification/export-verification.json",
+      "bytes": 825,
+      "sha256": "91146fdafa0434a72cd1371a32de033e36d45973c9f3c68171f29b3063de731f"
+    },
+    {
+      "path": "browser-verification/extension-delivery-verification.json",
+      "bytes": 883,
+      "sha256": "aee2a66fc9106f6f6ccbdc1cc969ce08372d592abbba48ca8627a8503e809c8a"
+    },
+    {
+      "path": "browser-verification/extensions-verification.json",
+      "bytes": 801,
+      "sha256": "36ad39c86ddf9a5f54254025fac07b5d305c8ecdfaa1d12e2aa26113093c1e61"
+    },
+    {
+      "path": "browser-verification/external-verification.json",
+      "bytes": 1439,
+      "sha256": "68b3e6e9e7d92a27a479b660e68015c8311782ff8f1f3a1371c143e8e0e110f5"
+    },
+    {
+      "path": "browser-verification/focus-slow-verification.json",
+      "bytes": 617,
+      "sha256": "ab681aafd870c5bee10ec63eff06149b1a4121c7cbfaee16857a109cc8a87253"
+    },
+    {
+      "path": "browser-verification/focus-verification.json",
+      "bytes": 617,
+      "sha256": "60de2883c3821a3841a5e20ef8bb8953b676830388e209d6fffdc190a6194d04"
+    },
+    {
+      "path": "browser-verification/history-diff-performance.json",
+      "bytes": 1585,
+      "sha256": "6308731cf48d0e97b18f77dc995e2502063280845ea090880d0c7277f35ceb4f"
+    },
+    {
+      "path": "browser-verification/history-verification.json",
+      "bytes": 852,
+      "sha256": "ec170c1ad93e3a7b967daabce85d58f0a9d8a8ab6c83289684a8ac3a685b0d07"
+    },
+    {
+      "path": "browser-verification/live-preview-verification.json",
+      "bytes": 1081,
+      "sha256": "effc0b969b617b11e4d841d1f8cbe9d0a2ab1ae34379e78a84ed0b3a4ffef372"
+    },
+    {
+      "path": "browser-verification/math-slow-verification.json",
+      "bytes": 882,
+      "sha256": "eb0cae4019c29d55fd3d837a9c2e86f550d96396ab56818a8af993ad33ae2ca2"
+    },
+    {
+      "path": "browser-verification/math-verification.json",
+      "bytes": 882,
+      "sha256": "32bcdc51c83e9fe2895a0c972ed1a7eb9980c9ec9f1c448dd756b607d9ffc604"
+    },
+    {
+      "path": "browser-verification/merge-verification.json",
+      "bytes": 959,
+      "sha256": "c088805230395aba208c5ce605e901731f4840dd083bf0186b8d8ae5301dcfea"
+    },
+    {
+      "path": "browser-verification/mermaid-verification.json",
+      "bytes": 963,
+      "sha256": "9e90997abc519587bdc8e418413a314a9272b42d54241eea4d891b96a9ed137f"
+    },
+    {
+      "path": "browser-verification/protection-delivery-verification.json",
+      "bytes": 2308,
+      "sha256": "67ea364fb043038ae1cbcc0b7fe77dca94f9127786ec13aad891d3af08c9fe5c"
+    },
+    {
+      "path": "browser-verification/quick-entry-verification.json",
+      "bytes": 944,
+      "sha256": "a751a19451cd2f63a8506e65c6d33f2334ed84f78bd18bc3e6268a07c2bfa12c"
+    },
+    {
+      "path": "browser-verification/recent-verification.json",
+      "bytes": 878,
+      "sha256": "c202993d69bdc01994e3490bba6f59561ae6b6a3b352b407477999dc83faf11f"
+    },
+    {
+      "path": "browser-verification/regression-verification.json",
+      "bytes": 3015,
+      "sha256": "f3a2a41ae9d18666bc792c1da12a1f9cd0312b63e34312de047307b7218fbe85"
+    },
+    {
+      "path": "browser-verification/search-slow-verification.json",
+      "bytes": 551,
+      "sha256": "0712ecbeb209fb4720f5bae527202a373b61645f96d9c33bdc330a807dc753d2"
+    },
+    {
+      "path": "browser-verification/search-verification.json",
+      "bytes": 551,
+      "sha256": "92ca32b8f28c7d469aa33be2b6f26a4b17984339431fdf2ca4c9a79f70d1a516"
+    },
+    {
+      "path": "browser-verification/session-verification.json",
+      "bytes": 666,
+      "sha256": "e89c538e310276bf49f95b8eaf023c716aace3d759b72ee8b1f2dbf88310b07c"
+    },
+    {
+      "path": "browser-verification/settings-verification.json",
+      "bytes": 600,
+      "sha256": "1a664f4d578142e0160c716cc1e7a6680f714cf2908f1ea2f7fb46ad5fb42803"
+    },
+    {
+      "path": "browser-verification/tables-verification.json",
+      "bytes": 993,
+      "sha256": "d50dc4311b8314f33ab82b1db684d3732296fcc504b328ddf3ca42c979c0fadc"
+    },
+    {
+      "path": "browser-verification/templates-slow-verification.json",
+      "bytes": 627,
+      "sha256": "b85223274ce43907853c1d45d7d5e8831c1cc28fe0b35deac37fe81ef53cff38"
+    },
+    {
+      "path": "browser-verification/templates-verification.json",
+      "bytes": 627,
+      "sha256": "45eb19487f0f12969cc8a028c73f5d67c0517e3a0f7e0e984eb0fdbb95f65432"
+    },
+    {
+      "path": "browser-verification/workspace-verification.json",
+      "bytes": 635,
+      "sha256": "c0f47b9a8e692788f1d6776e7b919988b7ae1b84fa049a7cc914cef2704fa376"
+    },
+    {
+      "path": "browser-verification/writing-verification.json",
+      "bytes": 5381,
+      "sha256": "079e438981961e1d33edc0c07a0e4542dc6835e34c762e437d1a91c3da97eaa7"
+    },
+    {
+      "path": "windows-installer-verification/installer-verification.json",
+      "bytes": 253,
+      "sha256": "8d1db5701f907411fda0f7f83fe5567af760c657a270b25be13456c213742054"
+    },
+    {
+      "path": "windows-installer-verification/native-extensions-verification.json",
+      "bytes": 3259,
+      "sha256": "9f4342b6ef4304acc6d2d8fabf4246a79f1cca93a8c939e46c6a1f1b2c79b3a4"
+    },
+    {
+      "path": "windows-installer-verification/native-startup-verification.json",
+      "bytes": 6182,
+      "sha256": "e61c4945d3306d5483b728b50225eab05db4a8da5200b89d520321cf982a78fe"
+    },
+    {
+      "path": "windows-installer-verification/portable-verification.json",
+      "bytes": 462,
+      "sha256": "3da20c0bd1079a1ae58a531d3973979c5160b906fc6e6c460947c1c3adb09ee4"
+    }
+  ]
+}

@@ -24,6 +24,7 @@ Web/PWA、移动端、同步、协作、AI、插件、完整工作区备份、DO
 ## 当前状态
 
 - 已建立分支并确认基线 CI 全绿。
-- 第 1 项完成；三平台许可文本库存缺项为 0，Apple SDK 分发复核另行保留。第 2 项已建立 Windows 候选和草稿流程，按三平台首发决定补齐 macOS/Linux 打包及资源验证。
-- 本机 TypeScript、316 项前端、91 项 Windows Rust、31 组生产回归已通过，其余检查正在继续。
+- 第 1 项完成；三平台许可文本库存缺项为 0，Apple SDK 分发复核另行保留。第 2 项已建立 Windows NSIS/ZIP、macOS DMG、Linux DEB 候选和三平台草稿流程，包内资源验证加入 CI。
+- 本机 TypeScript、316 项前端、91 项 Windows Rust、31 组生产回归、四项慢速交互、性能、Word、Windows 原生及便携包检查均已通过；84 份证据及逐文件哈希已归档，见 [验收与交付](Easy-Markdown-v1.0-验收与交付.md)。
+- 候选提交 `7086745` 的 [CI 38883944619](https://github.com/SoleyRan/EasyM/actions/runs/38883944619) 四个 job 全绿；三平台安装包已下载复核，另归档 48 份 CI 证据。草稿工作流尚未远程运行。
 - 签名决定、三平台实机验收、标签及正式发布尚未完成，不声称 1.0 已发行。

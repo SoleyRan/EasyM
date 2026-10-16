@@ -1,6 +1,6 @@
 # EasyM 1.0 验收与交付
 
-2026-10-16，分支 `feature/v1.0`。收尾基线为 `main` 的 `3c40370`；首个收尾提交 `e4f4364` 已推送。用户已选择三平台同时正式发布、等待补齐实机验收，当前不公开正式 Release。
+2026-10-16，分支 `feature/v1.0`。收尾基线为 `main` 的 `3c40370`；收尾提交 `e4f4364`、三平台候选提交 `7086745` 已推送。用户已选择三平台同时正式发布、等待补齐实机验收，当前不公开正式 Release。
 
 ## 已完成的本机检查
 
@@ -34,8 +34,18 @@
 
 ## 远程与实机验收
 
-首轮 CI [38882947668](https://github.com/SoleyRan/EasyM/actions/runs/38882947668) 对应 `e4f4364`。后续新增 macOS DMG/Linux DEB 与三平台草稿收集的提交需要新的 CI，不把首轮结果替代新增流程验收。
+候选 CI [38883944619](https://github.com/SoleyRan/EasyM/actions/runs/38883944619) 对应完整提交 `70867453976b1551ac3540b797a6e1c23310cd7d`，四个 job 全部成功。前端 55 文件/316 测试、31 组生产回归、四项慢速检查通过；Windows Rust 91 项、macOS/Linux Rust 各 97 项通过。三平台严格许可检查无文本缺项，Windows 原生/离线扩展/安装卸载/便携检查、macOS app/DMG、Linux DEB 及包内许可逐文件比对均通过。
 
-下一轮 CI 必须完成三平台 Rust/构建/严格许可、Windows 原生/安装卸载/便携，以及 macOS app、Linux DEB 内完整许可资源逐文件比对。全部通过后可从同一提交运行 `Draft EasyM release`，输入成功 CI 的 run ID，校验版本/提交/包哈希后收集 NSIS、ZIP、DMG、DEB 和统一 SHA-256 到草稿；流程不会自动公开。
+已下载三个 release-candidate 和浏览器/Windows 验收 artifact。五个外层 ZIP 的 SHA-256 与 GitHub API digest 一致；三个平台候选的版本、提交、文件大小及逐文件哈希再次校验通过。48 份 CI 元数据、manifest、校验和及 JSON 报告保存在 [CI 证据](verification/v1.0/ci-7086745/manifest.json)，与本机历史证据分开。此后的文档提交不改变候选绑定的提交。
+
+| 候选 | 下载 | 包文件 SHA-256 |
+| --- | --- | --- |
+| Windows NSIS / ZIP | [Windows artifact](https://github.com/SoleyRan/EasyM/actions/runs/38883944619/artifacts/12038957634) | NSIS `d95276d4a5404cc50503a55f0f62124f80b6a8e924b6f262726f6f691a1113de`；ZIP `f483b2fc57083b0ccef429fe8dc8de8f18dd86fbdd26b1036d989a429579a9f0` |
+| macOS Apple Silicon DMG | [macOS artifact](https://github.com/SoleyRan/EasyM/actions/runs/38883944619/artifacts/12038857504) | `192e3ec296b6de75919b74e658391db28ec51a7632b9a7b766a5c5a764be7a9e` |
+| Ubuntu 24.04 x86_64 DEB | [Linux artifact](https://github.com/SoleyRan/EasyM/actions/runs/38883944619/artifacts/12039276331) | `c386fbbab80b8a2f26dda8750fb7fe7507a1926092e9893ca79f43c04c920f4a` |
+
+本机已解压到 `test-results/v10/ci-7086745/{windows,macos,linux}/`，该目录不上传 Git。GitHub artifact 当前过期时间为 2027-01-14，下载可能需要登录；它们是验收候选，不是正式 Release 资产。
+
+`Draft EasyM release` 已编写并完成候选校验测试，尚未远程运行或创建草稿。GitHub 手动工作流需要先进入默认分支。合并 main 后若提交 SHA 改变，须等待 main 该提交的 CI 全绿，再针对该提交运行工作流并输入其 run ID；不能把旧候选标为来自新提交。本次 run ID `38883944619` 仅绑定候选提交 `7086745`，不能与后续文档提交或合并提交混用。流程收集 NSIS、ZIP、DMG、DEB 和统一 SHA-256，只创建草稿，不会自动公开。
 
 三平台 [实机验收表](Easy-Markdown-v1.0-实机验收.md) 仍待填写，签名/公证选择尚未确认。待它们完成后才能创建正式标签并公开 Release。当前已完成本机可执行的自动验收，未声称 1.0 正式发行。
