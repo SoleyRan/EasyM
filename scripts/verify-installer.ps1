@@ -11,7 +11,7 @@ if ($existing) { throw 'An EasyM installation already exists; refusing to replac
 $installRoot = Join-Path $env:RUNNER_TEMP ('easym-install-' + [guid]::NewGuid().ToString('N'))
 $installer = Join-Path $repoRoot ("src-tauri/target/release/bundle/nsis/EasyM_{0}_x64-setup.exe" -f $config.version)
 $reportPath = Join-Path $repoRoot 'test-results/installer-verification.json'
-$report = [ordered]@{ verifiedAt = [DateTime]::UtcNow.ToString('o'); installerSha256 = (Get-FileHash -LiteralPath $installer).Hash.ToLowerInvariant(); installed = $false; launched = $false; uninstalled = $false }
+$report = [ordered]@{ verifiedAt = [DateTime]::UtcNow.ToString('o'); version = $config.version; installerSha256 = (Get-FileHash -LiteralPath $installer).Hash.ToLowerInvariant(); installed = $false; launched = $false; uninstalled = $false; passed = $false }
 $appProcess = $null
 $previousProfile = $env:WEBVIEW2_USER_DATA_FOLDER
 try {
@@ -52,6 +52,7 @@ try {
     }
     if (Test-Path -LiteralPath 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\EasyM') { throw 'Uninstaller left the per-user installation registry key.' }
     $report.uninstalled = $true
+    $report.passed = $true
 } catch {
     $report.error = $_.Exception.Message
     throw

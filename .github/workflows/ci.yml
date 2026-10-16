@@ -17,6 +17,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm verify:release
+      - run: node --test scripts/prepare-release.test.mjs
       - run: pnpm test --maxWorkers=2
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium
@@ -118,7 +119,7 @@ jobs:
       - name: Collect platform dependency notices
         shell: bash
         env:
-          EASYM_STRICT_LICENSES: ${{ runner.os != 'macOS' }}
+          EASYM_STRICT_LICENSES: 'true'
         run: |
           mkdir -p test-results
           pnpm licenses list --prod --json > test-results/npm-licenses.json
@@ -147,6 +148,16 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/package-portable.ps1
+      - name: Prepare verified Windows release candidate
+        if: runner.os == 'Windows'
+        run: node scripts/prepare-release.mjs
+      - name: Upload Windows release candidate
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: easym-windows-release-candidate
+          path: test-results/release/
+          if-no-files-found: error
       - name: Upload installer diagnostics
         if: always() && runner.os == 'Windows'
         uses: actions/upload-artifact@v4
@@ -162,7 +173,7 @@ jobs:
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         with:
-          name: easym-${{ runner.os }}-development
+          name: easym-${{ runner.os }}-candidate
           path: |
             src-tauri/target/release/easym.exe
             src-tauri/target/release/easym

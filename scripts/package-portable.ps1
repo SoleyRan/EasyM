@@ -5,7 +5,7 @@ $exePath = Join-Path $releaseRoot 'easym.exe'
 $config = Get-Content (Join-Path $repoRoot 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
 $bundleRoot = Join-Path $releaseRoot 'bundle/portable'
 New-Item -ItemType Directory -Path $bundleRoot -Force | Out-Null
-$archivePath = Join-Path $bundleRoot ("EasyM-{0}-windows-x64-dev.zip" -f $config.version)
+$archivePath = Join-Path $bundleRoot ("EasyM-{0}-windows-x64.zip" -f $config.version)
 $stageRoot = Join-Path $repoRoot ('test-results/portable-' + [guid]::NewGuid().ToString('N'))
 $inventory = Get-Content (Join-Path $repoRoot 'Docs/dependencies/inventory.json') -Raw | ConvertFrom-Json
 & node (Join-Path $PSScriptRoot 'verify-notices.mjs')

@@ -19,7 +19,7 @@ const paths = ['src-tauri/target/release/easym.exe', 'dist/index.html', 'dist/me
   'Docs/dependencies/THIRD-PARTY-NOTICES.md', 'Docs/dependencies/sbom.cdx.json', 'Docs/dependencies/inventory.json', 'Docs/dependencies/license-sources.json']
 try {
   for (const name of await readdir('src-tauri/target/release/bundle/portable')) {
-    if (name === `EasyM-${config.version}-windows-x64-dev.zip`) paths.push(`src-tauri/target/release/bundle/portable/${name}`)
+    if (name === `EasyM-${config.version}-windows-x64.zip`) paths.push(`src-tauri/target/release/bundle/portable/${name}`)
   }
 } catch { /* Portable archive is optional. */ }
 for (const name of await readdir('dist/assets')) paths.push(`dist/assets/${name}`)

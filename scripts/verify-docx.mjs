@@ -32,7 +32,10 @@ try {
   page.on('console', message => { if (message.type() === 'error') report.diagnostics.consoleErrors.push(message.text()) })
   page.on('requestfailed', request => report.diagnostics.failedRequests.push({ url: request.url(), error: request.failure()?.errorText }))
   page.on('response', response => { if (response.status() >= 400) report.diagnostics.httpErrors.push({ url: response.url(), status: response.status() }) })
-  context.on('request', r => { if (!r.url().startsWith(`http://127.0.0.1:${server.address().port}/`) && !r.url().startsWith('blob:')) remote.push(r.url()) })
+  // Edge's built-in download hub can emit browser-internal requests after a
+  // download. These are not application network traffic; keep rejecting every
+  // external application request, including requests initiated by Workers.
+  context.on('request', r => { if (!r.url().startsWith(`http://127.0.0.1:${server.address().port}/`) && !/^(?:blob:|edge:\/\/|chrome:\/\/)/.test(r.url())) remote.push(r.url()) })
   await page.addInitScript(() => {
     window.originalWorker = window.Worker
     window.workerStats = { started: 0, terminated: 0 }

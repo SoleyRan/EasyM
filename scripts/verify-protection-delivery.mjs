@@ -7,7 +7,7 @@ import { serveProduction } from './serve-production.mjs'
 
 const output = 'test-results/protection-delivery'
 const { version } = JSON.parse(await readFile('package.json', 'utf8'))
-const report = { version, startedAt: new Date().toISOString(), passed: false, checks: [], samples: [], scope: 'Production Chromium guide and actual shipped merge/resource Worker on distributed v0.7 samples. Existing merge/backup UI suites and native Rust tests cover application/archive behavior; no native dialog or real IME claim.' }
+const report = { version, startedAt: new Date().toISOString(), passed: false, checks: [], samples: [], scope: 'Production Chromium guide and actual shipped merge/resource Worker on distributed v1.0 samples. Existing merge/backup UI suites and native Rust tests cover application/archive behavior; no native dialog or real IME claim.' }
 await mkdir(output, { recursive: true })
 const server = await serveProduction()
 let browser, page
@@ -16,7 +16,7 @@ try {
   page = await browser.newPage({ viewport: { width: 960, height: 680 } })
   const errors = []; page.on('pageerror', error => errors.push(error.message))
   // A previous release must show the new guide until acknowledged.
-  await page.addInitScript(() => { if (!sessionStorage.getItem('guide-initialized')) { localStorage.setItem('easym-guide-version', '0.6.0'); sessionStorage.setItem('guide-initialized', 'yes') } })
+  await page.addInitScript(() => { if (!sessionStorage.getItem('guide-initialized')) { localStorage.setItem('easym-guide-version', '0.7.0'); sessionStorage.setItem('guide-initialized', 'yes') } })
   await page.goto(server.url)
   const guide = page.getByRole('dialog', { name: 'EasyM 使用导引', exact: true })
   await guide.waitFor(); assert.match(await guide.innerText(), new RegExp(`已更新到 EasyM ${version.replaceAll('.', '\\.')}`))
@@ -34,7 +34,7 @@ try {
   await guide.getByRole('button', { name: '开始使用', exact: true }).click()
   await page.reload(); assert.equal(await guide.count(), 0)
   assert.equal(await page.evaluate(() => localStorage.getItem('easym-guide-version')), version)
-  report.checks.push('upgrade from v0.6 shows four pages, explains merge/recovery/backup on page three, fits 960x680 and persists acknowledgement')
+  report.checks.push('upgrade from v0.7 shows four pages, explains merge/recovery/backup on page three, fits 960x680 and persists acknowledgement')
   await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
   await page.getByRole('menuitem', { name: '设置', exact: true }).click()
   await page.getByRole('button', { name: '查看使用导引', exact: true }).click()
@@ -55,7 +55,7 @@ try {
     } finally { worker.terminate(); URL.revokeObjectURL(url) }
   }, { source: worker, data })
   async function sample(relative) {
-    const path = `Docs/samples/v0.7/${relative}`, bytes = await readFile(path)
+    const path = `Docs/samples/v1.0/${relative}`, bytes = await readFile(path)
     report.samples.push({ path, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') })
     return bytes.toString('utf8').replaceAll('\r\n', '\n')
   }
@@ -67,8 +67,8 @@ try {
   }
   const text = await sample('备份示例.md'), resource = await run({ type: 'references', texts: [text] })
   assert.deepEqual(resource.references[0].references, ['assets/em.png']); assert.deepEqual(resource.references[0].unarchivedReferences, [])
-  const png = await readFile('Docs/samples/v0.7/assets/em.png'); assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
-  report.samples.push({ path: 'Docs/samples/v0.7/assets/em.png', bytes: png.length, sha256: createHash('sha256').update(png).digest('hex') })
+  const png = await readFile('Docs/samples/v1.0/assets/em.png'); assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+  report.samples.push({ path: 'Docs/samples/v1.0/assets/em.png', bytes: png.length, sha256: createHash('sha256').update(png).digest('hex') })
   report.checks.push('distributed clean/conflict samples match actual production merge Worker; backup sample references the included PNG with no unsafe resources')
   assert.deepEqual(errors, []); report.passed = true
 } catch (error) { report.error = error.stack; process.exitCode = 1; await page?.screenshot({ path: `${output}/failure.png` }).catch(() => {}) }

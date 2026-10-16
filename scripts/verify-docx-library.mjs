@@ -27,7 +27,7 @@ try {
   report.browserVersion = browser.version()
   const context = await browser.newContext(), page = await context.newPage(), errors = [], remote = []
   page.on('pageerror', error => errors.push(error.message))
-  context.on('request', request => { if (!request.url().startsWith(`http://127.0.0.1:${server.address().port}/`)) remote.push(request.url()) })
+  context.on('request', request => { if (!request.url().startsWith(`http://127.0.0.1:${server.address().port}/`) && !/^(?:edge:\/\/|chrome:\/\/)/.test(request.url())) remote.push(request.url()) })
   await page.goto(`http://127.0.0.1:${server.address().port}/`)
   const png = await readFile('Docs/samples/v0.3/assets/em.png')
   const started = Date.now()
