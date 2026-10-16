@@ -1,0 +1,237 @@
+$ vitest run "--maxWorkers=2"
+
+ RUN  v3.2.7 D:/Github/EasyM
+
+stderr | src/core/math.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/core/math.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/App.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/core/math.test.ts (6 tests) 1150ms
+   ✓ keeps complete source when disabled or over the count, input and output budgets  798ms
+stderr | src/App.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/editor/TablePanel.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/editor/TablePanel.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/TablePanel.test.ts (2 tests) 135ms
+stderr | src/core/export.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/core/export.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/core/export.test.ts (7 tests) 77ms
+ ✓ src/editor/MergePreview.test.ts (6 tests) 55ms
+stderr | src/core/mermaid.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/core/mermaid.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/core/mermaid.test.ts (6 tests) 87ms
+stderr | src/App.test.ts > protects all targeted tabs on cancel and closes all without exiting the app on discard
+An update to DocumentEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/editor/Overlay.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/editor/Overlay.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/Overlay.test.ts (5 tests) 86ms
+stderr | src/platform/docx.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/platform/docx.test.ts (6 tests) 159ms
+stderr | src/editor/QuickEntry.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/QuickEntry.test.ts (2 tests) 51ms
+ ✓ src/editor/navigation.test.ts (2 tests) 32ms
+ ✓ src/editor/useExternalChanges.test.ts (6 tests) 25ms
+stderr | src/editor/usePreview.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/usePreview.test.ts (2 tests) 21ms
+ ✓ src/platform/session.test.ts (4 tests) 6ms
+ ✓ src/platform/preferences.test.ts (7 tests) 6ms
+stderr | src/App.test.ts > restores pending crop and alt, then retains them when exiting without applying
+An update to ImagePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to ImagePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/core/docx.test.ts (6 tests) 3399ms
+   ✓ writes original inline/display formula source as editable text without claiming Word equations  2894ms
+ ✓ src/core/docx-model.test.ts (14 tests) 214ms
+ ✓ src/core/merge.test.ts (9 tests) 344ms
+ ✓ src/core/history-diff.test.ts (4 tests) 321ms
+   ✓ bounds bytes, lines, trace memory and deadline  304ms
+ ✓ src/core/tables.test.ts (9 tests) 61ms
+ ✓ src/core/markdown.test.ts (5 tests) 41ms
+stderr | src/App.test.ts > discards only the closed tab and does not recreate its draft on blur
+An update to DocumentEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/core/live-preview.test.ts (7 tests) 75ms
+ ✓ src/platform/backup.test.ts (8 tests) 132ms
+ ✓ src/editor/content-status.test.ts (3 tests) 87ms
+ ✓ src/editor/live-decoration.test.ts (1 test) 32ms
+ ✓ src/platform/history.test.ts (4 tests) 20ms
+ ✓ src/platform/merge-transaction.test.ts (4 tests) 30ms
+ ✓ src/core/content-tools.test.ts (5 tests) 35ms
+ ✓ src/core/links.test.ts (5 tests) 57ms
+ ✓ src/core/formatting.test.ts (9 tests) 22ms
+ ✓ src/platform/storage.test.ts (5 tests) 38ms
+ ✓ src/core/document.test.ts (7 tests) 26ms
+ ✓ src/core/batch-images.test.ts (3 tests) 44ms
+ ✓ src/core/quick-entry.test.ts (4 tests) 29ms
+ ✓ src/platform/batch-images.test.ts (3 tests) 14ms
+ ✓ src/core/footnotes.test.ts (2 tests) 13ms
+ ✓ src/core/search.test.ts (5 tests) 19ms
+ ✓ src/core/selection-formatting.test.ts (4 tests) 42ms
+ ✓ src/platform/drafts.test.ts (4 tests) 13ms
+ ✓ src/platform/history-resources.test.ts (4 tests) 15ms
+ ✓ src/platform/merge.test.ts (4 tests) 13ms
+ ✓ src/core/commands.test.ts (8 tests) 6ms
+ ✓ src/platform/image-transaction.test.ts (4 tests) 14ms
+ ✓ src/platform/workspace.test.ts (4 tests) 6ms
+ ✓ src/core/codec.test.ts (5 tests) 6ms
+ ✓ src/core/templates.test.ts (2 tests) 4ms
+ ✓ src/core/image-metadata.test.ts (3 tests) 10ms
+ ✓ src/editor/large-lines.test.ts (2 tests) 4ms
+ ✓ src/core/overlays.test.ts (5 tests) 7ms
+ ✓ src/core/images.test.ts (3 tests) 5ms
+ ✓ src/platform/clipboard.test.ts (2 tests) 4ms
+ ✓ src/core/archive.test.ts (2 tests) 4ms
+ ✓ src/core/code-block.test.ts (4 tests) 10ms
+ ✓ src/platform/window.test.ts (3 tests) 8ms
+ ✓ src/platform/restore-session.test.ts (1 test) 4ms
+ ✓ src/platform/export.test.ts (1 test) 2ms
+stderr | src/App.test.ts > refuses stale table targets and preserves the input when applying before export fails
+An update to DocumentEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/App.test.ts > requires a table draft decision before switching tabs and proceeding with print
+An update to TablePanel inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/App.test.ts (68 tests) 51593ms
+   ✓ shows first-run onboarding, acknowledges Escape and restores menu focus  336ms
+   ✓ allows OS close during first-run guidance without acknowledging it  307ms
+   ✓ keeps unsaved-content protection when closing a window from manual guidance  332ms
+   ✓ shows one guide page at a time, navigates both directions and starts manual guides on page one  404ms
+   ✓ shows an update guide and supports manual reopening in settings with persisted appearance  581ms
+   ✓ closes the right-clicked background tab without changing other dirty documents  396ms
+   ✓ closes other tabs relative to the clicked tab and keeps its edits intact  705ms
+   ✓ protects all targeted tabs on cancel and closes all without exiting the app on discard  693ms
+   ✓ retains only the closing tabs as drafts and preserves the excluded tab  731ms
+   ✓ keeps every target tab open when a batch save is cancelled after an earlier save succeeds  662ms
+   ✓ exports current source without saving or clearing dirty drafts, including cancellation and failure  840ms
+   ✓ exports DOCX from unsaved memory with office options and preserves the draft on native cancellation  567ms
+   ✓ requires explicit DOCX image placeholders and can locate a warning without changing the source  610ms
+   ✓ locks DOCX preflight, cancels immediately, ignores late results and recovers from generation failure  922ms
+   ✓ keeps other tabs readable during DOCX preparation without unlocking or closing the target  923ms
+   ✓ cancels DOCX generation, traps focus and prevents cancellation after native save is dispatched  686ms
+   ✓ refuses DOCX during IME; preflight/save errors release the lock  664ms
+   ✓ prepares a dedicated print root, protects editing, reports missing images and returns with Escape  497ms
+   ✓ rejects output during composition and protects a running export from save and close actions  423ms
+   ✓ cancels obsolete workspace searches and ignores late results and failures  344ms
+   ✓ opens search results at the source line, reuses tabs, and rejects stale disk and dirty local versions  808ms
+   ✓ exposes workspace search limits and cancels a running search on demand  345ms
+   ✓ save dialog cancellation keeps the editor open; successful save clears the draft then closes  308ms
+   ✓ restores pending crop and alt, then retains them when exiting without applying  358ms
+   ✓ opens workspace files in independent tabs and preserves edits when switching  655ms
+   ✓ retains all dirty tabs on exit and recovers each independently on restart  780ms
+   ✓ keeps other restored tabs when one saved file is missing and preserves incompatible native records  331ms
+   ✓ recent open reuses a saved tab with edits and cancellation releases only unused fresh handles  858ms
+   ✓ reports failed index writes while preserving independently retained draft bodies  326ms
+   ✓ closing one dirty tab saves only that tab and preserves the other draft  638ms
+   ✓ aborts save-all on cancellation and leaves every document open  655ms
+   ✓ retains incompatible drafts while allowing other tabs to be edited and closed  409ms
+   ✓ discards only the closed tab and does not recreate its draft on blur  538ms
+   ✓ discards every open draft on exit without saving  500ms
+   ✓ creates a template in a new tab without replacing the current document  394ms
+   ✓ keeps a non-empty template as a recoverable draft and closes blank templates cleanly  906ms
+   ✓ first saves a template with no disk identity and clears its draft  620ms
+   ✓ toggles formatting globally and persists the preference without a save header  356ms
+   ✓ automatically writes a known file after idle and clears its draft  1741ms
+   ✓ keeps unnamed and recovered documents as drafts without showing save dialogs  3235ms
+   ✓ serializes automatic writes and preserves edits made while a save is in flight  3261ms
+   ✓ pauses autosave after an external conflict and allows a manual retry  3275ms
+   ✓ suspends autosave during close decisions and discards without writing  3135ms
+   ✓ pauses mixed-line-ending autosave without a confirmation prompt  1695ms
+   ✓ waits until IME composition ends before automatically saving  2054ms
+   ✓ preserves a new edit arriving during asynchronous draft cleanup after saving  1850ms
+   ✓ does not recreate a clean draft while saved-draft cleanup is slow  2614ms
+   ✓ uses themed custom window controls and protects dirty content on window close  398ms
+   ✓ enters fullscreen preview reading and restores editing on Escape and the exit button  683ms
+   ✓ closes untouched new tabs directly without creating drafts or changing other edits  1233ms
+   ✓ exits with only untouched new documents without prompting or saving  451ms
+   ✓ opens the export submenu explicitly and handles hierarchical keyboard navigation  322ms
+   ✓ refuses stale table targets and preserves the input when applying before export fails  504ms
+   ✓ requires a table draft decision before switching tabs and proceeding with print  576ms
+
+ Test Files  55 passed (55)
+      Tests  316 passed (316)
+   Start at  12:42:11
+   Duration  77.36s (transform 4.29s, setup 0ms, collect 32.71s, tests 58.71s, environment 37.51s, prepare 6.22s)
+

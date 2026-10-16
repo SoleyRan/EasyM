@@ -1,0 +1,111 @@
+   Compiling easym v0.6.0 (D:\Github\EasyM\src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.85s
+     Running unittests src\lib.rs (src-tauri\target\debug\deps\easym_lib-1bc3a9e465c61e6d.exe)
+
+running 91 tests
+test clipboard::tests::clipboard_file_filter_accepts_only_supported_extensions ... ok
+test backup::tests::paths_case_aliases_and_parent_file_collisions_are_rejected_before_extraction ... ok
+test backup::tests::review_requires_exact_current_refs_and_history_subsets ... ok
+test backup::tests::manifest_hash_size_extra_files_and_future_schemas_are_rejected ... ok
+test backup::tests::deflate_archive_is_supported_and_crc_corruption_is_detected ... ok
+test backup::tests::missing_unsafe_oversized_and_unsupported_images_block_creation ... ok
+test export::tests::docx_refuses_directories_and_symlinks ... ok
+test export::tests::generated_browser_fixture_passes_native_validation_and_atomic_save ... ok
+test export::tests::export_refuses_open_documents_and_directories ... ok
+test export::tests::docx_checks_zip_ooxml_xml_and_restricted_parts ... ok
+test export::tests::docx_failure_and_stale_revision_preserve_existing_target ... ok
+test export::tests::docx_detects_replacement_and_new_target_races_before_commit ... ok
+test backup::tests::backup_file_never_overwrites_existing_and_rejects_invalid_extension ... ok
+test export::tests::export_is_independent_of_markdown_sessions_and_rejects_wrong_extensions ... ok
+test backup::tests::restore_failure_leaves_no_published_partial_directory ... ok
+test export::tests::docx_save_never_changes_source_sessions_and_rejects_wrong_extension_or_open_target ... ok
+test backup::tests::zip_flags_links_zip64_bombs_truncation_and_mismatched_headers_are_rejected ... ok
+test backup::tests::disk_revision_and_images_are_rechecked_before_atomic_publication ... ok
+test backup::tests::tickets_expire_are_bounded_and_bind_the_exact_archive ... ok
+test backup::tests::images_and_managed_originals_round_trip_without_unrelated_assets ... ok
+test history::tests::batch_rejects_unrelated_body_mutation_and_modified_display_source ... ok
+test backup::tests::exact_bytes_round_trip_and_restore_separate_directories ... ok
+test history::tests::archived_images_survive_asset_deletion_and_hash_corruption_blocks_restore ... ok
+test history::tests::forged_resource_mime_and_source_hash_block_full_copy_and_restore ... ok
+test history::tests::exact_copy_preserves_bom_crlf_images_and_rejects_collisions_or_open_targets ... ok
+test backup::tests::history_backup_round_trip_retains_only_current_registered_document ... ok
+test history::tests::chosen_directory_is_namespaced_and_does_not_enable_history ... ok
+test history::tests::interrupted_restore_bookkeeping_recovers_without_overwriting_later_edits ... ok
+test history::tests::batch_commits_unicode_bom_crlf_with_complete_pre_snapshot_and_logs ... ok
+test history::tests::portable_history_rejects_corrupt_missing_and_future_data ... ok
+test history::tests::missing_images_allow_body_preview_but_block_full_restore ... ok
+test history::tests::migration_rejects_corrupt_images_and_unavailable_locations_without_switching ... ok
+test history::tests::cleanup_protects_pinned_and_shared_objects_across_documents_and_retries ... ok
+test history::tests::batch_stale_revision_corrupt_source_quota_and_incomplete_pre_version_block_body ... ok
+test history::tests::portable_review_bounds_repeated_body_image_and_reference_work ... ok
+test history::tests::deleted_current_images_restore_from_archive_with_incomplete_pre_snapshot_warning ... ok
+test history::tests::consent_restart_identity_rename_and_save_as_are_separate ... ok
+test history::tests::stale_enable_and_pre_save_do_not_archive_wrong_resource_inventory ... ok
+test links::tests::limits_external_targets ... ok
+test history::tests::original_bom_crlf_dedup_and_automatic_interval ... ok
+test history::tests::portable_history_requires_complete_images_and_restores_them_from_objects ... ok
+test merge::tests::existing_or_unverifiable_image_references_are_blocked ... ok
+test history::tests::quota_and_stale_external_revision_block_restore_before_body_commit ... ok
+test merge::tests::archive_failure_and_corrupt_record_prevent_body_write ... ok
+test history::tests::interrupted_batch_recovery_checks_disk_and_is_idempotent ... ok
+test history::tests::batch_faults_preserve_body_before_commit_and_recover_after_commit ... ok
+test history::tests::unknown_schema_identity_tampering_and_traversal_preserve_data ... ok
+test merge::tests::commit_uses_archived_candidate_can_retry_and_never_overwrites_a_newer_external_body ... ok
+test history::tests::source_recipe_archives_and_relocates_without_overwriting_collision ... ok
+test merge::tests::external_write_between_prepare_and_commit_retains_both_recovery_copies ... ok
+test recent::tests::explicit_webview_profile_keeps_native_session_out_of_regular_registry ... ok
+test merge::tests::invalid_inputs_unknown_formats_and_quota_are_rejected ... ok
+test history::tests::objects_manifest_and_index_faults_preserve_body_and_reconcile ... ok
+test recent::tests::future_corrupt_and_oversize_records_are_never_rewritten ... ok
+test resources::tests::higher_schema_is_retained_read_only ... ok
+test resources::tests::invalid_image_does_not_leave_a_visible_asset ... ok
+test merge::tests::prepare_archives_exact_versions_without_writing_body_or_enabling_history ... ok
+test resources::tests::paths_are_scoped ... ok
+test merge::tests::interrupted_preparation_and_post_archive_race_preserve_original_and_published_record ... ok
+test resources::tests::missing_metadata_never_replaces_body ... ok
+test resources::tests::managed_source_is_immutable_and_nested_paths_work_on_windows ... ok
+test storage::tests::passive_inspection_hashes_raw_bytes_without_writing_sidecars ... ok
+test storage::tests::passive_inspection_retains_missing_invalid_and_oversized_targets ... ok
+test storage::tests::reload_refuses_a_changed_comparison_revision_before_any_recovery ... ok
+test storage::tests::repeated_open_reuses_document_identity ... ok
+test recent::tests::missing_wrong_type_over_limit_and_forged_boundary_never_open ... ok
+test history::tests::restore_uses_current_encoding_policy_and_rejects_mixed_newlines ... ok
+test transaction::tests::corrupt_metadata_blocks_image_commit_without_replacing_body ... ok
+test transaction::tests::conflict_during_asset_write_preserves_external_body ... ok
+test transaction::tests::stale_external_version_is_not_overwritten ... ok
+test workspace::tests::directory_reads_require_authorized_ids_and_relative_paths ... ok
+test transaction::tests::recovery_never_replaces_a_later_external_version ... ok
+test transaction::tests::interrupted_commit_recovers_without_rewriting_body ... ok
+test merge::tests::restore_copies_survive_restart_and_do_not_overwrite_originals ... ok
+test workspace::tests::lists_supported_files_lazily_and_excludes_private_directories ... ok
+test transaction::tests::failure_before_commit_preserves_body_and_can_retry ... ok
+test workspace::tests::search_preserves_unicode_bom_crlf_and_file_versions_without_writes ... ok
+test workspace::tests::filename_search_uses_paths_only_and_ignores_build_private_and_non_markdown ... ok
+test workspace::tests::search_cancels_limits_and_skips_invalid_or_private_content ... ok
+test workspace::tests::searches_only_markdown_with_relative_lines_and_case_insensitive_literals ... ok
+test transaction::tests::metadata_failure_recovers_real_image_history_after_restart ... ok
+test recent::tests::persists_unicode_same_names_session_and_reopens_with_fresh_process_handles ... ok
+test history::tests::unsafe_local_references_and_invalid_metadata_are_never_complete ... ok
+test history::tests::portable_history_keeps_only_registered_current_document_and_annotations ... ok
+test merge::tests::self_contained_local_images_are_archived_committed_and_recovered_immutably ... ok
+test history::tests::retention_candidates_exclude_manual_pre_restore_and_fixed_versions ... ok
+test history::tests::successful_restore_preserves_pre_version_and_creates_new_history ... ok
+test recent::tests::bounds_files_workspaces_and_rejects_invalid_sessions_without_replacing_records ... ok
+test history::tests::custom_history_migrates_all_documents_and_survives_restart_and_reset ... ok
+test history::tests::custom_archive_supports_batch_recovery_save_capture_and_restore_transactions ... ok
+test workspace::tests::filename_search_bounds_results_entries_depth_and_cancels ... ok
+
+test result: ok. 91 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.83s
+
+     Running unittests src\main.rs (src-tauri\target\debug\deps\easym-64fa8b02ba370dc4.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests easym_lib
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "browser does not pretend to retain native disk permission",
+    "native IPC: autosave registers persistent identity, same-name paths are distinct, repeated open reuses tab and preserves edits",
+    "reload restores saved tab plus independent dirty recovery copy, active order, and explicit original-disk reopen without draft writeback",
+    "workspace reopen persists selection, missing-file failure preserves body, per-record removal and cancelled asynchronous open release unused handle",
+    "clear history only removes registry entries, leaves disk bodies and open tabs, Escape restores menu focus"
+  ],
+  "scope": "Production Chromium pointer/keyboard and IndexedDB with deterministic desktop IPC. Native registry/path IO is covered separately by Rust tests; no real OS dialog or native restart claim.",
+  "browser": "156.0.8078.4"
+}

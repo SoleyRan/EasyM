@@ -1,0 +1,12 @@
+
+ RUN  v3.2.7 D:/Github/EasyM
+
+ ✓ src/platform/merge.test.ts (4 tests) 8ms
+ ✓ src/core/merge.test.ts (7 tests) 281ms
+ ✓ src/editor/MergePreview.test.ts (4 tests) 42ms
+
+ Test Files  3 passed (3)
+      Tests  15 passed (15)
+   Start at  10:57:07
+   Duration  969ms (transform 86ms, setup 0ms, collect 200ms, tests 331ms, environment 348ms, prepare 407ms)
+

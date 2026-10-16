@@ -16,6 +16,14 @@ it('moves large scans into a worker and terminates after receiving the result', 
   expect(await task).toEqual([{ references: [], unarchivedReferences: [] }])
   expect(workers.created[0].terminate).toHaveBeenCalledOnce()
 })
+it('moves aggregate small snapshots off the UI thread and terminates the worker', async () => {
+  const task = collectHistoryResources(['x'.repeat(40000), 'y'.repeat(40000)])
+  const references = [{ references: [], unarchivedReferences: [] }, { references: [], unarchivedReferences: [] }]
+  expect(workers.created).toHaveLength(1)
+  workers.created[0].onmessage?.({ data: { references } })
+  expect(await task).toEqual(references)
+  expect(workers.created[0].terminate).toHaveBeenCalledOnce()
+})
 it('terminates failed and timed-out scans so callers can skip history without failing normal saves', async () => {
   vi.useFakeTimers()
   const task = collectHistoryResources(['x'.repeat(65536)]), assertion = expect(task).rejects.toThrow('history_analysis_failed')

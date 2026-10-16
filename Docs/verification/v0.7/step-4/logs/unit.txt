@@ -1,0 +1,177 @@
+$ vitest run "--maxWorkers=2"
+
+ RUN  v3.2.7 D:/Github/EasyM
+
+stderr | src/core/math.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/App.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/core/math.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/App.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/core/math.test.ts (6 tests) 1327ms
+   ✓ keeps complete source when disabled or over the count, input and output budgets  1136ms
+stderr | src/platform/docx.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/platform/docx.test.ts (6 tests) 125ms
+stderr | src/editor/TablePanel.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/editor/TablePanel.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/TablePanel.test.ts (2 tests) 93ms
+stderr | src/core/mermaid.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/core/mermaid.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/App.test.ts > protects all targeted tabs on cancel and closes all without exiting the app on discard
+An update to DocumentEditor inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/core/mermaid.test.ts (6 tests) 89ms
+stderr | src/editor/Overlay.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/editor/Overlay.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/Overlay.test.ts (5 tests) 48ms
+stderr | src/core/export.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+stderr | src/core/export.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/core/export.test.ts (7 tests) 90ms
+ ✓ src/editor/MergePreview.test.ts (6 tests) 69ms
+stderr | src/editor/QuickEntry.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/QuickEntry.test.ts (2 tests) 56ms
+ ✓ src/editor/navigation.test.ts (2 tests) 43ms
+ ✓ src/editor/useExternalChanges.test.ts (6 tests) 43ms
+stderr | src/editor/usePreview.test.ts
+Warning: KaTeX doesn't work in quirks mode. Make sure your website has a suitable doctype.
+
+ ✓ src/editor/usePreview.test.ts (2 tests) 34ms
+ ✓ src/platform/session.test.ts (4 tests) 7ms
+ ✓ src/platform/preferences.test.ts (7 tests) 5ms
+ ✓ src/core/docx.test.ts (6 tests) 351ms
+ ✓ src/core/merge.test.ts (9 tests) 393ms
+   ✓ refuses missing ancestors, oversized inputs, excessive regions and expired deadlines  303ms
+ ✓ src/core/history-diff.test.ts (4 tests) 256ms
+ ✓ src/core/docx-model.test.ts (14 tests) 215ms
+ ✓ src/platform/backup.test.ts (8 tests) 137ms
+ ✓ src/editor/content-status.test.ts (3 tests) 84ms
+ ✓ src/core/live-preview.test.ts (7 tests) 40ms
+ ✓ src/core/tables.test.ts (9 tests) 60ms
+ ✓ src/core/links.test.ts (5 tests) 27ms
+ ✓ src/core/batch-images.test.ts (3 tests) 25ms
+ ✓ src/core/selection-formatting.test.ts (4 tests) 12ms
+ ✓ src/core/markdown.test.ts (5 tests) 84ms
+ ✓ src/platform/storage.test.ts (5 tests) 22ms
+ ✓ src/core/content-tools.test.ts (5 tests) 39ms
+ ✓ src/editor/live-decoration.test.ts (1 test) 47ms
+ ✓ src/platform/merge-transaction.test.ts (4 tests) 43ms
+ ✓ src/core/quick-entry.test.ts (4 tests) 28ms
+ ✓ src/core/document.test.ts (7 tests) 35ms
+ ✓ src/core/formatting.test.ts (9 tests) 26ms
+ ✓ src/platform/history.test.ts (4 tests) 27ms
+ ✓ src/core/search.test.ts (5 tests) 17ms
+ ✓ src/platform/history-resources.test.ts (4 tests) 16ms
+ ✓ src/platform/batch-images.test.ts (3 tests) 15ms
+ ✓ src/platform/image-transaction.test.ts (4 tests) 6ms
+ ✓ src/core/footnotes.test.ts (2 tests) 15ms
+ ✓ src/platform/merge.test.ts (4 tests) 8ms
+ ✓ src/platform/drafts.test.ts (4 tests) 10ms
+ ✓ src/core/image-metadata.test.ts (3 tests) 4ms
+ ✓ src/core/code-block.test.ts (4 tests) 5ms
+ ✓ src/platform/window.test.ts (3 tests) 3ms
+ ✓ src/core/overlays.test.ts (5 tests) 6ms
+ ✓ src/core/codec.test.ts (5 tests) 5ms
+ ✓ src/platform/workspace.test.ts (4 tests) 5ms
+ ✓ src/core/commands.test.ts (8 tests) 9ms
+ ✓ src/core/images.test.ts (3 tests) 5ms
+ ✓ src/core/templates.test.ts (2 tests) 7ms
+ ✓ src/platform/restore-session.test.ts (1 test) 4ms
+ ✓ src/editor/large-lines.test.ts (2 tests) 4ms
+ ✓ src/platform/clipboard.test.ts (2 tests) 13ms
+ ✓ src/core/archive.test.ts (2 tests) 6ms
+ ✓ src/platform/export.test.ts (1 test) 4ms
+ ✓ src/App.test.ts (68 tests) 51413ms
+   ✓ shows first-run onboarding, acknowledges Escape and restores menu focus  418ms
+   ✓ allows OS close during first-run guidance without acknowledging it  355ms
+   ✓ keeps unsaved-content protection when closing a window from manual guidance  474ms
+   ✓ shows one guide page at a time, navigates both directions and starts manual guides on page one  641ms
+   ✓ shows an update guide and supports manual reopening in settings with persisted appearance  798ms
+   ✓ closes the right-clicked background tab without changing other dirty documents  434ms
+   ✓ closes other tabs relative to the clicked tab and keeps its edits intact  614ms
+   ✓ protects all targeted tabs on cancel and closes all without exiting the app on discard  691ms
+   ✓ retains only the closing tabs as drafts and preserves the excluded tab  826ms
+   ✓ keeps every target tab open when a batch save is cancelled after an earlier save succeeds  655ms
+   ✓ exports current source without saving or clearing dirty drafts, including cancellation and failure  870ms
+   ✓ exports DOCX from unsaved memory with office options and preserves the draft on native cancellation  423ms
+   ✓ requires explicit DOCX image placeholders and can locate a warning without changing the source  576ms
+   ✓ locks DOCX preflight, cancels immediately, ignores late results and recovers from generation failure  726ms
+   ✓ keeps other tabs readable during DOCX preparation without unlocking or closing the target  802ms
+   ✓ cancels DOCX generation, traps focus and prevents cancellation after native save is dispatched  598ms
+   ✓ refuses DOCX during IME; preflight/save errors release the lock  705ms
+   ✓ prepares a dedicated print root, protects editing, reports missing images and returns with Escape  503ms
+   ✓ rejects output during composition and protects a running export from save and close actions  516ms
+   ✓ cancels obsolete workspace searches and ignores late results and failures  418ms
+   ✓ opens search results at the source line, reuses tabs, and rejects stale disk and dirty local versions  907ms
+   ✓ exposes workspace search limits and cancels a running search on demand  414ms
+   ✓ cancel exit retains local text, and failed save does not close the window  323ms
+   ✓ save dialog cancellation keeps the editor open; successful save clears the draft then closes  305ms
+   ✓ restores pending crop and alt, then retains them when exiting without applying  316ms
+   ✓ opens workspace files in independent tabs and preserves edits when switching  609ms
+   ✓ retains all dirty tabs on exit and recovers each independently on restart  737ms
+   ✓ keeps other restored tabs when one saved file is missing and preserves incompatible native records  304ms
+   ✓ recent open reuses a saved tab with edits and cancellation releases only unused fresh handles  760ms
+   ✓ closing one dirty tab saves only that tab and preserves the other draft  598ms
+   ✓ aborts save-all on cancellation and leaves every document open  517ms
+   ✓ retains incompatible drafts while allowing other tabs to be edited and closed  393ms
+   ✓ discards only the closed tab and does not recreate its draft on blur  542ms
+   ✓ discards every open draft on exit without saving  483ms
+   ✓ creates a template in a new tab without replacing the current document  472ms
+   ✓ keeps a non-empty template as a recoverable draft and closes blank templates cleanly  776ms
+   ✓ first saves a template with no disk identity and clears its draft  664ms
+   ✓ toggles formatting globally and persists the preference without a save header  374ms
+   ✓ automatically writes a known file after idle and clears its draft  1714ms
+   ✓ keeps unnamed and recovered documents as drafts without showing save dialogs  2915ms
+   ✓ serializes automatic writes and preserves edits made while a save is in flight  3297ms
+   ✓ pauses autosave after an external conflict and allows a manual retry  3142ms
+   ✓ suspends autosave during close decisions and discards without writing  4335ms
+   ✓ pauses mixed-line-ending autosave without a confirmation prompt  1675ms
+   ✓ waits until IME composition ends before automatically saving  2044ms
+   ✓ preserves a new edit arriving during asynchronous draft cleanup after saving  1725ms
+   ✓ does not recreate a clean draft while saved-draft cleanup is slow  2590ms
+   ✓ uses themed custom window controls and protects dirty content on window close  367ms
+   ✓ enters fullscreen preview reading and restores editing on Escape and the exit button  653ms
+   ✓ closes untouched new tabs directly without creating drafts or changing other edits  1126ms
+   ✓ exits with only untouched new documents without prompting or saving  311ms
+   ✓ refuses stale table targets and preserves the input when applying before export fails  394ms
+   ✓ requires a table draft decision before switching tabs and proceeding with print  510ms
+
+ Test Files  55 passed (55)
+      Tests  316 passed (316)
+   Start at  13:57:24
+   Duration  57.88s (transform 4.34s, setup 0ms, collect 29.70s, tests 55.56s, environment 8.53s, prepare 7.36s)
+

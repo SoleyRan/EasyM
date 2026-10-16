@@ -1,0 +1,33 @@
+{
+  "verifiedAt": "2026-10-16T06:00:56.380Z",
+  "library": "docx",
+  "version": "9.10.0",
+  "node": "v24.20.0",
+  "browser": "chromium",
+  "passed": true,
+  "browserVersion": "156.0.8078.4",
+  "generationMs": 341,
+  "bundleBytes": 578393,
+  "outputBytes": 13641,
+  "outputSha256": "5850dc0802a4dfc50c33ed65be0b62d2767d734806cfce339b483a4790c1b5f3",
+  "bundleSha256": "cc6a28c98d3ceadaa03acd3f8bdeb2bc7b48fb72f276070f63650348295eef6f",
+  "zipEntries": 24,
+  "checks": [
+    "real Worker with application CSP",
+    "shared AST/model/resource preflight of frozen office fixture in Worker",
+    "no external bundle imports or network requests",
+    "UTF-8 Chinese/emoji",
+    "heading and inline styles",
+    "numbering start=3",
+    "native table/repeating header",
+    "embedded PNG exact bytes",
+    "safe hyperlink",
+    "CRC32 and valid XML",
+    "no macros/OLE/remote image relationships"
+  ],
+  "transitiveNodeEngine": {
+    "package": "nanoid",
+    "version": "6.0.2",
+    "engine": "^22 || ^24 || >=26"
+  }
+}

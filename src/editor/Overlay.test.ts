@@ -3,6 +3,7 @@ import { act, createElement, useRef, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { OverlayProvider, useModalOverlay } from './Overlay'
+import { ApplicationDialog } from './ApplicationDialogs'
 
 let container: HTMLDivElement, root: Root
 function Modal({ returnFocus }: { returnFocus?: string }) {
@@ -60,4 +61,16 @@ it('returns to a surviving parent modal before the explicit application menu tar
   container.querySelectorAll<HTMLElement>('[role=dialog]')[1].focus()
   await render([menu, parent])
   expect(document.activeElement).toBe(parentNode)
+})
+it('restores modal focus after a failed busy action loses its disabled button, so Escape works', async () => {
+  const close = vi.fn()
+  const modal = (busy: boolean) => createElement(ApplicationDialog, { title: 'task', busy, onClose: close, children: createElement('button', { disabled: busy }, 'Submit') })
+  await render(modal(false)); container.querySelector<HTMLButtonElement>('button')!.focus()
+  await render(modal(true)); document.body.tabIndex = -1; document.body.focus()
+  expect(document.activeElement).toBe(document.body)
+  await render(modal(false))
+  expect(document.activeElement).toBe(container.querySelector('[role=dialog]'))
+  await act(async () => document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))
+  expect(close).toHaveBeenCalledOnce()
+  document.body.removeAttribute('tabindex')
 })

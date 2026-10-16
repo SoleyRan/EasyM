@@ -62,6 +62,11 @@ await copyFile('test-results/native-extensions-verification.json', resolve(outpu
 for (const file of ['browser-verification.json', 'performance-verification.json', 'writing-verification.json', 'search-verification.json', 'live-preview-verification.json', 'workspace-verification.json', 'templates-verification.json', 'export-verification.json', 'extensions-verification.json', 'math-verification.json', 'mermaid-verification.json', 'extension-delivery-verification.json', 'context-menu-verification.json', 'docx-library-verification.json', 'docx-verification.json', 'docx-ui-verification.json', 'history-verification.json', 'batch-images-verification.json', 'regression-verification.json', 'native-startup-verification.json', 'settings-verification.json', 'commands-verification.json', 'tables-verification.json', 'content-tools-verification.json', 'quick-entry-verification.json', 'appearance-verification.json', 'portable-verification.json', 'session-verification.json', 'recent-verification.json', 'external-verification.json']) {
   await copyFile(resolve('test-results', file), resolve(output, file))
 }
+for (const file of ['focus-verification.json', 'merge-verification.json', 'backup-verification.json', 'protection-delivery-verification.json']) {
+  const report = JSON.parse(await readFile(resolve('test-results', file), 'utf8'))
+  assert.equal(report.passed, true, file)
+  await copyFile(resolve('test-results', file), resolve(output, file))
+}
 await writeFile(resolve(output, 'windows-build.json'), JSON.stringify({
   recordedAt: new Date().toISOString(), version: config.version, target: 'x86_64-pc-windows-msvc',
   sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
