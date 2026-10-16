@@ -4,7 +4,7 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前开发分支为 `feature/v0.7`，从 main `36b8163` 创建，按 [v0.7 冻结计划](Docs/Easy-Markdown-v0.7-设计与实施计划.md) 分四步补齐外部修改合并与文档备份。第1步三方分析已提交为 `12d8b8f`；第2步加入逐块采用本地/磁盘或手工结果、完整候选与保存格式确认、强制归档后的安全应用及 EM → 合并恢复记录。归档不依赖启用版本历史，四份正文可恢复到新目录；无法验证原有本地图片时阻止合并并提示另存副本。实现与验收见 [第2步记录](Docs/Easy-Markdown-v0.7-第二步-冲突选择与安全应用.md)。单文档备份尚待第3步，产品版本暂保持 `0.6.0`。
+当前开发分支为 `feature/v0.7`，按 [v0.7 冻结计划](Docs/Easy-Markdown-v0.7-设计与实施计划.md) 完成三方合并、强制恢复归档及单文档备份。前三步已提交为 `12d8b8f`、`68f2edf`、`25b88ef`；第4步统一到 `0.7.0`，补齐四页导引与 [合并/备份样例](Docs/samples/v0.7/README.md)，本机 316 项前端测试、91 项 Rust 测试、31 组生产回归、四项慢速检查、性能、Word、Windows 原生检查与开发包校验通过。第4步随本次提交完成，远程 CI 与人工/发行门槛见 [第4步记录](Docs/Easy-Markdown-v0.7-第四步-验收与交付.md)。当前为未签名开发候选。
 
 v0.6 与后续 CI 修复已合入 main。按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 完成脚注/Front Matter、数学公式、Mermaid 及 [统一验收与交付](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md)。最终 [PR CI](https://github.com/SoleyRan/EasyM/actions/runs/38747154651) 与 [push CI](https://github.com/SoleyRan/EasyM/actions/runs/38747145573) 均通过，包含 283 项前端测试、28 组生产回归及三平台桌面任务；[v0.6 样例](Docs/samples/v0.6/README.md)、本机性能/Word/Windows 开发包与人工验收边界仍分别保留。
 
@@ -23,6 +23,7 @@ v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即�
 - HTML/打印输出静态 MathML 和 SVG 图片，DOCX 保留公式及图表的可编辑源码并预检提示，导出不改变正文；
 - 重启恢复标签顺序和活动页；桌面版最近打开最多记录 30 个文件、10 个工作区，启动最多自动重开 20 个已保存文件；清空记录不删除原文件、草稿或历史；
 - 有未完成草稿时需确认恢复为独立副本并另存；切回应用/标签检测外部变化，冲突时暂停自动保存，可比较、另存或确认加载；有可靠基线时支持三方分析及明确确认后的合并，提交前强制归档 B/L/R/候选，原有本地图片无法验证时阻止应用；
+- EM → 合并恢复记录可取回归档的基线、本地、磁盘或候选副本；EM → 文档备份与恢复保存精确正文、引用的 PNG/JPEG 与可选的当前文档历史，校验后恢复到新目录。备份不包含整个工作区、历史位置配置或合并恢复记录，远程图片仅保存链接；
 - 源码、分屏与即时渲染视图；即时渲染在同一编辑器中呈现标题/行内格式、代码、表格、图片和分隔线，活动块保留源码可编辑；
 - EM 图标文件菜单、右侧多文档标签与滚轮浏览，按需展开并拖拽调整文件树/大纲宽度；
 - 自定义右键菜单：标签可关闭当前、所有或其他文档；编辑区、预览、文件树、大纲与文本输入框提供对应操作，空白和普通按钮不显示默认菜单；批量关闭保留未保存确认，全部关闭后保留一个空白标签；
@@ -98,6 +99,8 @@ pnpm verify:session
 pnpm verify:recent
 pnpm verify:external
 pnpm verify:merge
+pnpm verify:backup
+pnpm verify:protection-delivery
 pnpm verify:performance
 pnpm verify:regression --performance
 ```
@@ -117,9 +120,9 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
-Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。v0.6 便携包已生成于 `src-tauri/target/release/bundle/portable/EasyM-0.6.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.6 全部样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名的开发包，实际生成及验收状态见 [v0.6 交付记录](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md)。
+Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。v0.7 便携包目标为 `src-tauri/target/release/bundle/portable/EasyM-0.7.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.7 合并/备份样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名开发包，实际生成及验收状态见 [v0.7 交付记录](Docs/Easy-Markdown-v0.7-第四步-验收与交付.md)。
 
-v0.6 Windows 安装包已生成于 `src-tauri/target/release/bundle/nsis/EasyM_0.6.0_x64-setup.exe`（附带项目与第三方许可，未签名；安装/卸载待 CI）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS；仅生成 NSIS 可运行 `pnpm.cmd tauri build --bundles nsis`，只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`。便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置及原生最近索引验证 Release 窗口启动与关闭；`./scripts/verify-native-extensions.ps1` 使用独立进程及临时本机调试端口验证真实 WebView2 离线扩展，不修改生产 CSP。完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
+v0.7 Windows 安装包目标为 `src-tauri/target/release/bundle/nsis/EasyM_0.7.0_x64-setup.exe`（附带项目与第三方许可，未签名）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行，不替换开发机现有安装。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS；仅生成 NSIS 可运行 `pnpm.cmd tauri build --bundles nsis`，只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`。便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置及原生最近索引验证 Release 窗口启动与关闭；`./scripts/verify-native-extensions.ps1` 使用独立进程及临时本机调试端口验证真实 WebView2 离线扩展，不修改生产 CSP。完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
 
 ## 许可
 

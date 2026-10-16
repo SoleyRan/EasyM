@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-10-16T07:13:59.922Z",
+  "version": "0.7.0",
+  "passed": true,
+  "checks": [
+    "real release custom-scheme origin, WebView offline emulation, opaque-origin Mermaid iframe and MathML/note/metadata rendering",
+    "four themes, reading/Escape and live source retention; no external requests or page exceptions during exercised workflow"
+  ],
+  "isolatedProfile": true,
+  "node": "v24.20.0",
+  "endpointDiscovery": {
+    "method": "DevToolsActivePort",
+    "attempts": 1,
+    "port": 50441,
+    "browser": "Edg/155.0.4283.45",
+    "ready": true
+  },
+  "executableSha256": "647d25262730c31481738404cb4700d98e15bdd9dfdad268f429ddd79f65c8be",
+  "scope": "Actual Windows release WebView2 over an isolated temporary CDP endpoint. No mocked IPC or source injection; excludes IME, OS save/print and other WebViews.",
+  "browser": "155.0.4283.45",
+  "origin": "http://tauri.localhost",
+  "gracefulClose": true,
+  "elevated": false,
+  "browserArgumentSource": "process environment",
+  "appProcess": {
+    "id": 10244,
+    "exitCode": 0,
+    "exited": true
+  },
+  "webviewProcesses": [
+    {
+      "ProcessId": 36264,
+      "ParentProcessId": 10244,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=easym.exe --webview-exe-version=0.7.0 --user-data-dir=\"D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView\" --noerrdialogs --embedded-browser-webview-dpi-awareness=2 --autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --enable-logging --log-file=\"D:\\Github\\EasyM\\test-results\\native-extensions\\webview-ed3ed65196db431685f4ebd2360f4841.log\" --remote-debugging-address=127.0.0.1 --remote-debugging-port=0 --lang=zh-CN --mojo-named-platform-channel-pipe=10244.34004.1770719174210337669 /pfhostedapp:505fa5dd735391b136a39515cd231bc7576cd549"
+    },
+    {
+      "ProcessId": 33456,
+      "ParentProcessId": 36264,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --type=crashpad-handler --user-data-dir=D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView /prefetch:4 /pfhostedapp:505fa5dd735391b136a39515cd231bc7576cd549 --monitor-self-annotation=ptype=crashpad-handler --database=D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView\\Crashpad --metrics-dir=D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView --annotation=IsOfficialBuild=1 --annotation=channel= --annotation=chromium-version=155.0.8059.40 \"--annotation=exe=C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --annotation=plat=Win64 \"--annotation=prod=Edge WebView2\" --annotation=ver=155.0.4283.45 --initial-client-data=0x17c,0x180,0x184,0x134,0x18c,0x7ffe274983e0,0x7ffe274983f0,0x7ffe27498400"
+    }
+  ]
+}

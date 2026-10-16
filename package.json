@@ -1,6 +1,6 @@
 {
   "name": "easym",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -47,6 +47,7 @@
     "verify:external": "node scripts/verify-external.mjs",
     "verify:merge": "node scripts/verify-merge.mjs",
     "verify:backup": "node scripts/verify-backup.mjs",
+    "verify:protection-delivery": "node scripts/verify-protection-delivery.mjs",
     "verify:mermaid": "node scripts/verify-mermaid.mjs",
     "verify:extension-delivery": "node scripts/verify-extension-delivery.mjs"
   },

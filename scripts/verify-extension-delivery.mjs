@@ -36,7 +36,7 @@ try {
   assert.match(await guide.innerText(), /DOCX.*源码/)
   await page.keyboard.press('ArrowLeft'); assert.equal(await guide.getByRole('status').innerText(), '3 / 4')
   await page.keyboard.press('ArrowRight'); await guide.getByRole('button', { name: '开始使用', exact: true }).click()
-  report.checks.push('four guide pages with arrow navigation, v0.6 extension/export contract and visible navigation at 960x680')
+  report.checks.push('four guide pages with arrow navigation, extension/export contract and visible navigation at 960x680')
   await page.setViewportSize({ width: 1180, height: 850 })
   const panel = () => page.locator('.document-panel:not([hidden])')
   const source = () => panel().locator('[aria-label="Markdown 源码编辑器"]')

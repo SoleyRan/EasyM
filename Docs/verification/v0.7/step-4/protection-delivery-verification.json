@@ -1,0 +1,60 @@
+{
+  "version": "0.7.0",
+  "startedAt": "2026-10-16T06:07:44.530Z",
+  "passed": true,
+  "checks": [
+    "upgrade from v0.6 shows four pages, explains merge/recovery/backup on page three, fits 960x680 and persists acknowledgement",
+    "settings reopens guide at page one; Escape closes it",
+    "distributed clean/conflict samples match actual production merge Worker; backup sample references the included PNG with no unsafe resources"
+  ],
+  "samples": [
+    {
+      "path": "Docs/samples/v0.7/merge/clean/base.md",
+      "bytes": 67,
+      "sha256": "830157304595eda7a80b18f221489c4d1fd5db10c5b88259d662d924cc692c85"
+    },
+    {
+      "path": "Docs/samples/v0.7/merge/clean/local.md",
+      "bytes": 78,
+      "sha256": "29beeea8004f77eae4f7804b684955e01768020033332376b74b7754e486665e"
+    },
+    {
+      "path": "Docs/samples/v0.7/merge/clean/disk.md",
+      "bytes": 76,
+      "sha256": "04af40eb81e422f1567d132a841335a82ef9e6336d6f998f7f56fbf9aedecce8"
+    },
+    {
+      "path": "Docs/samples/v0.7/merge/clean/expected.md",
+      "bytes": 87,
+      "sha256": "b425152a7a8921736c33cccbb9f491af25ed100dee2064077e99c7d3fbaf95a5"
+    },
+    {
+      "path": "Docs/samples/v0.7/merge/conflict/base.md",
+      "bytes": 41,
+      "sha256": "b964ea95535d2649eeefdeef8a6e59f9fadf02f35260ace7f2f5c8cbfd8b9d3b"
+    },
+    {
+      "path": "Docs/samples/v0.7/merge/conflict/local.md",
+      "bytes": 41,
+      "sha256": "09f1b039923c06bee8744f359b736aabd13045ae7e5ac3b88c616457e4c5f347"
+    },
+    {
+      "path": "Docs/samples/v0.7/merge/conflict/disk.md",
+      "bytes": 41,
+      "sha256": "f59a0ebd45f75d2f21a9ff5f6f0afe9a5538db738059a41d1ed5c243f3942fdd"
+    },
+    {
+      "path": "Docs/samples/v0.7/备份示例.md",
+      "bytes": 376,
+      "sha256": "f0d081c108751509ef1aa10bf5402f23c3b20606cc5615ffe7cf6cf5585d2e52"
+    },
+    {
+      "path": "Docs/samples/v0.7/assets/em.png",
+      "bytes": 2898,
+      "sha256": "2b9f6aa880321a0d689f078e05a363fb8aa1cae0e5553fea72626664f28b783d"
+    }
+  ],
+  "scope": "Production Chromium guide and actual shipped merge/resource Worker on distributed v0.7 samples. Existing merge/backup UI suites and native Rust tests cover application/archive behavior; no native dialog or real IME claim.",
+  "browser": "156.0.8078.4",
+  "finishedAt": "2026-10-16T06:07:45.990Z"
+}

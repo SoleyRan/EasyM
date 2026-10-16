@@ -1,0 +1,2 @@
+$ node scripts/verify-release-metadata.mjs
+EasyM 0.7.0: package, Cargo, lock, Tauri, UI and SBOM versions agree.

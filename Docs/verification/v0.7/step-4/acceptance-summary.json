@@ -1,0 +1,542 @@
+{
+  "recordedAt": "2026-10-16T07:16:56.410Z",
+  "stage": "v0.7-step-4",
+  "version": "0.7.0",
+  "source": {
+    "branch": "feature/v0.7",
+    "baseCommit": "25b88efa402d596ec94d9803000fea5320bb53d1",
+    "uncommittedStep4Changes": true,
+    "sourceTree": {
+      "algorithm": "sorted relative path + NUL + file SHA-256, then SHA-256",
+      "files": 653,
+      "sha256": "e47f4a237d1b2ea057fb3b6974279bc3d670ee858b5c36bce83b09a1fa2cf7b4"
+    }
+  },
+  "localDevelopmentAcceptancePassed": true,
+  "formalReleaseReady": false,
+  "checks": {
+    "frontend": {
+      "files": 55,
+      "tests": 316,
+      "passed": true
+    },
+    "windowsRust": {
+      "tests": 91,
+      "passed": true,
+      "locked": true,
+      "offline": true
+    },
+    "regression": {
+      "version": "0.7.0",
+      "startedAt": "2026-10-16T06:00:55.282Z",
+      "browser": "chromium",
+      "passed": true,
+      "checks": [
+        {
+          "script": "workers",
+          "passed": true,
+          "durationMs": 542
+        },
+        {
+          "script": "docx-library",
+          "passed": true,
+          "durationMs": 4845
+        },
+        {
+          "script": "docx",
+          "passed": true,
+          "durationMs": 35425
+        },
+        {
+          "script": "focus",
+          "passed": true,
+          "durationMs": 8189
+        },
+        {
+          "script": "docx-ui",
+          "passed": true,
+          "durationMs": 39334
+        },
+        {
+          "script": "history",
+          "passed": true,
+          "durationMs": 4277
+        },
+        {
+          "script": "batch-images",
+          "passed": true,
+          "durationMs": 12504
+        },
+        {
+          "script": "settings",
+          "passed": true,
+          "durationMs": 3454
+        },
+        {
+          "script": "browser",
+          "passed": true,
+          "durationMs": 6383
+        },
+        {
+          "script": "writing",
+          "passed": true,
+          "durationMs": 69026
+        },
+        {
+          "script": "search",
+          "passed": true,
+          "durationMs": 7905
+        },
+        {
+          "script": "live-preview",
+          "passed": true,
+          "durationMs": 20520
+        },
+        {
+          "script": "workspace",
+          "passed": true,
+          "durationMs": 3826
+        },
+        {
+          "script": "templates",
+          "passed": true,
+          "durationMs": 8393
+        },
+        {
+          "script": "export",
+          "passed": true,
+          "durationMs": 8649
+        },
+        {
+          "script": "extensions",
+          "passed": true,
+          "durationMs": 10969
+        },
+        {
+          "script": "math",
+          "passed": true,
+          "durationMs": 11525
+        },
+        {
+          "script": "mermaid",
+          "passed": true,
+          "durationMs": 36367
+        },
+        {
+          "script": "extension-delivery",
+          "passed": true,
+          "durationMs": 13621
+        },
+        {
+          "script": "context-menu",
+          "passed": true,
+          "durationMs": 8206
+        },
+        {
+          "script": "commands",
+          "passed": true,
+          "durationMs": 3831
+        },
+        {
+          "script": "tables",
+          "passed": true,
+          "durationMs": 13637
+        },
+        {
+          "script": "content-tools",
+          "passed": true,
+          "durationMs": 16211
+        },
+        {
+          "script": "quick-entry",
+          "passed": true,
+          "durationMs": 12736
+        },
+        {
+          "script": "appearance",
+          "passed": true,
+          "durationMs": 11478
+        },
+        {
+          "script": "session",
+          "passed": true,
+          "durationMs": 6347
+        },
+        {
+          "script": "recent",
+          "passed": true,
+          "durationMs": 6679
+        },
+        {
+          "script": "external",
+          "passed": true,
+          "durationMs": 15147
+        },
+        {
+          "script": "merge",
+          "passed": true,
+          "durationMs": 5681
+        },
+        {
+          "script": "backup",
+          "passed": true,
+          "durationMs": 3102
+        },
+        {
+          "script": "protection-delivery",
+          "passed": true,
+          "durationMs": 1985
+        }
+      ],
+      "distIndexSha256": "88ea1a510ec2a8b719510f5881197016eb8675a34b8d07a4936444fe6bc91d16",
+      "finishedAt": "2026-10-16T06:07:46.089Z"
+    },
+    "reports": {
+      "performance": {
+        "verifiedAt": "2026-10-16T07:11:03.664Z",
+        "machine": {
+          "os": "win32",
+          "release": "10.0.26200",
+          "cpu": "Intel(R) Core(TM) 5 220H",
+          "logicalCpus": 16,
+          "memoryGiB": 31.7
+        },
+        "cases": [
+          {
+            "name": "5 MiB text",
+            "bytes": 5242880,
+            "openMs": 2156,
+            "inputSamples": 40,
+            "inputEventToNextFrameP95Ms": 15.9,
+            "targetMs": 50,
+            "targetMet": true,
+            "sourceHighlightLimited": false
+          },
+          {
+            "name": "100 KiB single line",
+            "bytes": 102400,
+            "openMs": 90,
+            "inputSamples": 40,
+            "inputEventToNextFrameP95Ms": 17.1,
+            "targetMs": 50,
+            "targetMet": true,
+            "sourceHighlightLimited": true,
+            "fullPreviewAndUndoVerified": true
+          },
+          {
+            "name": "table limit",
+            "rowsIncludingHeader": 100,
+            "columns": 20,
+            "cells": 2000,
+            "bytes": 19321,
+            "openMs": 163,
+            "lastCellScrollAndSelectMs": 129,
+            "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+          },
+          {
+            "name": "table limit",
+            "rowsIncludingHeader": 201,
+            "columns": 9,
+            "cells": 1809,
+            "bytes": 16738,
+            "openMs": 100,
+            "lastCellScrollAndSelectMs": 84,
+            "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+          },
+          {
+            "name": "selection overlay positioning and scroll dismissal",
+            "samples": 10,
+            "wallTimeToVisibleP95Ms": 225,
+            "intentionalDebounceMs": 160,
+            "bounded": true,
+            "scrollDismissed": true,
+            "scope": "UI wall time includes debounce and automation; not input-to-frame p95"
+          },
+          {
+            "name": "100 local 800×600 images",
+            "restoreAndDecodeMs": 484,
+            "imageCount": 100,
+            "allDecoded": true
+          },
+          {
+            "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+            "boundaryBytes": 20971520,
+            "accepted": {
+              "durationMs": 34.6,
+              "width": 800,
+              "height": 600
+            },
+            "rejected": {
+              "durationMs": 13,
+              "error": "图片文件超过 20 MB。"
+            }
+          }
+        ],
+        "browser": "156.0.8078.4",
+        "passed": true
+      },
+      "focus-slow": {
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "DOCX cancel: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+          "DOCX download: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+          "PDF preview: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+          "settings: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+          "guide: resumed typing keeps focus and full multiline source; immediate DOCX export completes"
+        ],
+        "browser": "156.0.8078.4"
+      },
+      "search-slow": {
+        "stage": "v0.2-step-1",
+        "verifiedAt": "2026-10-16T07:12:02.649Z",
+        "browser": "156.0.8078.4",
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "Chinese and emoji source offsets",
+          "literal query and replacement",
+          "case and whole word",
+          "forward/reverse wraparound",
+          "single/all replacement undo",
+          "Ctrl+F/Enter/Shift+Enter/Escape",
+          "search input composition guard (synthetic events)",
+          "independent tab queries",
+          "bounded and superseded worker counts",
+          "split source and preview navigation"
+        ]
+      },
+      "templates-slow": {
+        "stage": "v0.2-step-4",
+        "verifiedAt": "2026-10-16T07:12:15.403Z",
+        "browser": "156.0.8078.4",
+        "passed": true,
+        "cpuThrottlingRate": 6,
+        "checks": [
+          "EM template entry",
+          "initial focus, focus trap, Escape/cancel and return focus",
+          "blank/meeting/project templates",
+          "literal Chinese/emoji/dollar/nested placeholder substitutions",
+          "script text does not execute",
+          "independent tabs and preserved source",
+          "untouched blank closes without prompt",
+          "generated draft survives reload",
+          "first browser download preserves exact Markdown",
+          "four themes and compact dialog layout"
+        ]
+      },
+      "math-slow": {
+        "passed": true,
+        "checks": [
+          "native fractions/roots/sums/matrices, Chinese, prices, code, note/table math and recoverable syntax errors",
+          "four themes and compact layout without document horizontal overflow",
+          "live block source reveal, unchanged source, undo and reading mode",
+          "complete draft survives reload without rewriting; rendering setting persists and controls export fallback",
+          "offline static MathML and TeX annotation, print PDF, explicit DOCX source fallback/download without source mutation",
+          "blocked resource/macro commands, subsequent valid math and independent tabs; zero external network requests or page errors"
+        ],
+        "cpuThrottlingRate": 6,
+        "scope": "Production Chromium MathML, static HTML, print PDF and DOCX source fallback; native Word, OS print and other WebViews require release acceptance.",
+        "browser": "156.0.8078.4"
+      },
+      "native-startup": {
+        "verifiedAt": "2026-10-16T07:13:56.6401958Z",
+        "version": "0.7.0",
+        "executableSha256": "647d25262730c31481738404cb4700d98e15bdd9dfdad268f429ddd79f65c8be",
+        "isolatedProfile": true,
+        "isolatedNativeRegistry": true,
+        "elevated": false,
+        "profileSource": "process environment",
+        "launched": true,
+        "gracefulClose": true,
+        "passed": true,
+        "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance.",
+        "appProcess": {
+          "id": 576,
+          "exitCode": 0,
+          "exited": true
+        },
+        "webviewProcesses": [
+          {
+            "ProcessId": 30884,
+            "ParentProcessId": 576,
+            "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+            "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=easym.exe --webview-exe-version=0.7.0 --user-data-dir=\"D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView\" --noerrdialogs --embedded-browser-webview-dpi-awareness=2 --autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --lang=zh-CN --mojo-named-platform-channel-pipe=576.7848.14398345786398079238 /pfhostedapp:bc34207005415359e4e18dca48a964558943f07f"
+          },
+          {
+            "ProcessId": 30380,
+            "ParentProcessId": 30884,
+            "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+            "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --type=crashpad-handler --user-data-dir=D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView /prefetch:4 /pfhostedapp:bc34207005415359e4e18dca48a964558943f07f --monitor-self-annotation=ptype=crashpad-handler --database=D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView\\Crashpad --metrics-dir=D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView --annotation=IsOfficialBuild=1 --annotation=channel= --annotation=chromium-version=155.0.8059.40 \"--annotation=exe=C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --annotation=plat=Win64 \"--annotation=prod=Edge WebView2\" --annotation=ver=155.0.4283.45 --initial-client-data=0x17c,0x180,0x184,0x158,0x18c,0x7ffe274983e0,0x7ffe274983f0,0x7ffe27498400"
+          }
+        ]
+      },
+      "native-extensions": {
+        "verifiedAt": "2026-10-16T07:13:59.922Z",
+        "version": "0.7.0",
+        "passed": true,
+        "checks": [
+          "real release custom-scheme origin, WebView offline emulation, opaque-origin Mermaid iframe and MathML/note/metadata rendering",
+          "four themes, reading/Escape and live source retention; no external requests or page exceptions during exercised workflow"
+        ],
+        "isolatedProfile": true,
+        "node": "v24.20.0",
+        "endpointDiscovery": {
+          "method": "DevToolsActivePort",
+          "attempts": 1,
+          "port": 50441,
+          "browser": "Edg/155.0.4283.45",
+          "ready": true
+        },
+        "executableSha256": "647d25262730c31481738404cb4700d98e15bdd9dfdad268f429ddd79f65c8be",
+        "scope": "Actual Windows release WebView2 over an isolated temporary CDP endpoint. No mocked IPC or source injection; excludes IME, OS save/print and other WebViews.",
+        "browser": "155.0.4283.45",
+        "origin": "http://tauri.localhost",
+        "gracefulClose": true,
+        "elevated": false,
+        "browserArgumentSource": "process environment",
+        "appProcess": {
+          "id": 10244,
+          "exitCode": 0,
+          "exited": true
+        },
+        "webviewProcesses": [
+          {
+            "ProcessId": 36264,
+            "ParentProcessId": 10244,
+            "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+            "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=easym.exe --webview-exe-version=0.7.0 --user-data-dir=\"D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView\" --noerrdialogs --embedded-browser-webview-dpi-awareness=2 --autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --enable-logging --log-file=\"D:\\Github\\EasyM\\test-results\\native-extensions\\webview-ed3ed65196db431685f4ebd2360f4841.log\" --remote-debugging-address=127.0.0.1 --remote-debugging-port=0 --lang=zh-CN --mojo-named-platform-channel-pipe=10244.34004.1770719174210337669 /pfhostedapp:505fa5dd735391b136a39515cd231bc7576cd549"
+          },
+          {
+            "ProcessId": 33456,
+            "ParentProcessId": 36264,
+            "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+            "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --type=crashpad-handler --user-data-dir=D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView /prefetch:4 /pfhostedapp:505fa5dd735391b136a39515cd231bc7576cd549 --monitor-self-annotation=ptype=crashpad-handler --database=D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView\\Crashpad --metrics-dir=D:\\Github\\EasyM\\test-results\\native-extensions-c7f25638f2da48e7ba25ef14054e66a9\\EBWebView --annotation=IsOfficialBuild=1 --annotation=channel= --annotation=chromium-version=155.0.8059.40 \"--annotation=exe=C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --annotation=plat=Win64 \"--annotation=prod=Edge WebView2\" --annotation=ver=155.0.4283.45 --initial-client-data=0x17c,0x180,0x184,0x134,0x18c,0x7ffe274983e0,0x7ffe274983f0,0x7ffe27498400"
+          }
+        ]
+      },
+      "portable": {
+        "verifiedAt": "2026-10-16T07:15:30.0282956Z",
+        "version": "0.7.0",
+        "archive": "src-tauri/target/release/bundle/portable/EasyM-0.7.0-windows-x64-dev.zip",
+        "bytes": 6924414,
+        "entries": 315,
+        "sha256": "5dabe9d168d8056a37a1fdc2bdc50ecc9e26525162e74d723185faf6d487e667",
+        "executableSha256": "647d25262730c31481738404cb4700d98e15bdd9dfdad268f429ddd79f65c8be",
+        "sampleVersion": "v0.7",
+        "allStagedFileHashesVerified": true,
+        "passed": true
+      },
+      "word": {
+        "verifiedAt": "2026-10-16T07:15:30.8886176Z",
+        "passed": true,
+        "application": "Microsoft Word",
+        "version": "16.0",
+        "checks": [
+          {
+            "sample": "letter-compact",
+            "pages": 1,
+            "tables": 1,
+            "inlineImages": 0,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 194255
+          },
+          {
+            "sample": "placeholders",
+            "pages": 1,
+            "tables": 0,
+            "inlineImages": 0,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 178791
+          },
+          {
+            "sample": "display-image",
+            "pages": 1,
+            "tables": 0,
+            "inlineImages": 1,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 145028
+          },
+          {
+            "sample": "office",
+            "pages": 2,
+            "tables": 1,
+            "inlineImages": 2,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 4316777
+          },
+          {
+            "sample": "multipage",
+            "pages": 25,
+            "tables": 2,
+            "inlineImages": 12,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 440798
+          }
+        ],
+        "build": "16.0.20430",
+        "fileVersion": "16.0.20430.20146"
+      },
+      "word-extensions": {
+        "verifiedAt": "2026-10-16T07:15:51.3842423Z",
+        "passed": true,
+        "application": "Microsoft Word",
+        "version": "16.0",
+        "checks": [
+          {
+            "sample": "combined",
+            "pages": 2,
+            "tables": 1,
+            "inlineImages": 1,
+            "opened": true,
+            "editedAndReopened": true,
+            "pdfBytes": 275941
+          }
+        ],
+        "build": "16.0.20430",
+        "fileVersion": "16.0.20430.20146"
+      }
+    },
+    "dependencyInventory": {
+      "target": "x86_64-pc-windows-msvc",
+      "dependencies": 563,
+      "missingLicenseTexts": [],
+      "completeLicenseTexts": true
+    },
+    "packageMetadata": {
+      "recordedAt": "2026-10-16T06:03:52.1202770Z",
+      "artifacts": [
+        {
+          "path": "src-tauri/target/release/easym.exe",
+          "bytes": 14647808,
+          "productName": "EasyM",
+          "productVersion": "0.7.0",
+          "sha256": "647d25262730c31481738404cb4700d98e15bdd9dfdad268f429ddd79f65c8be"
+        },
+        {
+          "path": "src-tauri/target/release/bundle/nsis/EasyM_0.7.0_x64-setup.exe",
+          "bytes": 5372294,
+          "productName": "EasyM",
+          "productVersion": "0.7.0",
+          "sha256": "332a1f9c860acb22ce02a7e13bd370321ccc316d6f75dbbef2177dd851d5e91c"
+        }
+      ]
+    }
+  },
+  "evidenceNotes": [
+    "Each regression report is checked against its run interval and the production index hash; workers also emit to regression.txt. Reports without a passed field are covered by the successful runner exit.",
+    "Native checks use isolated profiles and test startup/extensions, not the new backup picker workflow. Rust tests cover backup filesystem/archive behavior; browser suites use deterministic native IPC.",
+    "Source tree and artifact hashes bind the local working tree and packages. Existing repository-wide rustfmt differences are not reformatted or claimed as passing."
+  ],
+  "pending": [
+    "Current changes have not been pushed; three-platform CI and disposable Windows install/remove pending.",
+    "Real IME, backup/file/directory/print dialogs, screen reader and macOS/Linux GUI remain manual acceptance.",
+    "Other targets must generate their own dependency notices; inherited macOS missing license texts remain a release gate.",
+    "Unsigned development packages; signing and formal release review pending."
+  ]
+}

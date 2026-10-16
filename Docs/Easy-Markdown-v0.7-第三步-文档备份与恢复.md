@@ -45,4 +45,4 @@ EM 菜单和 F1 增加“文档备份与恢复”。创建备份保存当前编�
 | 慢速焦点 | [5 组通过](verification/v0.7/step-3/focus-slow-verification.json)，六倍 CPU 降速；备份忙碌状态另由生产专项覆盖 |
 | 证据清单 | [manifest.json](verification/v0.7/step-3/manifest.json) 固定本次运行的报告、日志、截图及源文件哈希 |
 
-本步没有提交或推送，产品版本保持 0.6.0。证据使用真实生产构建和资源 Worker，原生 ZIP/文件系统/历史往返使用 Windows Rust 测试；不能据此宣称原生 GUI/目录选择器、真实 IME、读屏、云 CI、其他平台或安装包已经验收。`.vscode/` 等本地未跟踪目录未纳入证据。
+本步已提交 `25b88ef`，尚未推送；本步验收时产品版本为 0.6.0，第4步统一升级。证据使用真实生产构建和资源 Worker，原生 ZIP/文件系统/历史往返使用 Windows Rust 测试；不能据此宣称原生 GUI/目录选择器、真实 IME、读屏、云 CI、其他平台或安装包已经验收。`.vscode/` 等本地未跟踪目录未纳入证据。

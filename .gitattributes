@@ -6,3 +6,5 @@ scripts/external-licenses/*.txt text eol=lf
 # Acceptance logs retain original bytes, including tool-emitted trailing lines.
 Docs/verification/**/logs/*.log -text whitespace=-blank-at-eof,cr-at-eol
 Docs/verification/**/logs/*.txt -text whitespace=-blank-at-eof,cr-at-eol
+# v0.7 delivery evidence is hashed byte-for-byte, including JSON and screenshots.
+Docs/verification/v0.7/step-4/** -text whitespace=-blank-at-eof,cr-at-eol

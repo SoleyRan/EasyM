@@ -1,0 +1,32 @@
+{
+  "verifiedAt": "2026-10-16T07:13:56.6401958Z",
+  "version": "0.7.0",
+  "executableSha256": "647d25262730c31481738404cb4700d98e15bdd9dfdad268f429ddd79f65c8be",
+  "isolatedProfile": true,
+  "isolatedNativeRegistry": true,
+  "elevated": false,
+  "profileSource": "process environment",
+  "launched": true,
+  "gracefulClose": true,
+  "passed": true,
+  "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance.",
+  "appProcess": {
+    "id": 576,
+    "exitCode": 0,
+    "exited": true
+  },
+  "webviewProcesses": [
+    {
+      "ProcessId": 30884,
+      "ParentProcessId": 576,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=easym.exe --webview-exe-version=0.7.0 --user-data-dir=\"D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView\" --noerrdialogs --embedded-browser-webview-dpi-awareness=2 --autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --lang=zh-CN --mojo-named-platform-channel-pipe=576.7848.14398345786398079238 /pfhostedapp:bc34207005415359e4e18dca48a964558943f07f"
+    },
+    {
+      "ProcessId": 30380,
+      "ParentProcessId": 30884,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --type=crashpad-handler --user-data-dir=D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView /prefetch:4 /pfhostedapp:bc34207005415359e4e18dca48a964558943f07f --monitor-self-annotation=ptype=crashpad-handler --database=D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView\\Crashpad --metrics-dir=D:\\Github\\EasyM\\test-results\\native-startup-9bc22bc764e94f72a8db544f88a17be8\\EBWebView --annotation=IsOfficialBuild=1 --annotation=channel= --annotation=chromium-version=155.0.8059.40 \"--annotation=exe=C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe\" --annotation=plat=Win64 \"--annotation=prod=Edge WebView2\" --annotation=ver=155.0.4283.45 --initial-client-data=0x17c,0x180,0x184,0x158,0x18c,0x7ffe274983e0,0x7ffe274983f0,0x7ffe27498400"
+    }
+  ]
+}

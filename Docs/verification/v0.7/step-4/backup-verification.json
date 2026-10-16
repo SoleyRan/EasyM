@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "startedAt": "2026-10-16T06:07:41.350Z",
+  "checks": [
+    "new unsaved document uses frozen current bytes with history off; canceled creation and selection do not save or restore",
+    "busy create locks editing, tabs, duplicate submission, and Escape; success preserves the editor",
+    "opened document includes history only after opt-in, retains original BOM/CRLF/revision, and reports existing-backup refusal",
+    "actual resource Worker rejects absent image inventory, releases rejected tokens, and native corrupt-package errors block restore",
+    "explicit restore review uses Worker-scanned AST references, excludes inline fake images, and handles canceled, changed, and expired packages",
+    "reselection invalidates confirmation and releases old token; long names fit compact layout; busy restore is locked and leaves editor/disk unchanged",
+    "closing releases the active token and F1 exposes the same backup action with fresh default state"
+  ],
+  "scope": "Production UI and actual resource Worker with deterministic native IPC. Real archive/filesystem behavior is covered by Rust tests; native dialogs, native GUI, and IME are not asserted.",
+  "browser": "156.0.8078.4",
+  "finishedAt": "2026-10-16T06:07:43.943Z"
+}
