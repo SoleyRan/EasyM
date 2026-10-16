@@ -1,0 +1,95 @@
+{
+  "verifiedAt": "2026-10-16T11:00:27.9684878+08:00",
+  "branch": "feature/v0.7",
+  "baseCommit": "36b8163dc073690d1eecd25bb91545471ef5a173",
+  "scope": "v0.7 step 1 local uncommitted changes; production Chromium with deterministic native IPC. No native/IME or full regression claim.",
+  "node": "v24.20.0",
+  "distIndexSha256": "a4d1b6ba1442d685db3a7be3494d1bf07ec345854d4072ebe9f0ac8f275f7aa5",
+  "checks": [
+    "298 frontend unit tests",
+    "15 targeted merge tests after region-limit assertion update",
+    "TypeScript and production build",
+    "All five production workers including merge requests",
+    "External changes production UI",
+    "History restoration/undo/cleanup production UI",
+    "Focus production UI at sixfold CPU slowdown",
+    "Release metadata and git diff whitespace"
+  ],
+  "artifacts": [
+    {
+      "path": "external-verification.json",
+      "sha256": "68b3e6e9e7d92a27a479b660e68015c8311782ff8f1f3a1371c143e8e0e110f5",
+      "bytes": 1439
+    },
+    {
+      "path": "focus-slow-verification.json",
+      "sha256": "ab681aafd870c5bee10ec63eff06149b1a4121c7cbfaee16857a109cc8a87253",
+      "bytes": 617
+    },
+    {
+      "path": "history-verification.json",
+      "sha256": "28b22d3d1b3c0e592d15f1d610b327e4181789a38c5ab6e5316968123d73458e",
+      "bytes": 852
+    },
+    {
+      "path": "logs/v07-step1-build.log",
+      "sha256": "44574834300f929f054620a553cc63f4c4dd0305b154f983dfc776c2ea2633e9",
+      "bytes": 8872
+    },
+    {
+      "path": "logs/v07-step1-external.log",
+      "sha256": "e06c7a655b1645219fb74edcc8ea4bf1537284b32f2c3f525bb2fd085dac279d",
+      "bytes": 1456
+    },
+    {
+      "path": "logs/v07-step1-merge-unit.log",
+      "sha256": "c1c02f7b2333560c2574c5be6ac90d7fcaca9f2505c80992d8ae92062caf85a6",
+      "bytes": 372
+    },
+    {
+      "path": "logs/v07-step1-unit.log",
+      "sha256": "48e2ff7b1371de6d19361000ae5de255adae947605c7392107ff24956b52f387",
+      "bytes": 8213
+    },
+    {
+      "path": "screenshots/compact.png",
+      "sha256": "91cadb0225ddc977245fa37c476605eac3ecf2461c6de673f060ead23757a4f8",
+      "bytes": 44874
+    },
+    {
+      "path": "screenshots/conflict.png",
+      "sha256": "04f9201a627e774963e3004efdc52a178e5945eeb46bc1714de11895cc5191f6",
+      "bytes": 69627
+    },
+    {
+      "path": "screenshots/dark.png",
+      "sha256": "6130d60bc963206d677c4a7dd380171080cebdff0c82af50fc2b9eed6557dffa",
+      "bytes": 63102
+    },
+    {
+      "path": "screenshots/forest.png",
+      "sha256": "e0753e87705ed431dc15a9f08fd199ce663f339850479c16f59271b863e0d0af",
+      "bytes": 68555
+    },
+    {
+      "path": "screenshots/merge-conflict-compact.png",
+      "sha256": "d6aa20472cbdb76bd3b7cb801e141532ebb648658da72b9c528c244c82da7e01",
+      "bytes": 18346
+    },
+    {
+      "path": "screenshots/merge-conflict.png",
+      "sha256": "e071193ff9ad33556908036580f1aa9f845e6ae10ade340b97ac0c63e1c1a8fe",
+      "bytes": 70598
+    },
+    {
+      "path": "screenshots/merge-preview.png",
+      "sha256": "904579a0f97f00984a9cb0cd9fc477d4bdff91000a1e98d5ae7169b4f028e433",
+      "bytes": 72254
+    },
+    {
+      "path": "screenshots/paper.png",
+      "sha256": "76d887e40e4d87953a4d1fbbe7a902026ea3ee38b0ec0735e28523b06d291430",
+      "bytes": 68249
+    }
+  ]
+}

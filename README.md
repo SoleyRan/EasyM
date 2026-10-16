@@ -4,7 +4,9 @@ EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实�
 
 ## 当前状态
 
-当前分支 `feature/v0.6` 从 main `90c4ce7` 创建，按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 完成脚注/Front Matter（`afaaac9`）、数学公式（`ff81da3`）与 Mermaid（`744d9f7`）；[第四步统一验收与交付](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md) 实现及本机验收完成，本次提交包含交付改动和证据。产品版本为 0.6.0，补齐四页使用导引、扩展导出说明、混排专项与 [v0.6 样例](Docs/samples/v0.6/README.md)。279 项前端 / 65 项 Windows Rust / 27 组生产回归、性能、真实 Windows WebView2 离线扩展和 6 份 Word 导出检查通过，Windows 安装/便携开发包已生成；三平台 CI 和人工门槛单独记录。
+当前开发分支为 `feature/v0.7`，从 main `36b8163` 创建，按 [v0.7 冻结计划](Docs/Easy-Markdown-v0.7-设计与实施计划.md) 分四步补齐外部修改合并与文档备份。第1步已加入只读三方合并分析：外部版本比较中点击“分析三方合并”，查看候选正文或共同祖先/本地/磁盘冲突片段；尚不提供合并应用，自动保存继续暂停。验证与限制见 [第1步记录](Docs/Easy-Markdown-v0.7-第一步-三方合并分析.md)。产品版本暂保持 `0.6.0`。
+
+v0.6 与后续 CI 修复已合入 main。按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 完成脚注/Front Matter、数学公式、Mermaid 及 [统一验收与交付](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md)。最终 [PR CI](https://github.com/SoleyRan/EasyM/actions/runs/38747154651) 与 [push CI](https://github.com/SoleyRan/EasyM/actions/runs/38747145573) 均通过，包含 283 项前端测试、28 组生产回归及三平台桌面任务；[v0.6 样例](Docs/samples/v0.6/README.md)、本机性能/Word/Windows 开发包与人工验收边界仍分别保留。
 
 v0.5 已完成会话/草稿恢复、最近文件/工作区、已保存标签重开、外部变化及全文/差异对照，历史 252 项前端/65 项 Windows Rust/23 组生产回归、性能、Word 和 Windows 开发包证据见 [v0.5 交付记录](Docs/Easy-Markdown-v0.5-第四步-验收与交付.md)。真实 IME 与跨平台 GUI 等仍待验收。仅借鉴 MarkText 的交互设计，独立实现，没有引入其代码或资源。
 

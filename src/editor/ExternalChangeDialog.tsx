@@ -3,12 +3,14 @@ import { ApplicationDialog } from './ApplicationDialogs'
 import { compareHistory } from '../platform/history'
 import type { HistoryDiff } from '../core/history-diff'
 import type { FileSnapshot } from '../core/codec'
+import { MergePreview } from './MergePreview'
 
-export function ExternalChangeDialog({ disk, local, onClose, onReload, onSaveCopy, onLocate }: {
-  disk: FileSnapshot; local: string; onClose(): void; onReload(): Promise<void>; onSaveCopy(): Promise<void>; onLocate(offset: number): void
+export function ExternalChangeDialog({ disk, local, base = null, onClose, onReload, onSaveCopy, onLocate }: {
+  disk: FileSnapshot; local: string; base?: string | null; onClose(): void; onReload(): Promise<void>; onSaveCopy(): Promise<void>; onLocate(offset: number): void
 }) {
   const [diff, setDiff] = useState<HistoryDiff | null>(null), [error, setError] = useState(''), [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(false), running = useRef(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
   useEffect(() => {
     const task = new AbortController()
     compareHistory(disk.text, local, task.signal).then(setDiff).catch(e => { if (!task.signal.aborted) setError(String(e)) })
@@ -30,6 +32,8 @@ export function ExternalChangeDialog({ disk, local, onClose, onReload, onSaveCop
       <p>{diff.fallback ?? `新增 ${diff.additions} 行 / 删除 ${diff.deletions} 行`}</p>
       {!diff.fallback && <pre className="history-diff" aria-label="逐行差异">{diff.lines.slice(0, 4000).map((line, i) => <span key={i} className={`diff-${line.kind}`}>{line.kind === 'add' ? '+' : line.kind === 'delete' ? '−' : ' '} {line.before ?? '·'}:{line.after ?? '·'} {line.text}{'\n'}</span>)}{diff.lines.length > 4000 && '仅展示前 4000 行，双方全文如下。'}</pre>}
     </>}
+    <button disabled={busy} aria-expanded={mergeOpen} onClick={() => setMergeOpen(value => !value)}>{mergeOpen ? '收起三方合并分析' : '分析三方合并'}</button>
+    {mergeOpen && <MergePreview base={base} local={local} disk={disk.text} />}
     <div className="history-texts"><label>磁盘正文<textarea readOnly aria-label="磁盘正文" value={disk.text} /></label><label>本地正文<textarea readOnly aria-label="本地正文" value={local} /></label></div>
     {confirm && <p role="alert">加载将放弃当前本地编辑。建议先另存本地副本。<button disabled={busy} onClick={() => void action(onReload)}>确认加载磁盘版本</button><button disabled={busy} onClick={() => setConfirm(false)}>取消加载</button></p>}
     <div className="dialog-actions">
