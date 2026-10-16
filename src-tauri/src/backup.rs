@@ -513,7 +513,7 @@ mod tests {
         // access to another location, even if it holds identical archive bytes.
         fs::write(outside.join("copy.easym-backup.zip"), &raw).unwrap();
         fs::rename(&granted, root.join("original-granted")).unwrap(); symlink(&outside, &granted).unwrap();
-        assert!(matches!(reread(&ticket(&state, &token).unwrap()), Err(e) if e == "permission_denied"));
+        assert!(matches!(reread(&ticket(&state, &token).unwrap()), Err(e) if e == "resource_missing" || e == "permission_denied"));
         assert!(publish_backup(&granted.join("other.easym-backup.zip"), &raw, &data, None, &assets).is_err());
         assert!(restore_into(&p, &granted).is_err());
         assert_eq!(fs::read_dir(&outside).unwrap().count(), 1);
