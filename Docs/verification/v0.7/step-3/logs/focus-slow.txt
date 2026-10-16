@@ -1,0 +1,13 @@
+$ node scripts/verify-focus.mjs "--slow"
+{
+  "passed": true,
+  "cpuThrottlingRate": 6,
+  "checks": [
+    "DOCX cancel: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "DOCX download: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "PDF preview: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "settings: resumed typing keeps focus and full multiline source; immediate DOCX export completes",
+    "guide: resumed typing keeps focus and full multiline source; immediate DOCX export completes"
+  ],
+  "browser": "156.0.8078.4"
+}

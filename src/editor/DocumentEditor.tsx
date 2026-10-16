@@ -46,6 +46,8 @@ import { insertStructure, validSlash, insertKinds, type InsertKind, type SlashTr
 import { useExternalChanges } from './useExternalChanges'
 import { ExternalChangeDialog } from './ExternalChangeDialog'
 import { MergeRecoveryDialog } from './MergeRecoveryDialog'
+import { BackupDialog } from './BackupDialog'
+import type { BackupDraft } from '../platform/backup'
 import { commitMerge, mergeBytes, mergeError, prepareMerge, type MergeCandidate } from '../platform/merge-transaction'
 
 type ViewMode = 'source' | 'split' | 'live'
@@ -81,7 +83,7 @@ function errorMessage(error: unknown): string {
 }
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; recentId?: string | null; tableDecision?: boolean }
-export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages' | 'mergeRecovery'
+export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages' | 'mergeRecovery' | 'backup'
 export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
 interface Props {
   mathRendering?: boolean
@@ -111,6 +113,8 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   const [busy, setBusy] = useState(false)
   const [externalOpen, setExternalOpen] = useState(false)
   const [mergeRecoveryOpen, setMergeRecoveryOpen] = useState(false)
+  const [backupDraft, setBackupDraft] = useState<BackupDraft | null>(null)
+  const backupLock = useRef(false)
   const [printable, setPrintable] = useState<ExportDocument | null>(null)
   const exporting = useRef(false)
   const docxTask = useRef<AbortController | null>(null)
@@ -395,6 +399,8 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       if (commandId === 'edit.undo' || commandId === 'edit.redo') return { enabled: editor.current?.historyState?.()[commandId.slice(5) as 'undo' | 'redo'] ?? true, reason: '没有可撤销或重做的修改。' }
       if (commandId === 'file.reload' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
       if (commandId === 'file.mergeRecovery' && (!desktop || !fileId)) return { enabled: false, reason: '请先打开桌面本地文件。' }
+      if (backupLock.current) return { enabled: false, reason: '请先完成文档备份或恢复。' }
+      if (commandId === 'file.backup' && !desktop) return { enabled: false, reason: '文档备份与恢复仅在桌面版中可用。' }
       if (commandId === 'file.save' && (external.checking || external.change)) return { enabled: false, reason: '磁盘版本待检查或已变化，请比较或另存本地副本。' }
       if (commandId === 'view.reading' && readingBusy) return { enabled: false, reason: '正在切换窗口模式。' }
       if (commandId.startsWith('view.')) return { enabled: true, checked: commandId === 'view.reading' ? reading : commandId === 'view.files' ? showFiles : commandId === 'view.outline' ? showOutline : commandId === 'view.toolbar' ? showToolbar : commandId === `view.${view}` }
@@ -429,6 +435,12 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       else if (action === 'exportDocx') return exportDocxDocument()
       else if (action === 'history') { setHistoryOpen(true); setBusy(true) }
       else if (action === 'mergeRecovery') { setMergeRecoveryOpen(true); setBusy(true) }
+      else if (action === 'backup') {
+        backupLock.current = true
+        let bytes: Uint8Array | null = null, encodingError = ''
+        try { bytes = encodeFile(snapshot, text) } catch (e) { encodingError = e instanceof Error ? e.message : String(e) }
+        setBackupDraft({ id: fileId, name, bytes, error: encodingError, resources: images.resources, revision }); setBusy(true)
+      }
       else if (action === 'batchImages') { setBatchOpen(true); setBusy(true) }
       else if (action === 'exportHtml' || action === 'print') return exportDocument(action)
       else if (action === 'save' || action === 'saveAs') return save(action === 'saveAs')
@@ -462,6 +474,10 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   }
   function closeMergeRecovery() {
     setMergeRecoveryOpen(false); setBusy(false)
+  }
+  function closeBackup() {
+    backupLock.current = false; setBackupDraft(null); setBusy(false)
+    requestAnimationFrame(() => editor.current?.focus())
   }
   async function applyMerge(candidate: MergeCandidate, diskSnapshot: FileSnapshot, diskRevision: string) {
     if (!fileId || !revision || !candidate.confirmed || candidate.base !== snapshot.originalText || candidate.local !== text || candidate.disk !== diskSnapshot.text) throw new Error('正文或磁盘版本已变化，请关闭窗口后重新分析。')
@@ -1074,7 +1090,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
   </div>
-  {contentTool && active && contentTool.kind === 'link' && <LinkDialog existing={toolExistingLink} label={toolExistingLink?.label ?? text.slice(Math.min(contentTool.context.selection.anchor, contentTool.context.selection.head), Math.max(contentTool.context.selection.anchor, contentTool.context.selection.head))} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={(label, url) => applyContentTool(context => linkCommand(context.textRevision, textRef.current, context.selection, label, url))} onUnlink={() => applyContentTool(context => unlinkCommand(context.textRevision, textRef.current, context.selection))} onOpen={() => { if (toolExistingLink) void openLinkTarget(toolExistingLink.url) }} />}
+  {backupDraft && active && <BackupDialog draft={backupDraft} onClose={closeBackup} />}{contentTool && active && contentTool.kind === 'link' && <LinkDialog existing={toolExistingLink} label={toolExistingLink?.label ?? text.slice(Math.min(contentTool.context.selection.anchor, contentTool.context.selection.head), Math.max(contentTool.context.selection.anchor, contentTool.context.selection.head))} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={(label, url) => applyContentTool(context => linkCommand(context.textRevision, textRef.current, context.selection, label, url))} onUnlink={() => applyContentTool(context => unlinkCommand(context.textRevision, textRef.current, context.selection))} onOpen={() => { if (toolExistingLink) void openLinkTarget(toolExistingLink.url) }} />}
   {contentTool && active && contentTool.kind === 'language' && toolCode && <LanguageDialog language={toolCode.language} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={language => applyContentTool(context => codeBlockCommand(context.textRevision, textRef.current, context.selection, language, toolCode))} />}
   {contentTool && active && contentTool.paragraph && <ParagraphDialog target={contentTool.paragraph} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={kind => applyContentTool(context => paragraphCommand(context.textRevision, textRef.current, context.selection, kind))} />}
   {tableInsert && active && <TableInsert error={error} onClose={() => { setTableInsert(null); editor.current?.focus() }} onInsert={(rows, columns) => {

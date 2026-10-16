@@ -1,0 +1,13 @@
+{
+  "version": "0.6.0",
+  "verifiedAt": "2026-10-16T04:47:58.105Z",
+  "passed": true,
+  "checks": [
+    "four guide pages with arrow navigation, v0.6 extension/export contract and visible navigation at 960x680",
+    "mixed static HTML has escaped metadata, valid note anchors, MathML, two SVG images, embedded authorized PNG and bordered table; offline file has no active runtime",
+    "actual print PDF and downloaded DOCX retain mixed content, editable exact formula/diagram source, note/metadata warnings, table and embedded PNG; original Markdown unchanged",
+    "both rendering switches preserve mixed source fallbacks in exported HTML and leave local PNG/source intact; no external requests or page errors"
+  ],
+  "scope": "Production Chromium mixed extensions and actual downloaded outputs; OS dialogs, native WebViews and Word are separate checks.",
+  "browser": "156.0.8078.4"
+}

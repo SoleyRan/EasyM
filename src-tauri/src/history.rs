@@ -347,7 +347,7 @@ fn object_write(root: &Path, bytes: &[u8]) -> Result<String, String> {
     else { atomic(root, &path, bytes, true)?; }
     Ok(hash)
 }
-fn text_format(bytes: &[u8]) -> Result<(String, String), String> {
+pub(crate) fn text_format(bytes: &[u8]) -> Result<(String, String), String> {
     if bytes.len() > MAX_TEXT { return Err("quota_exceeded".into()); }
     let bom = bytes.starts_with(&[0xef, 0xbb, 0xbf]);
     let text = std::str::from_utf8(if bom { &bytes[3..] } else { bytes }).map_err(|_| "history_invalid")?;
@@ -548,6 +548,87 @@ fn verify_snapshot(root: &Path, snapshot: &Snapshot, complete: bool) -> Result<V
         }
     }
     Ok(bytes)
+}
+
+// Count per-snapshot review work as well as deduplicated archive bytes. Reusing one
+// object across many snapshots must not amplify IPC text or image verification.
+#[derive(Default)]
+struct PortableReviewBudget { text: usize, expanded: usize, references: usize }
+impl PortableReviewBudget {
+    fn add(&mut self, snapshot: &Snapshot) -> Result<(), String> {
+        self.text = self.text.checked_add(snapshot.body_size).ok_or("quota_exceeded")?;
+        self.references = self.references.checked_add(snapshot.resources.len()).ok_or("quota_exceeded")?;
+        self.expanded = self.expanded.checked_add(snapshot.body_size).ok_or("quota_exceeded")?;
+        for resource in &snapshot.resources {
+            self.expanded = self.expanded.checked_add(resource.size).ok_or("quota_exceeded")?;
+        }
+        if self.text > 64 * 1024 * 1024 || self.expanded > 256 * 1024 * 1024 || self.references > 65536 { return Err("quota_exceeded".into()); }
+        Ok(())
+    }
+}
+
+// Export only the registered entry and objects it owns. Never copy location pointers,
+// directory-wide recovery journals, unregistered manifests, or another document.
+pub(crate) fn portable_history(path: &Path) -> Result<BTreeMap<String, Vec<u8>>, String> {
+    let root = root(path)?;
+    let index = index_read(&root)?;
+    let name = key(path)?;
+    let entry = index.documents.get(&name).ok_or("history_disabled")?.clone();
+    let mut subset = Index { budget_bytes: index.budget_bytes, ..Index::default() };
+    subset.documents.insert(name, entry.clone());
+    if entry.snapshots.iter().collect::<BTreeSet<_>>().len() != entry.snapshots.len()
+        || entry.annotations.keys().any(|id| !entry.snapshots.contains(id)) { return Err("history_invalid".into()); }
+    let mut files = BTreeMap::new();
+    files.insert(format!("{BASE}/index.json"), serde_json::to_vec_pretty(&subset).map_err(|_| "history_invalid")?);
+    let mut budget = PortableReviewBudget::default();
+    for id in &entry.snapshots {
+        if index.deleted.contains(&format!("{}/{id}", entry.document_id)) { return Err("history_invalid".into()); }
+        let snapshot = manifest_read(&root, &entry.document_id, id)?;
+        budget.add(&snapshot)?;
+        let body = verify_snapshot(&root, &snapshot, true)?;
+        let manifest = bounded(&root, &manifest_path(&entry.document_id, id)?, MAX_JSON)?;
+        files.insert(manifest_path(&entry.document_id, id)?, manifest);
+        files.insert(format!("{BASE}/objects/{}", snapshot.body_hash), body);
+        for resource in &snapshot.resources {
+            let hash = resource.hash.as_deref().ok_or("history_incomplete")?;
+            let path = format!("{BASE}/objects/{hash}");
+            if !files.contains_key(&path) { files.insert(path, object_read(&root, hash, 20 * 1024 * 1024)?); }
+        }
+        // Check the aggregate after every snapshot, without retaining another archive.
+        let total: usize = files.values().map(Vec::len).sum();
+        if total > 256 * 1024 * 1024 || files.len() > MAX_ENTRIES { return Err("quota_exceeded".into()); }
+    }
+    Ok(files)
+}
+
+// Called only on an isolated staging directory. Returns every body's resources for
+// the frontend AST review, and enforces an exact one-document history file set.
+pub(crate) fn validate_portable_history(root: &Path, name: &str, actual: &BTreeSet<String>) -> Result<Vec<(String, Vec<String>)>, String> {
+    let resolved = root.canonicalize().map_err(|_| "io_failed")?;
+    let root = resolved.as_path();
+    let index = index_read(root)?;
+    if index.documents.len() != 1 || !index.documents.contains_key(name) || !index.deleted.is_empty() { return Err("history_invalid".into()); }
+    let entry = &index.documents[name];
+    if entry.snapshots.iter().collect::<BTreeSet<_>>().len() != entry.snapshots.len()
+        || entry.annotations.keys().any(|id| !entry.snapshots.contains(id)) { return Err("history_invalid".into()); }
+    let mut expected = BTreeSet::from([format!("{BASE}/index.json")]);
+    let mut reviews = Vec::new();
+    let mut budget = PortableReviewBudget::default();
+    for id in &entry.snapshots {
+        expected.insert(manifest_path(&entry.document_id, id)?);
+        let snapshot = manifest_read(root, &entry.document_id, id)?;
+        budget.add(&snapshot)?;
+        let bytes = verify_snapshot(root, &snapshot, true)?;
+        expected.insert(format!("{BASE}/objects/{}", snapshot.body_hash));
+        let mut paths = Vec::new();
+        for resource in &snapshot.resources {
+            expected.insert(format!("{BASE}/objects/{}", resource.hash.as_deref().ok_or("history_incomplete")?));
+            paths.push(resource.path.clone());
+        }
+        reviews.push((String::from_utf8(bytes).map_err(|_| "history_corrupt")?, paths));
+    }
+    if &expected != actual { return Err("history_invalid".into()); }
+    Ok(reviews)
 }
 fn relocation(root: &Path, snapshot: &Snapshot) -> Result<BTreeMap<String, String>, String> {
     verify_snapshot(root, snapshot, true)?; let mut map = BTreeMap::new();
@@ -879,6 +960,72 @@ pub async fn history_operation(state: State<'_, Storage>, id: String, request: R
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn portable_review_bounds_repeated_body_image_and_reference_work() {
+        let (_temp, root, path, index) = setup(b"baseline");
+        let mut snapshot = newest(&root, &index, &path);
+        snapshot.body_size = MAX_TEXT;
+        let mut budget = PortableReviewBudget::default();
+        for _ in 0..6 { budget.add(&snapshot).unwrap(); }
+        assert_eq!(budget.add(&snapshot).unwrap_err(), "quota_exceeded");
+        snapshot.body_size = 1;
+        let resource = Resource { path: "a.png".into(), hash: None, size: 20 * 1024 * 1024, mime: Some("image/png".into()), role: "display".into(), missing: false };
+        snapshot.resources = vec![resource.clone()];
+        let mut budget = PortableReviewBudget::default();
+        for _ in 0..12 { budget.add(&snapshot).unwrap(); }
+        assert_eq!(budget.add(&snapshot).unwrap_err(), "quota_exceeded");
+        snapshot.resources = vec![Resource { size: 1, ..resource }; 4096];
+        let mut budget = PortableReviewBudget::default();
+        for _ in 0..16 { budget.add(&snapshot).unwrap(); }
+        assert_eq!(budget.add(&snapshot).unwrap_err(), "quota_exceeded");
+    }
+    #[test]
+    fn portable_history_keeps_only_registered_current_document_and_annotations() {
+        let (_temp, root, path, mut index) = setup(b"baseline");
+        capture(&root, &mut index, &path, input(b"manual body"), "manual", Some("named".into())).unwrap();
+        let snap = newest(&root, &index, &path);
+        index.documents.get_mut(&key(&path).unwrap()).unwrap().annotations.entry(snap.snapshot_id.clone()).or_default().pinned = true;
+        index_write(&root, &index).unwrap();
+        let other = root.join("other.md"); fs::write(&other, b"other private data").unwrap();
+        execute(&other, &BTreeSet::new(), Request::Enable { references: vec![], unarchived_references: vec![], expected_revision: None }).unwrap();
+        let selected = tempfile::tempdir().unwrap(); change_location(&root, Some(selected.path())).unwrap();
+        // An unregistered file and a merge journal must never be copied.
+        fs::write(history_location(&root).unwrap().join("private.txt"), b"unregistered").unwrap();
+        let files = portable_history(&path).unwrap();
+        assert!(!files.contains_key(LOCATION)); assert!(!files.values().any(|bytes| bytes == b"other private data" || bytes == b"unregistered"));
+        let staged = tempfile::tempdir().unwrap(); let staged_root = staged.path().canonicalize().unwrap();
+        for (relative, bytes) in &files { let target = staged_root.join(relative); fs::create_dir_all(target.parent().unwrap()).unwrap(); fs::write(target, bytes).unwrap(); }
+        let reviews = validate_portable_history(&staged_root, &key(&path).unwrap(), &files.keys().cloned().collect()).unwrap();
+        assert_eq!(reviews.len(), 2);
+        let imported = index_read(&staged_root).unwrap(); assert_eq!(imported.documents.len(), 1);
+        let note = &imported.documents[&key(&path).unwrap()].annotations[&snap.snapshot_id]; assert_eq!(note.name.as_deref(), Some("named")); assert!(note.pinned);
+        let mut extra: BTreeSet<_> = files.keys().cloned().collect(); extra.insert(format!("{BASE}/private.json"));
+        assert!(validate_portable_history(&staged_root, &key(&path).unwrap(), &extra).is_err());
+        assert!(validate_portable_history(&staged_root, "other.md", &files.keys().cloned().collect()).is_err());
+    }
+    #[test]
+    fn portable_history_rejects_corrupt_missing_and_future_data() {
+        let (_temp, root, path, index) = setup(b"baseline"); let snap = newest(&root, &index, &path);
+        let object = root.join(format!("{BASE}/objects/{}", snap.body_hash));
+        fs::write(&object, b"bad").unwrap(); assert!(portable_history(&path).is_err());
+        fs::remove_file(&object).unwrap(); assert!(portable_history(&path).is_err());
+        fs::write(&object, b"baseline").unwrap();
+        let manifest = root.join(manifest_path(&snap.document_id, &snap.snapshot_id).unwrap());
+        let mut value: Value = serde_json::from_slice(&fs::read(&manifest).unwrap()).unwrap(); value["schemaVersion"] = json!(2); fs::write(manifest, serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(portable_history(&path).is_err());
+        let mut value = serde_json::to_value(&index).unwrap(); value["schemaVersion"] = json!(2); fs::write(root.join(format!("{BASE}/index.json")), serde_json::to_vec(&value).unwrap()).unwrap();
+        assert!(portable_history(&path).is_err());
+    }
+    #[test]
+    fn portable_history_requires_complete_images_and_restores_them_from_objects() {
+        let (_temp, root, path, mut index) = setup(b"baseline");
+        let mut data = input(b"![a](assets/img-a.png)"); data.references = vec!["assets/img-a.png".into()];
+        data.assets = vec![Asset { path: "assets/img-a.png".into(), bytes: include_bytes!("../icons/32x32.png").to_vec() }];
+        capture(&root, &mut index, &path, data, "manual", None).unwrap();
+        let snap = newest(&root, &index, &path); assert!(portable_history(&path).is_ok());
+        let object = root.join(format!("{BASE}/objects/{}", snap.resources[0].hash.as_deref().unwrap())); fs::remove_file(object).unwrap();
+        assert!(portable_history(&path).is_err());
+    }
     #[test]
     fn custom_history_migrates_all_documents_and_survives_restart_and_reset() {
         let (_temp, root, path, mut index) = setup(b"baseline");

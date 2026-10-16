@@ -86,6 +86,8 @@ jobs:
             test-results/external/*.png
             test-results/merge-verification.json
             test-results/merge/*.png
+            test-results/backup-verification.json
+            test-results/backup/*.png
             test-results/settings-verification.json
             test-results/regression-verification.json
           if-no-files-found: warn

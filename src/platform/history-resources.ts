@@ -3,7 +3,7 @@ import HistoryWorker from './history-diff-worker?worker&inline'
 
 /** Large AST scans must not block keystrokes during ordinary automatic saving. */
 export async function collectHistoryResources(texts: string[]): Promise<ReturnType<typeof historyResourceSets>[]> {
-  if (texts.every(text => text.length < 65536)) return Promise.resolve(texts.map(historyResourceSets))
+  if (texts.reduce((total, text) => total + text.length, 0) < 65536) return Promise.resolve(texts.map(historyResourceSets))
   return new Promise((resolve, reject) => {
     const worker = new HistoryWorker()
     const finish = () => { clearTimeout(timer); worker.terminate() }
