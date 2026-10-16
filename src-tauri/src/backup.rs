@@ -180,8 +180,11 @@ fn verify_payload(manifest: &Manifest, files: &Files) -> Result<Vec<Review>, Str
     let history_files: BTreeSet<_> = files.keys().filter_map(|p| p.strip_prefix("document/").filter(|s| s.starts_with(".easym/history/")).map(str::to_string)).collect();
     if manifest.includes_history {
         let staged = tempfile::tempdir().map_err(|_| "io_failed")?;
-        let subset: Files = history_files.iter().map(|p| (format!("document/{p}"), files[&format!("document/{p}")].clone())).collect(); stage_files(staged.path(), &subset)?;
-        for (text, paths) in history::validate_portable_history(staged.path(), &manifest.document_name, &history_files)? {
+        // macOS temporary directories can contain system aliases such as /var.
+        // Resolve our private staging root before applying canonical-path checks.
+        let root = staged.path().canonicalize().map_err(|_| "io_failed")?;
+        let subset: Files = history_files.iter().map(|p| (format!("document/{p}"), files[&format!("document/{p}")].clone())).collect(); stage_files(&root, &subset)?;
+        for (text, paths) in history::validate_portable_history(&root, &manifest.document_name, &history_files)? {
             for path in &paths { image_path(path)?; } reviews.push(Review { text, available_references: paths });
         } expected.extend(subset.keys().cloned());
     } else if !history_files.is_empty() { return Err("backup_corrupt".into()); }
@@ -288,6 +291,10 @@ pub async fn create_document_backup(state: State<'_, Storage>, input: BackupInpu
     tauri::async_runtime::spawn_blocking(move || {
         document_name(&input.name)?; let filename = format!("{}.easym-backup.zip", Path::new(&input.name).file_stem().and_then(|s| s.to_str()).ok_or("invalid_data")?);
         let Some(target) = rfd::FileDialog::new().add_filter("EasyM 文档备份", &["easym-backup.zip"]).set_file_name(filename).save_file() else { return Ok(None); };
+        // A fresh picker grants the resolved location; later checks must not
+        // resolve again and silently follow a replaced parent link.
+        let parent = target.parent().ok_or("permission_denied")?.canonicalize().map_err(|_| "permission_denied")?;
+        let target = parent.join(target.file_name().ok_or("invalid_data")?);
         let sessions = storage.0.lock().map_err(|_| "io_failed")?; let path = input.id.as_ref().map(|id| sessions.get(id).map(PathBuf::as_path).ok_or("permission_denied")).transpose()?;
         let (raw, disk_assets) = build(&input, path)?; Ok(Some(publish_backup(&target, &raw, &input, path, &disk_assets)?))
     }).await.map_err(|_| "io_failed".to_string())?
@@ -297,6 +304,7 @@ pub async fn inspect_document_backup(state: State<'_, Backups>) -> Result<Option
     let backups = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         let Some(path) = rfd::FileDialog::new().add_filter("EasyM 文档备份", &["easym-backup.zip"]).pick_file() else { return Ok(None); };
+        let path = path.canonicalize().map_err(|_| "resource_missing")?;
         let package = decode(&read_bounded(&path, MAX_ARCHIVE)?)?; let token = insert_ticket(&backups, path, package.hash.clone())?;
         Ok(Some(Inspection { token, summary: package.summary(), reviews: package.reviews }))
     }).await.map_err(|_| "io_failed".to_string())?
@@ -306,6 +314,7 @@ pub async fn restore_document_backup(state: State<'_, Backups>, token: String, r
     let backups = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
         ticket(&backups, &token)?; let Some(parent) = rfd::FileDialog::new().set_title("选择恢复到的父目录").pick_folder() else { return Ok(None); };
+        let parent = parent.canonicalize().map_err(|_| "permission_denied")?;
         let mut tickets = backups.0.lock().map_err(|_| "io_failed")?; let grant = tickets.get(&token).filter(|t| t.expires > now()).ok_or("backup_expired")?;
         let package = reread(grant)?; review_references(&package, &references)?; let restored = restore_into(&package, &parent)?; tickets.remove(&token); Ok(Some(restored))
     }).await.map_err(|_| "io_failed".to_string())?
@@ -316,6 +325,12 @@ pub fn release_document_backup(state: State<'_, Backups>, token: String) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn tempdir() -> tempfile::TempDir {
+        // Match native picker grants, including on macOS where the default
+        // temporary directory may be reached through a system symlink.
+        let root = std::env::temp_dir().canonicalize().unwrap();
+        tempfile::Builder::new().tempdir_in(root).unwrap()
+    }
     fn input(bytes: &[u8]) -> BackupInput {
         BackupInput { id: None, name: "中文 note.md".into(), bytes: bytes.into(), assets: vec![], metadata: Metadata { schema_version: 1, instances: vec![] }, references: vec![], unarchived_references: vec![], include_history: false, expected_revision: None }
     }
@@ -331,7 +346,7 @@ mod tests {
     fn central(raw: &[u8]) -> usize { raw.windows(4).position(|v| v == b"PK\x01\x02").unwrap() }
     #[test]
     fn exact_bytes_round_trip_and_restore_separate_directories() {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tempdir();
         let original = temp.path().join("original.md"); fs::write(&original, b"untouched").unwrap();
         for bytes in [b"".as_slice(), "正文 😀\n".as_bytes(), b"\xef\xbb\xbf# title\r\n", b"a\r\nb\n"] {
             let p = package(&input(bytes));
@@ -347,7 +362,7 @@ mod tests {
         data.references = vec!["assets/img-a.png".into()];
         data.assets = vec![Asset { path: "assets/img-a.png".into(), bytes: bytes.clone() }, Asset { path: "assets/.originals/img-a.png".into(), bytes: bytes.clone() }];
         data.metadata.instances = vec![serde_json::json!({"instanceId":"id","documentId":null,"sourcePath":"assets/.originals/img-a.png","displayPath":"assets/img-a.png","sourceHash":transaction::hash(&bytes),"referenceRevision":1,"recipe":{"version":1}})];
-        let p = package(&data); let temp = tempfile::tempdir().unwrap(); let restored = PathBuf::from(restore_into(&p, temp.path()).unwrap());
+        let p = package(&data); let temp = tempdir(); let restored = PathBuf::from(restore_into(&p, temp.path()).unwrap());
         assert_eq!(fs::read(restored.parent().unwrap().join("assets/.originals/img-a.png")).unwrap(), bytes);
         assert_eq!(p.files.len(), 4);
         data.assets.push(Asset { path: "unused.png".into(), bytes: bytes.clone() }); assert!(build(&data, None).is_err()); data.assets.pop();
@@ -356,7 +371,7 @@ mod tests {
     #[test]
     fn history_backup_round_trip_retains_only_current_registered_document() {
         use serde_json::json;
-        let temp = tempfile::tempdir().unwrap(); let root = temp.path().canonicalize().unwrap();
+        let temp = tempdir(); let root = temp.path().canonicalize().unwrap();
         let mut data = input(b"current draft\r\n"); let path = root.join(&data.name); fs::write(&path, b"disk").unwrap();
         data.expected_revision = Some(transaction::hash(b"disk")); data.include_history = true;
         let doc = uuid::Uuid::new_v4().to_string(); let snap = uuid::Uuid::new_v4().to_string();
@@ -400,7 +415,7 @@ mod tests {
     }
     #[test]
     fn disk_revision_and_images_are_rechecked_before_atomic_publication() {
-        let temp = tempfile::tempdir().unwrap(); let path = temp.path().canonicalize().unwrap().join("source.md"); fs::write(&path, b"disk").unwrap();
+        let temp = tempdir(); let path = temp.path().canonicalize().unwrap().join("source.md"); fs::write(&path, b"disk").unwrap();
         fs::write(temp.path().join("pic.png"), include_bytes!("../icons/32x32.png")).unwrap();
         let mut data = input(b"![p](pic.png)"); data.expected_revision = Some(transaction::hash(b"disk")); data.references = vec!["pic.png".into()];
         let (raw, assets) = build(&data, Some(&path)).unwrap(); let target = temp.path().join("copy.easym-backup.zip");
@@ -411,7 +426,7 @@ mod tests {
     }
     #[test]
     fn backup_file_never_overwrites_existing_and_rejects_invalid_extension() {
-        let temp = tempfile::tempdir().unwrap(); let data = input(b"current"); let (raw, assets) = build(&data, None).unwrap();
+        let temp = tempdir(); let data = input(b"current"); let (raw, assets) = build(&data, None).unwrap();
         let target = temp.path().join("copy.easym-backup.zip"); publish_backup(&target, &raw, &data, None, &assets).unwrap();
         assert_eq!(fs::read(&target).unwrap(), raw); assert!(publish_backup(&target, &raw, &data, None, &assets).is_err());
         assert!(publish_backup(&temp.path().join("bad.zip"), &raw, &data, None, &assets).is_err());
@@ -457,7 +472,7 @@ mod tests {
     #[test]
     fn restore_failure_leaves_no_published_partial_directory() {
         let mut p = package(&input(b"body")); p.files.insert("document/assets/bad.png".into(), b"bad".to_vec());
-        let temp = tempfile::tempdir().unwrap(); assert!(restore_into(&p, temp.path()).is_err()); assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 0);
+        let temp = tempdir(); assert!(restore_into(&p, temp.path()).is_err()); assert_eq!(fs::read_dir(temp.path()).unwrap().count(), 0);
     }
     #[test]
     fn review_requires_exact_current_refs_and_history_subsets() {
@@ -469,10 +484,39 @@ mod tests {
     }
     #[test]
     fn tickets_expire_are_bounded_and_bind_the_exact_archive() {
-        let state = Backups::default(); let temp = tempfile::tempdir().unwrap(); let path = temp.path().join("backup.zip"); let raw = build(&input(b"body"), None).unwrap().0; fs::write(&path, &raw).unwrap();
+        let state = Backups::default(); let temp = tempdir(); let path = temp.path().join("backup.zip"); let raw = build(&input(b"body"), None).unwrap().0; fs::write(&path, &raw).unwrap();
         let token = insert_ticket(&state, path.clone(), transaction::hash(&raw)).unwrap(); assert!(reread(&ticket(&state, &token).unwrap()).is_ok());
         fs::write(&path, build(&input(b"replacement"), None).unwrap().0).unwrap(); assert!(matches!(reread(&ticket(&state, &token).unwrap()), Err(e) if e == "backup_changed"));
         for _ in 0..3 { insert_ticket(&state, path.clone(), "hash".into()).unwrap(); } assert!(insert_ticket(&state, path.clone(), "hash".into()).is_err());
         state.0.lock().unwrap().get_mut(&token).unwrap().expires = 0; assert!(ticket(&state, &token).is_err()); assert!(insert_ticket(&state, path, "hash".into()).is_ok());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn picker_aliases_resolve_once_and_replaced_grants_remain_blocked() {
+        use std::os::unix::fs::symlink;
+        let temp = tempdir(); let root = temp.path();
+        let granted = root.join("granted"); let outside = root.join("outside");
+        fs::create_dir(&granted).unwrap(); fs::create_dir(&outside).unwrap();
+        let alias = root.join("picker-alias"); symlink(&granted, &alias).unwrap();
+        let data = input(b"body"); let (raw, assets) = build(&data, None).unwrap();
+        let target = alias.canonicalize().unwrap().join("copy.easym-backup.zip");
+        publish_backup(&target, &raw, &data, None, &assets).unwrap();
+        let state = Backups::default();
+        let token = insert_ticket(&state, alias.join("copy.easym-backup.zip").canonicalize().unwrap(), transaction::hash(&raw)).unwrap();
+        let p = reread(&ticket(&state, &token).unwrap()).unwrap();
+        let restored = restore_into(&p, &alias.canonicalize().unwrap()).unwrap();
+        assert_eq!(fs::read(restored).unwrap(), b"body");
+        // An unchecked alias is still rejected by the internal operations.
+        assert!(publish_backup(&alias.join("other.easym-backup.zip"), &raw, &data, None, &assets).is_err());
+        assert!(restore_into(&p, &alias).is_err());
+        // Replacing the authorized directory after inspection must not grant
+        // access to another location, even if it holds identical archive bytes.
+        fs::write(outside.join("copy.easym-backup.zip"), &raw).unwrap();
+        fs::rename(&granted, root.join("original-granted")).unwrap(); symlink(&outside, &granted).unwrap();
+        assert!(matches!(reread(&ticket(&state, &token).unwrap()), Err(e) if e == "permission_denied"));
+        assert!(publish_backup(&granted.join("other.easym-backup.zip"), &raw, &data, None, &assets).is_err());
+        assert!(restore_into(&p, &granted).is_err());
+        assert_eq!(fs::read_dir(&outside).unwrap().count(), 1);
+        assert_eq!(fs::read(outside.join("copy.easym-backup.zip")).unwrap(), raw);
     }
 }
