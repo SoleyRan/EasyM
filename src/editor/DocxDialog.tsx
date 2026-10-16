@@ -16,7 +16,7 @@ interface Props {
 
 export function DocxDialog({ prepared, source, phase, onGenerate, onCancel, onLocate, onReadOther }: Props) {
   const dialog = useRef<HTMLFormElement>(null)
-  useModalOverlay(dialog)
+  useModalOverlay(dialog, '.app-menu-trigger')
   const [options, setOptions] = useState<DocxOptions>(defaultDocxOptions)
   const ready = phase === 'ready', cancellable = phase !== 'saving'
   const lines = useMemo(() => {

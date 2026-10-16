@@ -7,11 +7,11 @@ import './print.css'
 
 export function PrintDialog({ output, onClose }: { output: ExportDocument; onClose(): void }) {
   const dialog = useRef<HTMLDivElement>(null), root = useRef<HTMLElement>(null)
-  useModalOverlay(dialog)
+  useModalOverlay(dialog, '.app-menu-trigger')
   const [printing, setPrinting] = useState(false), [error, setError] = useState('')
   const locked = useRef(false)
   useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null; const title = document.title
+    const title = document.title
     document.title = output.name.replace(/\.html$/i, ''); document.body.classList.add('easym-print-ready')
     dialog.current?.querySelector<HTMLButtonElement>('button')?.focus()
     const keyboard = (event: KeyboardEvent) => {
@@ -23,7 +23,7 @@ export function PrintDialog({ output, onClose }: { output: ExportDocument; onClo
       }
     }
     document.addEventListener('keydown', keyboard)
-    return () => { document.removeEventListener('keydown', keyboard); document.body.classList.remove('easym-print-ready'); document.title = title; previous?.focus() }
+    return () => { document.removeEventListener('keydown', keyboard); document.body.classList.remove('easym-print-ready'); document.title = title }
   }, [output, onClose])
   async function print() {
     if (locked.current) return

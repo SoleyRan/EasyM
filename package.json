@@ -16,6 +16,7 @@
     "verify:docx-library": "node scripts/verify-docx-library.mjs",
     "verify:docx": "node scripts/verify-docx.mjs",
     "verify:docx-ui": "node scripts/verify-docx-ui.mjs",
+    "verify:focus": "node scripts/verify-focus.mjs",
     "verify:history": "node scripts/verify-history.mjs",
     "verify:settings": "node scripts/verify-settings.mjs",
     "verify:batch-images": "node scripts/verify-batch-images.mjs",

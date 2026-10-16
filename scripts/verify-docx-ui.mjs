@@ -186,6 +186,7 @@ try {
   const large = '# 大样例\n\n' + ('办公正文 abc 中文。'.repeat(1400) + '\n\n').repeat(100) + imageBody.repeat(100)
   try {
     await fillSource(page, large)
+    assert.equal(await draftText(), large, 'complete large fixture must reach the application before export')
     const started = Date.now(); await action(); await ready(); const preflightMs = Date.now() - started
     const generated = Date.now(); const largeZip = await download('large')
     report.performance = { sourceUtf8Bytes: Buffer.byteLength(large), imageReferences: 100, preflightMs, generateAndDownloadMs: Date.now() - generated, memory }

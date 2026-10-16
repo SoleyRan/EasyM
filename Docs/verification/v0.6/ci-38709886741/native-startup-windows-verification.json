@@ -1,0 +1,19 @@
+{
+  "verifiedAt": "2026-10-15T13:55:09.0313515Z",
+  "version": "0.6.0",
+  "executableSha256": "23abd3949f647f2edcb4b3580c655e71ff3b556bfab16ef0a455e507464ae0c1",
+  "isolatedProfile": true,
+  "isolatedNativeRegistry": true,
+  "elevated": false,
+  "profileSource": "process environment",
+  "launched": true,
+  "gracefulClose": true,
+  "passed": true,
+  "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance.",
+  "appProcess": {
+    "exitCode": 0,
+    "exited": true,
+    "id": 8236
+  },
+  "webviewProcesses": []
+}

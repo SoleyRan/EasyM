@@ -19,7 +19,7 @@ const volume = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(2)} MiB`
 export function HistoryDialog(props: Props) {
   const { fileId, text, bytes, revision, resources, snapshot, onClose, onRestore } = props
   const dialog = useRef<HTMLDivElement>(null), task = useRef<AbortController | null>(null), mounted = useRef(true)
-  useModalOverlay(dialog)
+  useModalOverlay(dialog, '.app-menu-trigger')
   const [history, setHistory] = useState<HistoryStatus | null>(null), [selected, setSelected] = useState<HistorySnapshot | null>(null)
   const [historyPath, setHistoryPath] = useState('')
   const [target, setTarget] = useState<FileSnapshot | null>(null), [diff, setDiff] = useState<HistoryDiff | null>(null)
