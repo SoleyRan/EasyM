@@ -1,0 +1,50 @@
+{
+  "verifiedAt": "2026-10-16T10:07:20.4699138Z",
+  "version": "1.0.0",
+  "executableSha256": "8fcc710d675780d6bc423dc4f99d23a356369824d0d4498b5c5bb9035f755911",
+  "isolatedProfile": true,
+  "isolatedNativeRegistry": true,
+  "elevated": true,
+  "profileSource": "temporary executable-scoped HKLM policy",
+  "launched": true,
+  "gracefulClose": true,
+  "passed": true,
+  "scope": "Native window startup and close only; no editor, IME, file dialogs or printing acceptance.",
+  "appProcess": {
+    "id": 8736,
+    "exitCode": 0,
+    "exited": true
+  },
+  "webviewProcesses": [
+    {
+      "ProcessId": 8180,
+      "ParentProcessId": 8736,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe\" --embedded-browser-webview=1 --webview-exe-name=easym.exe --webview-exe-version=1.0.0 --user-data-dir=\"D:\\a\\EasyM\\EasyM\\test-results\\native-startup-3d0438db368d4396b3b99f9407b1ac20\\EBWebView\" --noerrdialogs --embedded-browser-webview-dpi-awareness=2 --autoplay-policy=no-user-gesture-required --disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --lang=en-US --mojo-named-platform-channel-pipe=8736.8848.1900584747989919363 /pfhostedapp:40d2e888d20c378ea25aa3e4893b231c39b376da"
+    },
+    {
+      "ProcessId": 8860,
+      "ParentProcessId": 8180,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe\" --type=crashpad-handler --user-data-dir=D:\\a\\EasyM\\EasyM\\test-results\\native-startup-3d0438db368d4396b3b99f9407b1ac20\\EBWebView /prefetch:4 /pfhostedapp:40d2e888d20c378ea25aa3e4893b231c39b376da --monitor-self-annotation=ptype=crashpad-handler --database=D:\\a\\EasyM\\EasyM\\test-results\\native-startup-3d0438db368d4396b3b99f9407b1ac20\\EBWebView\\Crashpad --annotation=IsOfficialBuild=1 --annotation=channel= --annotation=chromium-version=154.0.8037.98 \"--annotation=exe=C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe\" --annotation=plat=Win64 \"--annotation=prod=Edge WebView2\" --annotation=ver=154.0.4258.62 --initial-client-data=0x178,0x17c,0x180,0x154,0x188,0x7ffa66ac83e0,0x7ffa66ac83f0,0x7ffa66ac8400"
+    },
+    {
+      "ProcessId": 6588,
+      "ParentProcessId": 8180,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe\" --type=gpu-process --gpu-recent-crash-count=0 --noerrdialogs --user-data-dir=\"D:\\a\\EasyM\\EasyM\\test-results\\native-startup-3d0438db368d4396b3b99f9407b1ac20\\EBWebView\" --webview-exe-name=easym.exe --webview-exe-version=1.0.0 --embedded-browser-webview=1 --embedded-browser-webview-dpi-awareness=2 --gpu-preferences=WAAAAAAAAADgAAAEAAAAAAAAAAAAAGAAQAAAAAAAAAADAAAAAAAAADgAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAKAAAAAAAAAAoAAAAAAAAAAgAAAAAAAAAEAAAAAIAAAABAAAAAAAAAAgAAAAAAAAACAAAAAAAAAA= --startup-read-main-dll --metrics-shmem-handle=1744,i,10343007225470129713,16136826231340570453,262144 --field-trial-handle=1864,i,10237594052619705420,1912587981396463856,262144 --disable-features=msPdfOOUI,msSmartScreenProtection,msWebOOUI --variations-seed-version --pseudonymization-salt-handle=1884,i,6120290000065563822,17243790051863969272,4 --trace-process-track-uuid=3190708988185955192 --mojo-platform-channel-handle=1868 /prefetch:2 /pfhostedapp:40d2e888d20c378ea25aa3e4893b231c39b376da"
+    },
+    {
+      "ProcessId": 6496,
+      "ParentProcessId": 8180,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe\" --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --noerrdialogs --user-data-dir=\"D:\\a\\EasyM\\EasyM\\test-results\\native-startup-3d0438db368d4396b3b99f9407b1ac20\\EBWebView\" --webview-exe-name=easym.exe --webview-exe-version=1.0.0 --embedded-browser-webview=1 --embedded-browser-webview-dpi-awareness=2 --startup-read-main-dll --metrics-shmem-handle=2080,i,15622050079118291364,18247379047327766279,524288 --field-trial-handle=1864,i,10237594052619705420,1912587981396463856,262144 --disable-features=msPdfOOUI,msSmartScreenProtection,msWebOOUI --variations-seed-version --pseudonymization-salt-handle=1884,i,6120290000065563822,17243790051863969272,4 --trace-process-track-uuid=3190708989122997041 --mojo-platform-channel-handle=2160 /prefetch:11 /pfhostedapp:40d2e888d20c378ea25aa3e4893b231c39b376da"
+    },
+    {
+      "ProcessId": 3476,
+      "ParentProcessId": 8180,
+      "ExecutablePath": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe",
+      "CommandLine": "\"C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\154.0.4258.62\\msedgewebview2.exe\" --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=service --noerrdialogs --user-data-dir=\"D:\\a\\EasyM\\EasyM\\test-results\\native-startup-3d0438db368d4396b3b99f9407b1ac20\\EBWebView\" --webview-exe-name=easym.exe --webview-exe-version=1.0.0 --embedded-browser-webview=1 --embedded-browser-webview-dpi-awareness=2 --startup-read-main-dll --metrics-shmem-handle=2540,i,9775711136080071607,7423594205190691762,524288 --field-trial-handle=1864,i,10237594052619705420,1912587981396463856,262144 --disable-features=msPdfOOUI,msSmartScreenProtection,msWebOOUI --variations-seed-version --pseudonymization-salt-handle=1884,i,6120290000065563822,17243790051863969272,4 --trace-process-track-uuid=3190708990060038890 --mojo-platform-channel-handle=2556 /prefetch:13 /pfhostedapp:40d2e888d20c378ea25aa3e4893b231c39b376da"
+    }
+  ]
+}

@@ -12,6 +12,54 @@ const output = resolve(outputDirectory)
 const appVersion = JSON.parse(await readFile('package.json', 'utf8')).version
 const externalLicenseRoot = resolve('scripts/external-licenses')
 const externalLicenses = {
+  'cargo:block2@0.6.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:dispatch2@0.3.1': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2@0.6.5': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/d7d2fa23ceaa5e6096c923b081040e5d81b3b9df/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-encode@4.1.0': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-exception-helper@0.1.1': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-app-kit@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-core-foundation@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-core-graphics@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-foundation@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-io-surface@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-quartz-core@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
+  'cargo:objc2-web-kit@0.3.2': [
+    { file: 'objc2-LICENSE.txt', source: 'https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md' },
+    { file: 'objc2-MIT-template.txt', source: 'https://raw.githubusercontent.com/spdx/license-list-data/31ba1a50e5397e00a304dbadc76531740e89ee48/text/MIT.txt' },
+  ],
   'npm:remark-math@6.0.0': [{ file: 'remark-math-MIT.txt', source: 'https://github.com/remarkjs/remark-math/blob/d5d0660b150810a535bbb07eac6cc96a4510aa24/license' }],
   'npm:hash.js@1.1.7': [{ file: 'hash.js-MIT.txt', source: 'https://github.com/indutny/hash.js/blob/fcd35edcc4e30145be4b7a737477ad54e83afc25/README.md#license' }],
   'npm:isarray@1.0.0': [{ file: 'isarray-MIT.txt', source: 'https://github.com/juliangruber/isarray/blob/2a23a281f369e9ae06394c0fb4d2381355a6ba33/README.md#license' }],

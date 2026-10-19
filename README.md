@@ -1,63 +1,29 @@
 # EasyM
 
-EasyM 是一个本地优先的跨平台 Markdown 办公编辑器。v0.1 先实现可靠的桌面编辑闭环：Markdown 打开、编辑、保存、草稿恢复，以及图片导入后只修改当前插入实例的副本。
+EasyM 是本地优先的 Markdown 桌面编辑器，使用 React、CodeMirror 和 Tauri 2。文档保存在自己的目录中，支持源码、分屏和即时渲染。
 
-## 当前状态
+## 1.0 状态
 
-当前开发分支为 `feature/v0.7`，按 [v0.7 冻结计划](Docs/Easy-Markdown-v0.7-设计与实施计划.md) 完成三方合并、强制恢复归档及单文档备份。前三步已提交为 `12d8b8f`、`68f2edf`、`25b88ef`；第4步统一到 `0.7.0`，补齐四页导引与 [合并/备份样例](Docs/samples/v0.7/README.md)，本机 316 项前端测试、91 项 Rust 测试、31 组生产回归、四项慢速检查、性能、Word、Windows 原生检查与开发包校验通过。第4步随本次提交完成，远程 CI 与人工/发行门槛见 [第4步记录](Docs/Easy-Markdown-v0.7-第四步-验收与交付.md)。当前为未签名开发候选。
+当前分支 feature/v1.0，正在完成 1.0.0 发版收尾，尚未发布正式 Release。范围见 [发布计划](Docs/Easy-Markdown-v1.0-发布计划.md)，功能、升级方式、已知限制及实机检查见 [发行说明](Docs/Easy-Markdown-v1.0-发行说明.md)。历史阶段和证据保留在 Docs 中，不把旧版本检查当作本轮验收。
 
-v0.6 与后续 CI 修复已合入 main。按 [v0.6 冻结计划](Docs/Easy-Markdown-v0.6-设计与实施计划.md) 完成脚注/Front Matter、数学公式、Mermaid 及 [统一验收与交付](Docs/Easy-Markdown-v0.6-第四步-验收与交付.md)。最终 [PR CI](https://github.com/SoleyRan/EasyM/actions/runs/38747154651) 与 [push CI](https://github.com/SoleyRan/EasyM/actions/runs/38747145573) 均通过，包含 283 项前端测试、28 组生产回归及三平台桌面任务；[v0.6 样例](Docs/samples/v0.6/README.md)、本机性能/Word/Windows 开发包与人工验收边界仍分别保留。
+## 功能
 
-v0.5 已完成会话/草稿恢复、最近文件/工作区、已保存标签重开、外部变化及全文/差异对照，历史 252 项前端/65 项 Windows Rust/23 组生产回归、性能、Word 和 Windows 开发包证据见 [v0.5 交付记录](Docs/Easy-Markdown-v0.5-第四步-验收与交付.md)。真实 IME 与跨平台 GUI 等仍待验收。仅借鉴 MarkText 的交互设计，独立实现，没有引入其代码或资源。
+- 多文档标签、工作区与大纲、双向滚动同步、查找替换、模板、命令面板与快速打开。
+- 选区格式切换、语法高亮和代码语言选择、可视化表格、图片副本编辑与批量处理。
+- 四种配色、字号和排版设置、阅读模式、自定义窗口和右键菜单。
+- 脚注、Front Matter、离线数学公式和 Mermaid；HTML、可编辑 DOCX、系统打印/PDF。
+- 自动保存、草稿与会话恢复、最近文件、可选版本历史与文字/图片对照。
+- 外部修改检测、三方合并、合并前强制归档与单文档备份/恢复。
 
-v0.4 已完成统一命令与浮层、可视化表格、选区与内容工具、快捷插入/命令面板/快速打开、排版设置与系统主题；历史验收见 [v0.4 排版与交付](Docs/Easy-Markdown-v0.4-第五步-排版与交付.md)。
+已命名文档停止输入 1.2 秒后自动写回。新文档先保留草稿，首次需另存为。外部冲突和写入失败暂停自动保存并提示。版本历史需显式启用；草稿和历史不能代替备份。浏览器模式用于开发验证，原生目录和部分数据保护能力仅桌面版提供。
 
-v0.3 已合并到 develop，已完成办公增强实现和 [0.3.0 本机验收与开发包交付](Docs/Easy-Markdown-v0.3-验收与交付.md)：DOCX 预检/后台导出、显式启用的持久版本历史与文字/图片差异、恢复/清理、最多 100 实例的安全批图，以及键盘焦点和阅读模式改进。PDF 候选实测评估后保留系统打印，专用引擎延期。173 项前端、50 项 Windows Rust、15 组生产回归、慢速查找/模板、Word 打开编辑再保存与原生窗口启动通过；0.3.0 Windows 安装包/便携包已生成。提交 `efcfe0b` 的 [三平台 CI 第 2 次运行](https://github.com/SoleyRan/EasyM/actions/runs/38367149201/attempts/2) 全部通过，包含 Windows 原生启动、隔离安装/卸载和便携包校验。真实 IME/原生对话框、读屏与跨平台 GUI 等门槛仍待验收，不称为正式发行。范围见 [v0.3 设计计划](Docs/Easy-Markdown-v0.3-设计与实施计划.md)。
+## 下载和使用
 
-v0.2 的 6 步实现与自动化验收已完成：文档内查找/替换、即时渲染、工作区搜索/键盘导航、内置模板、安全 HTML 导出与系统打印入口，以及统一回归和 Windows 开发包。最终提交 `e66d0f7` 的 [CI run](https://github.com/SoleyRan/EasyM/actions/runs/38044000324) 四个任务全部通过。范围见 [v0.2 设计与实施计划](Docs/Easy-Markdown-v0.2-设计与实施计划.md)，结果与剩余实机项目见 [v0.2 验收与交付](Docs/Easy-Markdown-v0.2-验收与交付.md)。当前仍是未签名开发候选，不是正式发行版。
+正式下载以 [GitHub Releases](https://github.com/SoleyRan/EasyM/releases) 为准。Windows x64 包需要 WebView2 Runtime；当前没有签名或自动更新。1.0 按三平台同时正式发布；正在等待 Windows/macOS/Linux 实机验收，自动构建通过不代替该验收。首发目标为 Windows x64、macOS Apple Silicon、Ubuntu 24.04 x86_64。
 
-已建立 React + TypeScript + Vite 前端和 Tauri 2 桌面工程，当前实现包括：
+目标文件名：EasyM_1.0.0_x64-setup.exe、EasyM-1.0.0-windows-x64.zip。下载后可使用 PowerShell 的 Get-FileHash -Algorithm SHA256 核对同次发行的 SHA256SUMS.txt。便携包附带 [体验指南与样例](Docs/samples/v1.0/README.md)，练习前复制到临时目录。
 
-- 脚注往返导航及文末说明，文件开头 YAML/TOML 元数据完整静态原文；
-- 离线行内/块级数学公式和 Mermaid 流程图/时序图，四主题适配，设置独立开关，错误与超限保留源码；
-- HTML/打印输出静态 MathML 和 SVG 图片，DOCX 保留公式及图表的可编辑源码并预检提示，导出不改变正文；
-- 重启恢复标签顺序和活动页；桌面版最近打开最多记录 30 个文件、10 个工作区，启动最多自动重开 20 个已保存文件；清空记录不删除原文件、草稿或历史；
-- 有未完成草稿时需确认恢复为独立副本并另存；切回应用/标签检测外部变化，冲突时暂停自动保存，可比较、另存或确认加载；有可靠基线时支持三方分析及明确确认后的合并，提交前强制归档 B/L/R/候选，原有本地图片无法验证时阻止应用；
-- EM → 合并恢复记录可取回归档的基线、本地、磁盘或候选副本；EM → 文档备份与恢复保存精确正文、引用的 PNG/JPEG 与可选的当前文档历史，校验后恢复到新目录。备份不包含整个工作区、历史位置配置或合并恢复记录，远程图片仅保存链接；
-- 源码、分屏与即时渲染视图；即时渲染在同一编辑器中呈现标题/行内格式、代码、表格、图片和分隔线，活动块保留源码可编辑；
-- EM 图标文件菜单、右侧多文档标签与滚轮浏览，按需展开并拖拽调整文件树/大纲宽度；
-- 自定义右键菜单：标签可关闭当前、所有或其他文档；编辑区、预览、文件树、大纲与文本输入框提供对应操作，空白和普通按钮不显示默认菜单；批量关闭保留未保存确认，全部关闭后保留一个空白标签；
-- 分屏源码与预览双向滚动同步，点击大纲标题同步定位两侧；
-- 代码块语言选择及源码/预览语法高亮、语言修改撤销/重做；
-- 多文档标签，各自保留正文、撤销记录、滚动位置和草稿；
-- 四种 Style 配色（浅色、深色、暖纸、护眼绿），在 EM → 设置中选择并自动记住；
-- 随主题变化的顶栏窗口控制、拖动与双击最大化；底部行数与字数；
-- 全屏阅读模式：仅显示预览，支持文件树/大纲、按钮或 Esc 退出，保留正文和撤销记录；
-- Markdown 源范围补丁、可隐藏且记住偏好的格式工具栏、标题大纲与带边框表格；
-- 可视化 GFM 表格：空表创建、单元格 Markdown 和预览、Tab 换格、行列增删与对齐；未应用输入保护、自动保存暂停及原子撤销；
-- `/` 快捷插入标题/列表/代码/表格/图片等结构；F1 命令面板；Ctrl/Cmd+Alt+O 搜索已打开标签和授权工作区文件名；
-- 文档内查找/替换入口，支持中文/Unicode 查询、结果计数、循环定位和可撤销替换；
-- EM 菜单内置空白、会议纪要和项目说明模板，支持变量字面替换、独立新标签、草稿恢复和首次另存；
-- EM 菜单导出单文件静态 HTML，内联已授权本地 PNG/JPEG，远程/缺失图片提示占位；打印预览、Ctrl/Cmd+P 和系统打印入口，输出不改变 Markdown 或草稿；
-- EM 菜单导出可编辑 DOCX，支持纸张/办公样式、预检定位、缺图占位确认和后台取消；导出包含未保存编辑，保留草稿与撤销，准备/生成期间可阅读其他标签；
-- EM 菜单版本历史：显式启用后归档磁盘基线、手动内存快照与限频自动版本，支持命名/固定、文字与图片差异、确认恢复、一次撤销/重做、精确字节副本及有预览的历史清理；
-- EM → 设置：配色、格式工具栏显示、编辑字号与当前文档目录的历史保存位置；切换历史目录会复制校验并保留原副本；
-- 首次启动／版本变化的使用导引，说明自动保存、版本历史、图片处理和导出，可从设置重新查看；
-- 格式工具栏应用/取消切换、选区按下/混合状态，以及主题适配的鼠标选区高亮；
-- 已命名本地文档停止输入 1.2 秒后自动保存，草稿与未应用图片操作恢复；
-- PNG/JPEG 导入、后台处理、裁剪/旋转/翻转/尺寸/Alt、取消和应用；
-- 图片源副本、显示副本、实例隔离和浏览器工作区 ZIP 下载；
-- IndexedDB 草稿恢复、UTF-8/BOM/LF/CRLF 保留、外部版本重新加载入口；
-- 文档核心、图片契约和 ZIP 路径安全单元测试；
-- Tauri 2 原生文件保存、冲突检查、图片资源事务和 `.easym/images.json` 实现；
-- 标签/窗口关闭保护：返回编辑、不保存关闭/退出、保留草稿、保存后关闭；
-- 保存操作日志与中断恢复、后台 Markdown 解析 Worker。
-- 桌面工作区目录选择、延迟加载文件树和树内图片拖入；
-- Windows 复制图片文件后粘贴的原生兼容路径，以及失焦时刷新草稿。
-
-浏览器模式用于验证编辑和图片闭环，保存会下载 Markdown 或工作区 ZIP；它不提供桌面版原生最近路径和外部文件检查。草稿保存在本机 WebView 存储，清理应用/站点数据会影响恢复；草稿与版本历史不能代替备份。v0.1 历史验收已通过 TypeScript 检查、125 项前端测试、21 项 Windows Rust 测试、生产构建、统一生产回归、慢速初始化回归、Windows Release/安装/启动/卸载以及原生窗口启动/正常关闭检查。本机 5 MiB 文本和 100 KiB 单行输入 p95 为 17.8/26.8 ms。超长行超过 20,000 字符时暂停源码高亮，缩短后自动恢复，正文和预览保持完整。完整 Windows 图片/真实输入法、原生打印对话框、macOS/Linux GUI 和发行复核仍待完成。设计冻结见 [v0.1 设计](Docs/Easy-Markdown-v0.1-设计冻结.md)，旧版实现记录见 [v0.1 实现说明](Docs/Easy-Markdown-v0.1-实现说明.md)。
-
-本地文件在停止输入 1.2 秒后自动写回；新建或恢复文档先自动保留草稿，首次从 EM 菜单另存为。外部冲突、写入失败或混合换行转换会暂停自动写回并提示，Ctrl/Cmd+S 可手动保存。文件树展开后打开文档仍保持显示，“格式工具栏”按钮可隐藏/显示格式按钮并记住选择；预览表格在四种主题下均有边框。即时渲染在超出 1 Mi 字符或 20,000 字符单行时明确降级为源码。
+升级保留应用标识和已有数据格式；先保存退出并备份文档、.easym 及自定义历史目录，不清除 WebView 存储。首次启动/版本变化会展示四页使用导引，EM → 设置可重新查看。
 
 ## 开发
 
@@ -120,12 +86,16 @@ Windows PowerShell 若拦截 `.ps1` 启动脚本，使用 `pnpm.cmd`。应用图
 
 已有 Microsoft Edge 时，PowerShell 可设置 `$env:EASYM_TEST_BROWSER = 'msedge'`，使用它运行浏览器检查，无需另装 Chromium。检查会创建独立的无头浏览器配置，不读取日常浏览器或桌面应用的草稿。性能脚本的事件到下一帧延迟仅作本机基线，不能代替真实 WebView/输入法验收。报告输出在 `test-results/`。
 
-Windows Release 可执行文件位于 `src-tauri/target/release/easym.exe`。v0.7 便携包目标为 `src-tauri/target/release/bundle/portable/EasyM-0.7.0-windows-x64-dev.zip`，附带项目许可、第三方许可和 v0.7 合并/备份样例，解压后运行 `easym.exe`；系统需要 WebView2 Runtime。它是未签名开发包，实际生成及验收状态见 [v0.7 交付记录](Docs/Easy-Markdown-v0.7-第四步-验收与交付.md)。
+Windows 构建产物位于 src-tauri/target/release/。安装包使用 pnpm.cmd tauri build --bundles nsis；便携包使用 ./scripts/package-portable.ps1，逐文件验证许可和样例。原生启动/扩展检查分别使用 verify-native-startup.ps1 和 verify-native-extensions.ps1，均使用隔离配置。安装/卸载检查仅在一次性 Windows CI runner 执行，不替换开发机现有安装。
 
-v0.7 Windows 安装包目标为 `src-tauri/target/release/bundle/nsis/EasyM_0.7.0_x64-setup.exe`（附带项目与第三方许可，未签名）。CI 的安装/启动/卸载脚本仅在 disposable Windows runner 执行，不替换开发机现有安装。应用名称为 EasyM，图标为 EM。首次打包需要下载 WiX/NSIS；仅生成 NSIS 可运行 `pnpm.cmd tauri build --bundles nsis`，只生成可执行文件可运行 `pnpm.cmd tauri build --no-bundle`。便携 ZIP 使用 `./scripts/package-portable.ps1`，逐文件校验暂存内容和样例字节。`./scripts/verify-native-startup.ps1` 以独立 WebView2 配置及原生最近索引验证 Release 窗口启动与关闭；`./scripts/verify-native-extensions.ps1` 使用独立进程及临时本机调试端口验证真实 WebView2 离线扩展，不修改生产 CSP。完成回归和打包后运行 `node scripts/record-build.mjs <新的证据目录>` 记录证据，保留历史报告。
+## 发行流程
+
+CI 为 Windows 生成 NSIS/ZIP、macOS ARM64 生成 DMG、Linux x86_64 生成 DEB，各自附带 SHA-256 和绑定提交的 manifest，保存为对应 release-candidate artifact。三平台测试及严格许可检查全部成功后，在同一提交上手动运行 Draft EasyM release，填写对应 Validate EasyM 的 run ID。流程核对三平台提交、版本、完整测试和所有文件哈希，复用测试过的包创建草稿，不重新构建；缺任一平台候选则失败。未完成上传或校验不得公开草稿；发布前按发行说明完成实机检查并确定签名/分发方式。流程不自动公开 Release、不替代人工验收。
+
+本地可运行 node scripts/prepare-release.mjs 收集包；有未提交源码时会标明 sourceDirty，发布校验拒绝该候选。node scripts/record-build.mjs Docs/verification/v1.0/local 记录本机产物及回归证据。
 
 ## 许可
 
-项目代码采用 Apache-2.0，完整条款见 [LICENSE](LICENSE)。
+项目采用 [Apache-2.0](LICENSE)。只借鉴 MarkText 的交互设计，独立实现，没有引入其代码或资源。
 
-第三方依赖清单、许可文本和 Windows 依赖 SBOM 见 [第三方清单](Docs/dependencies/THIRD-PARTY-NOTICES.md)。CI 按目标平台重新生成并上传；Windows/Linux 文本缺项为 0，macOS 的 12 个 objc2 家族包仍需补完整文本及发行复核，当前分平台摘要见 `Docs/verification/v0.3/acceptance-67d45fd/dependency-inventory-*.json`。许可文件按原始字节存储，Git 不转换其换行。当前功能限制见 [v0.3 验收与交付](Docs/Easy-Markdown-v0.3-验收与交付.md)，既有数据恢复规则见 [v0.1 已知限制](Docs/Easy-Markdown-v0.1-已知限制.md)。
+实际第三方依赖见 [许可清单](Docs/dependencies/THIRD-PARTY-NOTICES.md) 和 SBOM。CI 分目标重新生成库存并严格检查文本/哈希/来源；objc2 家族补充上游许可声明和完整 MIT 标准条款，来源见 [记录](scripts/external-licenses/README.md)。库存完整不代表完成 Apple SDK 等发行复核。

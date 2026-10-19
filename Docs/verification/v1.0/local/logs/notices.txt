@@ -1,0 +1,1 @@
+x86_64-pc-windows-msvc: 563 dependencies, 296 license files verified; 0 missing texts.

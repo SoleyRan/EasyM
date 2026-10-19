@@ -1,0 +1,31 @@
+{
+  "verifiedAt": "2026-10-16T09:51:44.911Z",
+  "version": "1.0.0",
+  "passed": true,
+  "checks": [
+    "real release custom-scheme origin, WebView offline emulation, opaque-origin Mermaid iframe and MathML/note/metadata rendering",
+    "four themes, reading/Escape and live source retention; no external requests or page exceptions during exercised workflow"
+  ],
+  "isolatedProfile": true,
+  "node": "v24.20.0",
+  "endpointDiscovery": {
+    "method": "DevToolsActivePort",
+    "attempts": 1,
+    "port": 54787,
+    "browser": "Edg/155.0.4283.45",
+    "ready": true
+  },
+  "executableSha256": "820aed5f956f7a8eaf3e3e5cc04cb44ec56cc008194dbd0bdc91ee0842c18dd1",
+  "scope": "Actual Windows release WebView2 over an isolated temporary CDP endpoint. No mocked IPC or source injection; excludes IME, OS save/print and other WebViews.",
+  "browser": "155.0.4283.45",
+  "origin": "http://tauri.localhost",
+  "gracefulClose": true,
+  "elevated": false,
+  "browserArgumentSource": "process environment",
+  "appProcess": {
+    "exited": true,
+    "id": 39380,
+    "exitCode": 0
+  },
+  "webviewProcesses": []
+}

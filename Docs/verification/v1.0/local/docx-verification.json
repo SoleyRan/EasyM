@@ -1,0 +1,32 @@
+{
+  "verifiedAt": "2026-10-16T09:44:26.679Z",
+  "passed": true,
+  "checks": [
+    "actual platform API and inline Worker under app CSP",
+    "frozen office sample content/editable OOXML/CRC/XML",
+    "display PNG exact bytes and deduplication",
+    "input/model unchanged and workers terminated",
+    "restricted/missing/broken-image default block and explicit placeholders",
+    "hard UTF-8 and dimension quotas",
+    "cancel before/during parse, decode and generate",
+    "parse/generate timeout and termination on every path",
+    "browser download MIME/name/bytes",
+    "no remote requests or active raw HTML"
+  ],
+  "browser": "155.0.4283.45",
+  "diagnostics": {
+    "pageErrors": [],
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "failedRequests": [],
+    "httpErrors": []
+  },
+  "generationMs": 393,
+  "outputBytes": 15521,
+  "outputSha256": "7dfea3387317e383f021c3384e3314dee752d26c51efb3d3aac861244adfaaa9",
+  "workerStats": {
+    "started": 16,
+    "terminated": 16
+  }
+}

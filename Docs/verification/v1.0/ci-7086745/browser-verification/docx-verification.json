@@ -1,0 +1,30 @@
+{
+  "verifiedAt": "2026-10-16T09:58:42.069Z",
+  "passed": true,
+  "checks": [
+    "actual platform API and inline Worker under app CSP",
+    "frozen office sample content/editable OOXML/CRC/XML",
+    "display PNG exact bytes and deduplication",
+    "input/model unchanged and workers terminated",
+    "restricted/missing/broken-image default block and explicit placeholders",
+    "hard UTF-8 and dimension quotas",
+    "cancel before/during parse, decode and generate",
+    "parse/generate timeout and termination on every path",
+    "browser download MIME/name/bytes",
+    "no remote requests or active raw HTML"
+  ],
+  "browser": "156.0.8078.4",
+  "diagnostics": {
+    "pageErrors": [],
+    "consoleErrors": [],
+    "failedRequests": [],
+    "httpErrors": []
+  },
+  "generationMs": 400,
+  "outputBytes": 15522,
+  "outputSha256": "cfa73ba096ca7d9b39f055da9151dd98234780c61eef092e18b1961bed1675fe",
+  "workerStats": {
+    "started": 16,
+    "terminated": 16
+  }
+}

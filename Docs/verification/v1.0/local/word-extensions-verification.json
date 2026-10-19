@@ -1,0 +1,19 @@
+{
+  "verifiedAt": "2026-10-16T09:52:27.1859624Z",
+  "passed": true,
+  "application": "Microsoft Word",
+  "version": "16.0",
+  "checks": [
+    {
+      "sample": "combined",
+      "pages": 2,
+      "tables": 1,
+      "inlineImages": 1,
+      "opened": true,
+      "editedAndReopened": true,
+      "pdfBytes": 275941
+    }
+  ],
+  "build": "16.0.20430",
+  "fileVersion": "16.0.20430.20146"
+}

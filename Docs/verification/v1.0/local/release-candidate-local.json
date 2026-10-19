@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "sourceCommit": "e4f43649bf5b66d12798ab7644181adbf9a8c4db",
+  "sourceDirty": true,
+  "target": "x86_64-pc-windows-msvc",
+  "signed": false,
+  "automaticUpdates": false,
+  "createdAt": "2026-10-16T09:55:23.006Z",
+  "executableSha256": "820aed5f956f7a8eaf3e3e5cc04cb44ec56cc008194dbd0bdc91ee0842c18dd1",
+  "artifacts": [
+    {
+      "name": "EasyM_1.0.0_x64-setup.exe",
+      "bytes": 5378740,
+      "sha256": "77d26b5c027f774237b50881df3636f61f3a3839f5e8930d7f7c450b79866ea2"
+    },
+    {
+      "name": "EasyM-1.0.0-windows-x64.zip",
+      "bytes": 6946874,
+      "sha256": "97ac8e00ee183b6cf644720dbf2590e90428a1ad367e368051d3de25b37af59f"
+    },
+    {
+      "name": "RELEASE-NOTES.md",
+      "bytes": 4119,
+      "sha256": "a3f1416a53369c51c507497dadd53cfb53aa60da89b6baf27fd2d139d11a6a20"
+    }
+  ],
+  "checks": {
+    "native-startup": {
+      "passed": true,
+      "verifiedAt": "2026-10-16T09:51:14.8654202Z"
+    },
+    "native-extensions": {
+      "passed": true,
+      "verifiedAt": "2026-10-16T09:51:44.911Z"
+    },
+    "portable": {
+      "passed": true,
+      "verifiedAt": "2026-10-16T09:52:03.8706329Z"
+    }
+  }
+}

@@ -1,0 +1,1 @@
+EasyM 1.0.0: package, Cargo, lock, Tauri, UI and SBOM versions agree.

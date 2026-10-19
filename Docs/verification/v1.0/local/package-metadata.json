@@ -1,0 +1,19 @@
+{
+  "recordedAt": "2026-10-16T09:50:33.6139314Z",
+  "artifacts": [
+    {
+      "path": "src-tauri/target/release/easym.exe",
+      "bytes": 14721536,
+      "productName": "EasyM",
+      "productVersion": "1.0.0",
+      "sha256": "820aed5f956f7a8eaf3e3e5cc04cb44ec56cc008194dbd0bdc91ee0842c18dd1"
+    },
+    {
+      "path": "src-tauri/target/release/bundle/nsis/EasyM_1.0.0_x64-setup.exe",
+      "bytes": 5378740,
+      "productName": "EasyM",
+      "productVersion": "1.0.0",
+      "sha256": "77d26b5c027f774237b50881df3636f61f3a3839f5e8930d7f7c450b79866ea2"
+    }
+  ]
+}

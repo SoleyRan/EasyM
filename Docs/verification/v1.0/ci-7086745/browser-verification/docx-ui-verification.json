@@ -1,0 +1,42 @@
+{
+  "stage": "v0.3-step3c",
+  "verifiedAt": "2026-10-16T09:58:52.624Z",
+  "platform": "linux",
+  "passed": true,
+  "checks": [
+    "lazy loading; real Worker export; Letter/compact; current unsaved source, dirty and undo preserved; focus trap",
+    "missing/remote image block; explicit placeholder consent; source warning navigation; no remote fetch",
+    "other tabs remain readable during preflight; returning resumes dialog; target stays locked",
+    "preflight/generation cancellation terminates Worker; generation error releases lock; Escape restores EM focus",
+    "real imported current display PNG embedded; source unchanged",
+    "frozen office sample exported through production menu using imported display image",
+    "preflight layout in all four themes",
+    "large document and 100 image references; export time and sampled browser-tree memory recorded",
+    "unsaved source/image draft recoverable after reload"
+  ],
+  "machine": {
+    "osRelease": "6.17.0-1022-azure",
+    "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "logicalCpus": 4,
+    "memoryGiB": 15.6
+  },
+  "browser": "156.0.8078.4",
+  "performance": {
+    "sourceUtf8Bytes": 3652113,
+    "imageReferences": 100,
+    "preflightMs": 2683,
+    "generateAndDownloadMs": 707,
+    "memory": {
+      "metric": "summed browser-tree RSS/Windows working set; sampled peak is a lower bound, shared pages may be counted twice",
+      "baselineBytes": 608886784,
+      "peakBytes": 852590592,
+      "samples": 16,
+      "sampleIntervalMs": 500
+    }
+  },
+  "pending": [
+    "native save-dialog UI overwrite/cancel and occupied targets",
+    "Word/WPS/LibreOffice pagination and editability",
+    "macOS/Linux GUI and assistive technology"
+  ]
+}

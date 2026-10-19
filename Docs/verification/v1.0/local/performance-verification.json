@@ -1,0 +1,83 @@
+{
+  "verifiedAt": "2026-10-16T09:51:05.361Z",
+  "machine": {
+    "os": "win32",
+    "release": "10.0.26200",
+    "cpu": "Intel(R) Core(TM) 5 220H",
+    "logicalCpus": 16,
+    "memoryGiB": 31.7
+  },
+  "cases": [
+    {
+      "name": "5 MiB text",
+      "bytes": 5242880,
+      "openMs": 1727,
+      "inputSamples": 40,
+      "inputEventToNextFrameP95Ms": 17,
+      "targetMs": 50,
+      "targetMet": true,
+      "sourceHighlightLimited": false
+    },
+    {
+      "name": "100 KiB single line",
+      "bytes": 102400,
+      "openMs": 85,
+      "inputSamples": 40,
+      "inputEventToNextFrameP95Ms": 16.6,
+      "targetMs": 50,
+      "targetMet": true,
+      "sourceHighlightLimited": true,
+      "fullPreviewAndUndoVerified": true
+    },
+    {
+      "name": "table limit",
+      "rowsIncludingHeader": 100,
+      "columns": 20,
+      "cells": 2000,
+      "bytes": 19321,
+      "openMs": 144,
+      "lastCellScrollAndSelectMs": 190,
+      "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+    },
+    {
+      "name": "table limit",
+      "rowsIncludingHeader": 201,
+      "columns": 9,
+      "cells": 1809,
+      "bytes": 16738,
+      "openMs": 107,
+      "lastCellScrollAndSelectMs": 107,
+      "scope": "wall time includes Playwright interaction; no physical input or native WebView timing"
+    },
+    {
+      "name": "selection overlay positioning and scroll dismissal",
+      "samples": 10,
+      "wallTimeToVisibleP95Ms": 302,
+      "intentionalDebounceMs": 160,
+      "bounded": true,
+      "scrollDismissed": true,
+      "scope": "UI wall time includes debounce and automation; not input-to-frame p95"
+    },
+    {
+      "name": "100 local 800×600 images",
+      "restoreAndDecodeMs": 530,
+      "imageCount": 100,
+      "allDecoded": true
+    },
+    {
+      "name": "20 MiB PNG byte boundary (padded 800×600 fixture)",
+      "boundaryBytes": 20971520,
+      "accepted": {
+        "durationMs": 77,
+        "width": 800,
+        "height": 600
+      },
+      "rejected": {
+        "durationMs": 20.8,
+        "error": "图片文件超过 20 MB。"
+      }
+    }
+  ],
+  "browser": "155.0.4283.45",
+  "passed": true
+}

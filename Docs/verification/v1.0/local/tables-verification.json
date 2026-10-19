@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "checks": [
+    "default blank insertion, first-header focus and atomic undo/redo",
+    "Markdown cell draft, escaped code pipe, Enter/Tab, cancel and cell undo",
+    "final Tab commits plus appends in one transaction; first Shift+Tab returns to source",
+    "row/column insertion, alignment, nonempty deletion cancel/confirm and atomic restoration",
+    "invalid newline preserves draft; mode change cancel/apply guard",
+    "preview cell edits same source; new/switch tab and close preserve unapplied draft",
+    "four themes, compact viewport, live table entry and read-only reading",
+    "synthetic composition guards Tab and pointer commit; failed apply blocks navigation and retains draft",
+    "desktop IPC fixture: no autosave with unsubmitted draft; EM cancel retains draft; applied source autosaves afterward"
+  ],
+  "scope": "Production browser pointer/keyboard and simulated desktop IPC; real IME/native dialogs remain manual.",
+  "browser": "155.0.4283.45"
+}

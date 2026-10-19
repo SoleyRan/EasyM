@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "sourceCommit": "70867453976b1551ac3540b797a6e1c23310cd7d",
+  "sourceDirty": false,
+  "target": "x86_64-unknown-linux-gnu",
+  "signed": false,
+  "automaticUpdates": false,
+  "createdAt": "2026-10-16T10:04:11.659Z",
+  "bundledNoticesVerified": true,
+  "nativeGuiAcceptance": "pending",
+  "artifacts": [
+    {
+      "name": "EasyM-1.0.0-linux-amd64.deb",
+      "bytes": 8333324,
+      "sha256": "c386fbbab80b8a2f26dda8750fb7fe7507a1926092e9893ca79f43c04c920f4a"
+    }
+  ]
+}

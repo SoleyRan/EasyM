@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "checks": [
+    "mouse forward / keyboard back jump, exact source selection, repeated references, retained definitions and source unchanged",
+    "duplicate IDs isolated across tabs; keyboard navigation in reading mode and Escape preserves editor",
+    "four theme / compact screenshots with metadata source and visible note heading",
+    "standalone HTML anchors, offline output, print/PDF endnotes and explicit DOCX preflight/download leave source unchanged",
+    "TOML escaped raw data, cyclic notes bounded, live footnote source visible, undo, early-definition jumps and reading outline"
+  ],
+  "scope": "Production Chromium: footnotes and static Front Matter, browser export/print; no native Word, system print dialog or screen-reader claim.",
+  "browser": "155.0.4283.45"
+}

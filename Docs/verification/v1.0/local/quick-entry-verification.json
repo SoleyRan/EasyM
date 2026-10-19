@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "slash passive focus, Chinese/English and empty filtering, nontriggers, navigation, atomic undo/redo and Escape preserves query",
+    "table/image follow-up cancel retains slash input; confirmation replaces trigger and one undo restores it",
+    "F1 palette searches shared commands, preserves selected range, shows disabled reasons, guards modal nesting and supports settings handoff",
+    "opened-tab quick switch retains edits without duplicate tabs; synthetic composition blocks acceptance and Escape",
+    "four themes and compact window palette bounds",
+    "desktop IPC fixture: bounded report, same-name paths, debounced cancellation/stale search, tab reuse, cancelled open handle ownership and missing-file preserves body"
+  ],
+  "scope": "Production Chromium keyboard/pointer; desktop IPC fixture plus Rust filesystem tests. Real IME/native dialogs remain manual.",
+  "browser": "155.0.4283.45"
+}

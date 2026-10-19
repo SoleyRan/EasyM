@@ -1,0 +1,197 @@
+{
+  "run": {
+    "id": 38883944619,
+    "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/SoleyRan/EasyM/actions/runs/38883944619",
+    "created_at": "2026-10-16T09:56:59Z",
+    "updated_at": "2026-10-16T10:07:58Z"
+  },
+  "artifacts": [
+    {
+      "id": 12039530700,
+      "name": "browser-verification",
+      "size_in_bytes": 8564062,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039530700",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039530700/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:03:15Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:03:15Z",
+      "digest": "sha256:edd7691fd9bba85beeac903dfb2f328c999a7bf3afef578069683b856c788a05",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12039301920,
+      "name": "windows-installer-verification",
+      "size_in_bytes": 279176,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039301920",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039301920/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:07:50Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:07:50Z",
+      "digest": "sha256:4f9cae8fb549161159a9fb78734c6fd93f5404d9003979241c5101fab13648a2",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12039276331,
+      "name": "easym-Linux-release-candidate",
+      "size_in_bytes": 8296093,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039276331",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039276331/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:04:13Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:04:13Z",
+      "digest": "sha256:062e7aeab8993ada0337c3eed2b9fdfa408be8e018437dc2a0c5984837d706b2",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12039216754,
+      "name": "easym-macOS-candidate",
+      "size_in_bytes": 6932683,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039216754",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12039216754/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:02:53Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:02:53Z",
+      "digest": "sha256:86368a3aa818cae8a5626ffa624e547e9221576dbee80772f9ed9a6272a361fa",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12038957634,
+      "name": "easym-windows-release-candidate",
+      "size_in_bytes": 12196500,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038957634",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038957634/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:07:50Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:07:50Z",
+      "digest": "sha256:389dbccb3a642ad01fe9b291e6be1e5355877978a34fdbe25eabedb5508e9837",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12038857504,
+      "name": "easym-macOS-release-candidate",
+      "size_in_bytes": 6614583,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038857504",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038857504/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:02:51Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:02:51Z",
+      "digest": "sha256:2359dd803a4297a64729a3ce2ff3da789e8e5091b9191b4f6cc4c65c583fce27",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12038692375,
+      "name": "easym-Linux-candidate",
+      "size_in_bytes": 8633721,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038692375",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038692375/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:04:15Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:04:15Z",
+      "digest": "sha256:f285bd7d6b97a0bf4aa3731b97da7ec053dab5dcf253dd80766afdce6697e495",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    },
+    {
+      "id": 12038688059,
+      "name": "easym-Windows-candidate",
+      "size_in_bytes": 19108098,
+      "url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038688059",
+      "archive_download_url": "https://api.github.com/repos/SoleyRan/EasyM/actions/artifacts/12038688059/zip",
+      "expired": false,
+      "created_at": "2026-10-16T10:07:53Z",
+      "expires_at": "2027-01-14T09:56:59Z",
+      "updated_at": "2026-10-16T10:07:53Z",
+      "digest": "sha256:72badf00897a0b1e629e7bf1817af51f25a1ec9f979ab456ca9b2536a45277a9",
+      "workflow_run": {
+        "id": 38883944619,
+        "repository_id": 1409939630,
+        "head_repository_id": 1409939630,
+        "head_branch": "feature/v1.0",
+        "head_sha": "70867453976b1551ac3540b797a6e1c23310cd7d"
+      }
+    }
+  ],
+  "logExtracts": {
+    "frontLog": [
+      "2026-10-16T09:58:00.1805439Z  Test Files  55 passed (55)",
+      "2026-10-16T09:58:00.1806469Z       Tests  316 passed (316)"
+    ],
+    "macLog": [
+      "2026-10-16T09:59:21.5191400Z test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.50s",
+      "2026-10-16T09:59:21.5193670Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-16T09:59:22.0238010Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-16T09:59:25.2579080Z 558 dependency versions; 0 packages missing bundled license texts.",
+      "2026-10-16T09:59:25.3412170Z aarch64-apple-darwin: 558 dependencies, 308 license files verified; 0 missing texts.",
+      "2026-10-16T10:02:47.4831370Z     Finished 2 bundles at:",
+      "2026-10-16T10:02:48.3411960Z Verified EasyM 1.0.0 aarch64-apple-darwin package and bundled notices for 70867453976b1551ac3540b797a6e1c23310cd7d; GUI acceptance remains manual."
+    ],
+    "linuxLog": [
+      "2026-10-16T10:00:00.2496497Z test result: ok. 97 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s",
+      "2026-10-16T10:00:00.2543261Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-16T10:00:00.5686462Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-16T10:00:02.1145981Z 659 dependency versions; 0 packages missing bundled license texts.",
+      "2026-10-16T10:00:02.2101532Z x86_64-unknown-linux-gnu: 659 dependencies, 356 license files verified; 0 missing texts.",
+      "2026-10-16T10:04:11.6827866Z Verified EasyM 1.0.0 x86_64-unknown-linux-gnu package and bundled notices for 70867453976b1551ac3540b797a6e1c23310cd7d; GUI acceptance remains manual."
+    ],
+    "winLog": [
+      "2026-10-16T10:01:25.8975076Z test result: ok. 91 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.17s",
+      "2026-10-16T10:01:25.9146870Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-16T10:01:26.4212959Z test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "2026-10-16T10:01:29.2913727Z 563 dependency versions; 0 packages missing bundled license texts.",
+      "2026-10-16T10:01:29.4739863Z x86_64-pc-windows-msvc: 563 dependencies, 296 license files verified; 0 missing texts.",
+      "2026-10-16T10:07:45.8941749Z x86_64-pc-windows-msvc: 563 dependencies, 296 license files verified; 0 missing texts.",
+      "2026-10-16T10:07:48.6615588Z Verified EasyM 1.0.0 Windows release files for 70867453976b1551ac3540b797a6e1c23310cd7d."
+    ]
+  }
+}

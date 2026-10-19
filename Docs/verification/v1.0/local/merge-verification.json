@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    "independent changes require explicit review; failed mandatory archive blocks commit and preserves both versions",
+    "prepare then immutable commit persists candidate; one undo/redo restores complete local/merged body without changing the disk baseline",
+    "mandatory recovery is accessible from EM without opt-in history and restores to a new directory",
+    "all conflicts require a choice, manual edits invalidate review, stale commit preserves local and archived versions, fresh analysis can resolve with disk",
+    "explicit disk BOM/CRLF policy changes bytes while preserving normalized editor content",
+    "unverifiable disk images block prepare even when choosing local text; compact layout stays in bounds"
+  ],
+  "scope": "Actual production UI and workers with deterministic native IPC. Native filesystem/archives are covered by Rust tests; no real IME/native-dialog claim.",
+  "browser": "155.0.4283.45"
+}

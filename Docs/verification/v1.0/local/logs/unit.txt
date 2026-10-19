@@ -1,0 +1,114 @@
+
+ RUN  v3.2.7 D:/Github/EasyM
+
+ ✓ src/core/math.test.ts (6 tests) 1024ms
+   ✓ keeps complete source when disabled or over the count, input and output budgets  693ms
+ ✓ src/platform/docx.test.ts (6 tests) 119ms
+ ✓ src/editor/TablePanel.test.ts (2 tests) 75ms
+ ✓ src/core/export.test.ts (7 tests) 65ms
+ ✓ src/core/mermaid.test.ts (6 tests) 41ms
+ ✓ src/editor/MergePreview.test.ts (6 tests) 55ms
+ ✓ src/editor/QuickEntry.test.ts (2 tests) 58ms
+ ✓ src/editor/Overlay.test.ts (5 tests) 47ms
+ ✓ src/editor/useExternalChanges.test.ts (6 tests) 52ms
+ ✓ src/editor/navigation.test.ts (2 tests) 47ms
+ ✓ src/editor/usePreview.test.ts (2 tests) 26ms
+ ✓ src/platform/session.test.ts (4 tests) 6ms
+ ✓ src/platform/preferences.test.ts (7 tests) 8ms
+ ✓ src/core/merge.test.ts (9 tests) 375ms
+ ✓ src/core/docx.test.ts (6 tests) 3313ms
+   ✓ writes original inline/display formula source as editable text without claiming Word equations  2805ms
+ ✓ src/core/history-diff.test.ts (4 tests) 256ms
+ ✓ src/core/docx-model.test.ts (14 tests) 211ms
+ ✓ src/platform/backup.test.ts (8 tests) 133ms
+ ✓ src/editor/content-status.test.ts (3 tests) 123ms
+ ✓ src/core/markdown.test.ts (5 tests) 44ms
+ ✓ src/core/tables.test.ts (9 tests) 77ms
+ ✓ src/editor/live-decoration.test.ts (1 test) 27ms
+ ✓ src/platform/merge-transaction.test.ts (4 tests) 29ms
+ ✓ src/core/live-preview.test.ts (7 tests) 36ms
+ ✓ src/core/content-tools.test.ts (5 tests) 23ms
+ ✓ src/core/document.test.ts (7 tests) 15ms
+ ✓ src/core/quick-entry.test.ts (4 tests) 14ms
+ ✓ src/platform/history.test.ts (4 tests) 20ms
+ ✓ src/core/links.test.ts (5 tests) 23ms
+ ✓ src/core/formatting.test.ts (9 tests) 17ms
+ ✓ src/core/batch-images.test.ts (3 tests) 16ms
+ ✓ src/platform/storage.test.ts (5 tests) 17ms
+ ✓ src/core/search.test.ts (5 tests) 18ms
+ ✓ src/platform/history-resources.test.ts (4 tests) 17ms
+ ✓ src/platform/batch-images.test.ts (3 tests) 16ms
+ ✓ src/core/footnotes.test.ts (2 tests) 15ms
+ ✓ src/platform/clipboard.test.ts (2 tests) 4ms
+ ✓ src/core/selection-formatting.test.ts (4 tests) 11ms
+ ✓ src/platform/drafts.test.ts (4 tests) 9ms
+ ✓ src/core/commands.test.ts (8 tests) 6ms
+ ✓ src/platform/merge.test.ts (4 tests) 8ms
+ ✓ src/core/templates.test.ts (2 tests) 4ms
+ ✓ src/core/overlays.test.ts (5 tests) 5ms
+ ✓ src/core/archive.test.ts (2 tests) 5ms
+ ✓ src/platform/image-transaction.test.ts (4 tests) 7ms
+ ✓ src/core/images.test.ts (3 tests) 5ms
+ ✓ src/platform/workspace.test.ts (4 tests) 4ms
+ ✓ src/core/code-block.test.ts (4 tests) 7ms
+ ✓ src/core/codec.test.ts (5 tests) 8ms
+ ✓ src/core/image-metadata.test.ts (3 tests) 8ms
+ ✓ src/editor/large-lines.test.ts (2 tests) 5ms
+ ✓ src/platform/export.test.ts (1 test) 6ms
+ ✓ src/platform/restore-session.test.ts (1 test) 4ms
+ ✓ src/platform/window.test.ts (3 tests) 3ms
+ ✓ src/App.test.ts (68 tests) 49510ms
+   ✓ keeps unsaved-content protection when closing a window from manual guidance  344ms
+   ✓ shows one guide page at a time, navigates both directions and starts manual guides on page one  415ms
+   ✓ shows an update guide and supports manual reopening in settings with persisted appearance  542ms
+   ✓ closes other tabs relative to the clicked tab and keeps its edits intact  536ms
+   ✓ protects all targeted tabs on cancel and closes all without exiting the app on discard  678ms
+   ✓ retains only the closing tabs as drafts and preserves the excluded tab  678ms
+   ✓ keeps every target tab open when a batch save is cancelled after an earlier save succeeds  522ms
+   ✓ exports current source without saving or clearing dirty drafts, including cancellation and failure  724ms
+   ✓ exports DOCX from unsaved memory with office options and preserves the draft on native cancellation  416ms
+   ✓ requires explicit DOCX image placeholders and can locate a warning without changing the source  568ms
+   ✓ locks DOCX preflight, cancels immediately, ignores late results and recovers from generation failure  886ms
+   ✓ keeps other tabs readable during DOCX preparation without unlocking or closing the target  935ms
+   ✓ cancels DOCX generation, traps focus and prevents cancellation after native save is dispatched  687ms
+   ✓ refuses DOCX during IME; preflight/save errors release the lock  567ms
+   ✓ prepares a dedicated print root, protects editing, reports missing images and returns with Escape  484ms
+   ✓ rejects output during composition and protects a running export from save and close actions  492ms
+   ✓ cancels obsolete workspace searches and ignores late results and failures  375ms
+   ✓ opens search results at the source line, reuses tabs, and rejects stale disk and dirty local versions  972ms
+   ✓ exposes workspace search limits and cancels a running search on demand  529ms
+   ✓ save dialog cancellation keeps the editor open; successful save clears the draft then closes  321ms
+   ✓ restores pending crop and alt, then retains them when exiting without applying  329ms
+   ✓ opens workspace files in independent tabs and preserves edits when switching  551ms
+   ✓ retains all dirty tabs on exit and recovers each independently on restart  665ms
+   ✓ recent open reuses a saved tab with edits and cancellation releases only unused fresh handles  717ms
+   ✓ closing one dirty tab saves only that tab and preserves the other draft  568ms
+   ✓ aborts save-all on cancellation and leaves every document open  499ms
+   ✓ retains incompatible drafts while allowing other tabs to be edited and closed  464ms
+   ✓ discards only the closed tab and does not recreate its draft on blur  514ms
+   ✓ discards every open draft on exit without saving  513ms
+   ✓ creates a template in a new tab without replacing the current document  441ms
+   ✓ keeps a non-empty template as a recoverable draft and closes blank templates cleanly  885ms
+   ✓ first saves a template with no disk identity and clears its draft  571ms
+   ✓ toggles formatting globally and persists the preference without a save header  452ms
+   ✓ automatically writes a known file after idle and clears its draft  1757ms
+   ✓ keeps unnamed and recovered documents as drafts without showing save dialogs  2982ms
+   ✓ serializes automatic writes and preserves edits made while a save is in flight  3280ms
+   ✓ pauses autosave after an external conflict and allows a manual retry  3116ms
+   ✓ suspends autosave during close decisions and discards without writing  3072ms
+   ✓ pauses mixed-line-ending autosave without a confirmation prompt  1664ms
+   ✓ waits until IME composition ends before automatically saving  2049ms
+   ✓ preserves a new edit arriving during asynchronous draft cleanup after saving  2024ms
+   ✓ does not recreate a clean draft while saved-draft cleanup is slow  2969ms
+   ✓ uses themed custom window controls and protects dirty content on window close  343ms
+   ✓ enters fullscreen preview reading and restores editing on Escape and the exit button  623ms
+   ✓ closes untouched new tabs directly without creating drafts or changing other edits  1174ms
+   ✓ exits with only untouched new documents without prompting or saving  348ms
+   ✓ refuses stale table targets and preserves the input when applying before export fails  427ms
+   ✓ requires a table draft decision before switching tabs and proceeding with print  483ms
+
+ Test Files  55 passed (55)
+      Tests  316 passed (316)
+   Start at  17:38:07
+   Duration  82.71s (transform 3.80s, setup 0ms, collect 54.27s, tests 56.08s, environment 32.17s, prepare 7.62s)
+

@@ -1,0 +1,2 @@
+c386fbbab80b8a2f26dda8750fb7fe7507a1926092e9893ca79f43c04c920f4a  EasyM-1.0.0-linux-amd64.deb
+46068f4ac7c59da2d3d6de1da6ffaab4e09d0d06035b7edd2ab7988af419dd95  release-manifest-linux-amd64.json
