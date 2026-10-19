@@ -44,7 +44,7 @@ try {
   assert.equal(styles.color, styles.parentColor)
   assert.equal(styles.background, 'rgba(0, 0, 0, 0)')
   assert.notEqual(await page.locator('.preview p code').evaluate((element) => getComputedStyle(element).backgroundColor), styles.background)
-  await editor.press('Control+Home')
+  await editor.press('ControlOrMeta+Home')
   await editor.press('ArrowDown')
   await language.selectOption('python')
   await page.locator('.preview pre code.language-python').waitFor()
@@ -60,7 +60,7 @@ try {
   assert.equal(await body(), '```\nconst x = 1;\n```\n\n行内 `code`')
 
   await fillSource(page, 'print("hello")')
-  await editor.press('Control+a')
+  await editor.press('ControlOrMeta+a')
   await language.selectOption('python')
   await page.getByRole('button', { name: '代码块', exact: true }).click()
   await page.locator('.preview pre code.language-python').waitFor()
@@ -92,7 +92,7 @@ try {
     return sourceHeading && previewHeading && Math.abs(Number(sourceHeading.textContent.match(/\d+/)[0]) - Number(previewHeading.textContent.match(/\d+/)[0])) <= 1
   })
   // Reverse direction must change only the viewport, without moving the caret.
-  await editor.press('Control+Home')
+  await editor.press('ControlOrMeta+Home')
   const caret = await editor.evaluate((element) => window.getSelection()?.anchorOffset)
   await preview.hover()
   await page.mouse.wheel(0, 1600)

@@ -99,7 +99,7 @@ try {
   assert.equal(await source(), '# 旧版中文\n\n旧正文')
   assert.ok(await page.evaluate(() => window.historySnapshots.some(s => s.reason === 'pre-restore' && s.fixtureText.includes('当前正文'))))
   if (await page.getByRole('button', { name: '显示格式工具栏', exact: true }).count()) await page.getByRole('button', { name: '显示格式工具栏', exact: true }).click()
-  await editor().press('Control+z'); assert.equal(await source(), '# 当前中文\n\n当前正文')
+  await editor().press('ControlOrMeta+z'); assert.equal(await source(), '# 当前中文\n\n当前正文')
   await page.getByRole('button', { name: '重做', exact: true }).click(); assert.equal(await source(), '# 旧版中文\n\n旧正文')
   report.checks.push('native copy cancellation, external revision conflict, restore current pre-snapshot and one undo/redo')
   await open(); await dialog.getByRole('textbox', { name: '快照名称', exact: true }).fill('手动编辑版本')

@@ -82,7 +82,7 @@ try {
   const zip = await download('letter-compact'), xml = await zip.file('word/document.xml').async('string')
   assert.match(xml, /未保存的中文/); assert.match(xml, /<w:tbl>/); assert.match(xml, /w:w="12240"/)
   assert.equal(await source(), original); assert.ok((await page.getByRole('tab', { selected: true }).textContent()).includes('*'))
-  await page.getByRole('textbox', { name: 'Markdown 源码编辑器' }).press('Control+z')
+  await page.getByRole('textbox', { name: 'Markdown 源码编辑器' }).press('ControlOrMeta+z')
   assert.notEqual(await source(), original)
   await page.getByRole('button', { name: '重做', exact: true }).click(); assert.equal(await source(), original)
   report.checks.push('lazy loading; real Worker export; Letter/compact; current unsaved source, dirty and undo preserved; focus trap')

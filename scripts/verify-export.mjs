@@ -67,7 +67,7 @@ try {
   const imageHtml = await readFile(filePath, 'utf8')
   assert.match(imageHtml, /src="data:image\/png;base64,/)
   const beforePrint = await source()
-  await page.keyboard.press('Control+p')
+  await page.keyboard.press('ControlOrMeta+p')
   await page.locator('.print-dialog').waitFor()
   assert.equal(await page.locator('#easym-print-root img').evaluate(image => image.src.startsWith('data:image/png;base64,')), true)
   assert.equal(await page.getByRole('button', { name: '返回编辑', exact: true }).evaluate(element => element === document.activeElement), true)

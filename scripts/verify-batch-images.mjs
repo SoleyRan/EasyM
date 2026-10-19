@@ -145,8 +145,8 @@ try {
   assert.notEqual(request.items[0].sourcePath, request.items[1].sourcePath); assert.ok(committed.includes('"透明标题"')); assert.ok(committed.includes('"引用标题"'))
   assert.equal(await page.evaluate(() => window.batchBody), committed)
   for (const [path, bytes] of Object.entries(sourceAssets)) assert.deepEqual(await page.evaluate(path => window.batchAssets[path], path), bytes)
-  await editor().press('Control+z'); assert.equal(await body(), original)
-  await editor().press('Control+y'); assert.equal(await body(), committed)
+  await editor().press('ControlOrMeta+z'); assert.equal(await body(), original)
+  await editor().press('ControlOrMeta+y'); assert.equal(await body(), committed)
   const outputBytes = request.next.assets.find(a => a.path === request.items[2].displayPath).bytes
   assert.equal(outputBytes.some((v, i) => v === 255 && outputBytes[i+1] === 225), false, 'Processed JPEG contains no EXIF APP1')
   report.checks.push('conflict/quota preserve original; commit blocks Escape; distinct shared-reference instances and titles; original asset bytes unchanged; one undo/redo; EXIF removed')

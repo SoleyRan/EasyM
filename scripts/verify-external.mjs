@@ -70,7 +70,7 @@ try {
   assert.equal(await body(), '# 原文件\n\n中文 😀')
   assert.equal(await page.evaluate(() => window.disk.a.text), '# 磁盘变更\n\n中文 😀')
   report.checks.push('three-way analysis uses the actual opened baseline, previews disk-only change read-only and preserves both inputs')
-  await dialog().getByRole('textbox', { name: '本地正文' }).click(); await page.keyboard.press('Control+a')
+  await dialog().getByRole('textbox', { name: '本地正文' }).click(); await page.keyboard.press('ControlOrMeta+a')
   assert.equal(await dialog().getByRole('textbox', { name: '本地正文' }).evaluate(node => node.selectionEnd - node.selectionStart), '# 原文件\n\n中文 😀'.length)
   await page.keyboard.press('Escape'); await dialog().waitFor({ state: 'detached' })
   assert.equal(await body(), '# 原文件\n\n中文 😀')
@@ -139,7 +139,7 @@ try {
 
   await page.evaluate(() => { window.disk.table = { text: '| 表头 |\n| --- |\n| 内容 |', revision: 'table-1' }; window.nextOpen = 'table' })
   await menu('打开文件'); const source = page.locator('.document-panel:not([hidden])').getByRole('textbox', { name: 'Markdown 源码编辑器' })
-  await source.press('Control+Home'); await page.getByRole('button', { name: '编辑表格', exact: true }).first().click()
+  await source.press('ControlOrMeta+Home'); await page.getByRole('button', { name: '编辑表格', exact: true }).first().click()
   const table = page.getByRole('dialog', { name: '编辑表格', exact: true }), cell = table.getByRole('textbox', { name: '单元格 Markdown', exact: true })
   await cell.fill('未提交表格草稿')
   await page.evaluate(() => { window.disk.table = { text: '# 表格外部变化', revision: 'table-2' }; window.dispatchEvent(new Event('focus')) })

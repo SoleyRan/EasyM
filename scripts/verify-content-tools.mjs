@@ -16,7 +16,7 @@ try {
   const body = () => source().evaluate(node => [...node.querySelectorAll('.cm-line')].map(line => line.textContent).join('\n'))
   const fixed = page.getByRole('toolbar', { name: '格式工具栏', exact: true })
   const floating = page.getByRole('toolbar', { name: '选区格式工具栏', exact: true })
-  const selectLine = async () => { await source().press('Control+Home'); await source().press('Shift+End'); await floating.waitFor() }
+  const selectLine = async () => { await source().press('ControlOrMeta+Home'); await source().press('Shift+End'); await floating.waitFor() }
   const undo = async () => { await fixed.getByRole('button', { name: '撤销', exact: true }).click() }
   const drag = async () => {
     const points = await source().locator('.cm-line').first().evaluate(line => {
@@ -32,10 +32,10 @@ try {
   await floating.getByRole('button', { name: '加粗', exact: true }).click(); await floating.waitFor()
   assert.equal(await body(), '**hello world**'); assert.equal(await floating.getByRole('button', { name: '加粗' }).getAttribute('aria-pressed'), 'true')
   await floating.getByRole('button', { name: '加粗' }).click(); assert.equal(await body(), 'hello world')
-  await undo(); assert.equal(await body(), '**hello world**'); await source().press('Control+Home'); await source().press('Shift+End'); await floating.waitFor()
+  await undo(); assert.equal(await body(), '**hello world**'); await source().press('ControlOrMeta+Home'); await source().press('Shift+End'); await floating.waitFor()
   await source().press('Alt+F10'); assert.equal(await floating.getByRole('button', { name: '加粗' }).evaluate(node => node === document.activeElement), true)
   await page.keyboard.press('ArrowRight'); await page.keyboard.press('Enter'); assert.match(await body(), /\*/)
-  await source().press('Control+Home'); await source().press('Shift+End'); await floating.waitFor(); await source().press('Alt+F10'); await page.keyboard.press('Escape'); await floating.waitFor({ state: 'detached' }); assert.equal(await source().evaluate(node => node === document.activeElement), true)
+  await source().press('ControlOrMeta+Home'); await source().press('Shift+End'); await floating.waitFor(); await source().press('Alt+F10'); await page.keyboard.press('Escape'); await floating.waitFor({ state: 'detached' }); assert.equal(await source().evaluate(node => node === document.activeElement), true)
   report.checks.push('real drag is passive until release; selection retained, toggle, pressed state, undo and Alt+F10 navigation')
 
   await fillSource(page, '~~one~~ plain ~~two~~'); await selectLine()
@@ -44,19 +44,19 @@ try {
   await fillSource(page, 'hello'); await selectLine(); await floating.getByRole('button', { name: '行内代码' }).click(); assert.equal(await body(), '`hello`')
   await floating.waitFor(); await floating.getByRole('button', { name: '行内代码' }).click(); assert.equal(await body(), 'hello')
   await source().press('x'); await floating.waitFor({ state: 'detached' }); assert.equal(await body(), 'x')
-  await fillSource(page, 'one\ntwo'); await source().press('Control+a'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0)
-  await fillSource(page, '```js\nhello\n```'); await source().press('Control+Home'); await source().press('ArrowDown'); await source().press('Shift+End'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0)
+  await fillSource(page, 'one\ntwo'); await source().press('ControlOrMeta+a'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0)
+  await fillSource(page, '```js\nhello\n```'); await source().press('ControlOrMeta+Home'); await source().press('ArrowDown'); await source().press('Shift+End'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0)
   report.checks.push('mixed strike and inline code toggles; typing hides selection tools; multiline/code cannot be misformatted')
 
   await fillSource(page, '**中文**'); await selectLine(); await floating.getByRole('button', { name: '链接' }).click()
   const link = page.getByRole('dialog', { name: '插入 / 编辑链接', exact: true })
   assert.equal(await link.getByLabel('链接显示文字').inputValue(), '**中文**'); assert.equal(await link.getByLabel('链接地址').inputValue(), '')
   await link.getByLabel('链接地址').fill('https://example.com'); await link.getByRole('button', { name: '取消', exact: true }).click(); assert.equal(await body(), '**中文**')
-  await source().press('Control+k'); await link.waitFor(); await link.getByLabel('链接地址').fill('javascript:alert(1)'); await link.getByRole('button', { name: '确认链接' }).click(); await link.getByRole('alert').waitFor(); assert.equal(await body(), '**中文**')
+  await source().press('ControlOrMeta+k'); await link.waitFor(); await link.getByLabel('链接地址').fill('javascript:alert(1)'); await link.getByRole('button', { name: '确认链接' }).click(); await link.getByRole('alert').waitFor(); assert.equal(await body(), '**中文**')
   await link.getByLabel('链接地址').fill('https://example.com'); await link.getByRole('button', { name: '确认链接' }).click(); assert.equal(await body(), '[**中文**](<https://example.com>)')
   await undo(); assert.equal(await body(), '**中文**')
   const reference = '[**label**][id]\n\n[other][id]\n\n[id]: https://example.com'
-  await fillSource(page, reference); await source().press('Control+Home'); await source().press('ArrowRight'); await source().press('Control+k'); await link.waitFor()
+  await fillSource(page, reference); await source().press('ControlOrMeta+Home'); await source().press('ArrowRight'); await source().press('ControlOrMeta+k'); await link.waitFor()
   assert.match(await link.innerText(), /仅将此处引用链接/); await link.getByRole('button', { name: '解除链接' }).click(); assert.equal(await body(), reference.replace('[**label**][id]', '**label**'))
   report.checks.push('link prefill with empty address, cancel, unsafe rejection, nested label, reference unlink and atomic undo')
 
@@ -69,21 +69,21 @@ try {
   await page.locator('.preview-language-button', { hasText: 'odd/lang' }).waitFor(); assert.equal(await page.locator('.preview pre .hljs-keyword').count(), 0)
   await page.locator('.preview-language-button').click(); await language.getByLabel('搜索代码语言').fill('javascript'); await language.getByRole('button', { name: /JavaScript\s*javascript/ }).click(); await language.getByRole('button', { name: '应用语言' }).click(); await page.locator('.preview pre .hljs-keyword').first().waitFor()
   await page.locator('.preview-language-button', { hasText: 'javascript' }).click(); await language.getByRole('button', { name: '无语言', exact: true }).click(); await language.getByRole('button', { name: '应用语言' }).click(); assert.equal(await body(), '~~~~\nconst answer = 42\n~~~~\n\nend'); await undo(); await undo(); assert.match(await body(), /^~~~~odd\/lang metadata/)
-  await page.getByRole('button', { name: '即时渲染', exact: true }).click(); await source().press('Control+End'); await page.locator('.live-language-button').waitFor(); assert.equal(await page.locator('.live-language-button').innerText(), '语言：odd/lang')
+  await page.getByRole('button', { name: '即时渲染', exact: true }).click(); await source().press('ControlOrMeta+End'); await page.locator('.live-language-button').waitFor(); assert.equal(await page.locator('.live-language-button').innerText(), '语言：odd/lang')
   await page.locator('.live-language-button').click(); await language.waitFor(); await language.getByRole('button', { name: '取消', exact: true }).click()
   report.checks.push('split link click/edit and heading anchor open; preview/live language tags, Chinese search, unknown preservation, info-only patch and undo')
 
   await page.getByRole('button', { name: '源码', exact: true }).click()
   // Mode changes can redraw CodeMirror's DOM selection. Select through its
   // keyboard command so this fixture replaces the document in editor state.
-  await source().press('Control+a'); await page.keyboard.insertText('## **heading**\n\nkeep')
-  assert.equal(await body(), '## **heading**\n\nkeep'); await source().press('Control+Home')
+  await source().press('ControlOrMeta+a'); await page.keyboard.insertText('## **heading**\n\nkeep')
+  assert.equal(await body(), '## **heading**\n\nkeep'); await source().press('ControlOrMeta+Home')
   await fixed.getByRole('button', { name: '转换为', exact: true }).click(); const paragraph = page.getByRole('dialog', { name: '转换为', exact: true }); await paragraph.waitFor()
   assert.match(await paragraph.innerText(), /第 1–1 行/); await paragraph.getByLabel('转换段落类型').selectOption('task'); await paragraph.getByRole('button', { name: '应用转换' }).click(); assert.equal(await body(), '- [ ] **heading**\n\nkeep'); await undo(); assert.equal(await body(), '## **heading**\n\nkeep')
   report.checks.push('paragraph target explanation, structural conversion preserving inline syntax, and one undo')
 
-  await fillSource(page, 'hello'); await selectLine(); await source().dispatchEvent('compositionstart', { data: '中' }); await floating.waitFor({ state: 'detached' }); await source().press('Control+k'); assert.equal(await link.count(), 0); await source().dispatchEvent('compositionend', { data: '中' })
-  await source().press('ArrowLeft'); await source().press('Control+k'); await link.waitFor(); await link.getByLabel('链接显示文字').dispatchEvent('compositionstart', { data: '中' }); await link.getByRole('button', { name: '取消', exact: true }).click(); assert.equal(await link.count(), 1); await link.getByLabel('链接显示文字').dispatchEvent('compositionend', { data: '中' }); await page.keyboard.press('Escape'); await link.waitFor({ state: 'detached' })
+  await fillSource(page, 'hello'); await selectLine(); await source().dispatchEvent('compositionstart', { data: '中' }); await floating.waitFor({ state: 'detached' }); await source().press('ControlOrMeta+k'); assert.equal(await link.count(), 0); await source().dispatchEvent('compositionend', { data: '中' })
+  await source().press('ArrowLeft'); await source().press('ControlOrMeta+k'); await link.waitFor(); await link.getByLabel('链接显示文字').dispatchEvent('compositionstart', { data: '中' }); await link.getByRole('button', { name: '取消', exact: true }).click(); assert.equal(await link.count(), 1); await link.getByLabel('链接显示文字').dispatchEvent('compositionend', { data: '中' }); await page.keyboard.press('Escape'); await link.waitFor({ state: 'detached' })
   report.checks.push('composition guards prevent selection actions and modal cancel until completion')
 
   for (const theme of ['light', 'dark', 'paper', 'forest']) {
@@ -91,8 +91,8 @@ try {
     const bounds = await floating.boundingBox(); assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 1120)
   }
   await page.setViewportSize({ width: 760, height: 600 }); await fillSource(page, 'hello'); await selectLine(); const bounds = await floating.boundingBox(); assert.ok(bounds.x + bounds.width <= 760); await page.screenshot({ path: 'test-results/content-tools/compact.png' })
-  await page.getByRole('button', { name: 'EM 菜单', exact: true }).click(); await page.getByRole('menuitem', { name: '设置', exact: true }).click(); const settings = page.getByRole('dialog', { name: '设置', exact: true }); await settings.getByLabel('显示选区浮动工具栏').uncheck(); await settings.getByRole('button', { name: '完成', exact: true }).click(); await fillSource(page, 'hello'); await source().press('Control+a'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0); assert.equal(await fixed.count(), 1)
-  await page.reload(); await page.getByRole('button', { name: '恢复草稿', exact: true }).click(); await fillSource(page, 'hello'); await source().press('Control+a'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0); assert.equal(await fixed.count(), 1)
+  await page.getByRole('button', { name: 'EM 菜单', exact: true }).click(); await page.getByRole('menuitem', { name: '设置', exact: true }).click(); const settings = page.getByRole('dialog', { name: '设置', exact: true }); await settings.getByLabel('显示选区浮动工具栏').uncheck(); await settings.getByRole('button', { name: '完成', exact: true }).click(); await fillSource(page, 'hello'); await source().press('ControlOrMeta+a'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0); assert.equal(await fixed.count(), 1)
+  await page.reload(); await page.getByRole('button', { name: '恢复草稿', exact: true }).click(); await fillSource(page, 'hello'); await source().press('ControlOrMeta+a'); await page.waitForTimeout(220); assert.equal(await floating.count(), 0); assert.equal(await fixed.count(), 1)
   report.checks.push('four theme screenshots, compact positioning and independent persisted selection setting')
   // This profile uses deterministic IPC, never a real OS launch or file dialog.
   const native = await browser.newPage({ viewport: { width: 1120, height: 800 } }); native.on('pageerror', error => errors.push(error.message)); await acknowledgeGuide(native)

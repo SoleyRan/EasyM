@@ -69,7 +69,7 @@ try {
   await page.setViewportSize({ width: 760, height: 600 }); await waitImages()
   assert.equal(await preview().evaluate(node => node.scrollWidth <= node.clientWidth + 1), true)
   await page.screenshot({ path: 'test-results/mermaid/compact.png' }); await page.setViewportSize({ width: 1180, height: 850 })
-  await page.getByRole('button', { name: '即时渲染', exact: true }).click(); await source().press('Control+End')
+  await page.getByRole('button', { name: '即时渲染', exact: true }).click(); await source().press('ControlOrMeta+End')
   await panel().locator('.live-block-mermaid img').first().waitFor()
   await page.getByRole('button', { name: '显示图表源码', exact: true }).first().click()
   assert.match(await source().innerText(), /flowchart TD/)

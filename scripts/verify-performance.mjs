@@ -34,7 +34,7 @@ try {
     await page.waitForFunction(() => !document.querySelector('.document-panel:not([hidden]) .content-grid')?.inert && document.querySelector('.document-panel:not([hidden]) .statusbar')?.textContent.includes('文件已打开'))
     const openMs = Date.now() - start
     await editor.click()
-    await page.keyboard.press('Control+Home')
+    await page.keyboard.press('ControlOrMeta+Home')
     await page.evaluate(() => {
       window.__latencies = []
       const editor = document.querySelector('.document-panel:not([hidden]) .cm-content')
@@ -55,12 +55,12 @@ try {
     if (highlightLimited) {
       // Undo restores the full file; shortening it reinstates Markdown support
       // in the same editor, and undoing the replacement reinstates the guard.
-      for (let i = 0; i < 40; i++) await page.keyboard.press('Control+z')
-      await page.keyboard.press('Control+a')
+      for (let i = 0; i < 40; i++) await page.keyboard.press('ControlOrMeta+z')
+      await page.keyboard.press('ControlOrMeta+a')
       await page.keyboard.insertText('# Short heading')
       await page.waitForFunction(() => !document.querySelector('.document-panel:not([hidden]) .statusbar').textContent.includes('源码高亮已暂停'))
       await page.locator('.document-panel:not([hidden]) .syntax-heading').first().waitFor()
-      await page.keyboard.press('Control+z')
+      await page.keyboard.press('ControlOrMeta+z')
       await page.waitForFunction(() => document.querySelector('.document-panel:not([hidden]) .statusbar').textContent.includes('源码高亮已暂停'))
       await page.getByRole('button', { name: '分屏', exact: true }).click()
       await page.waitForFunction(() => document.querySelector('.document-panel:not([hidden]) .preview')?.textContent === 'x'.repeat(100 * 1024))
@@ -77,7 +77,7 @@ try {
   const row = count => '| ' + Array.from({ length: count }, (_, i) => `cell ${i}`).join(' | ') + ' |'
   for (const [rows, columns] of [[100, 20], [201, 9]]) {
     const text = [row(columns), '| ' + Array(columns).fill('---').join(' | ') + ' |', ...Array(rows - 1).fill(row(columns))].join('\n')
-    await fillSource(tablePage, text); await tablePage.getByRole('textbox', { name: 'Markdown 源码编辑器' }).press('Control+Home')
+    await fillSource(tablePage, text); await tablePage.getByRole('textbox', { name: 'Markdown 源码编辑器' }).press('ControlOrMeta+Home')
     const start = Date.now(); await tablePage.getByRole('button', { name: '编辑表格', exact: true }).click()
     const input = tablePage.getByRole('textbox', { name: '单元格 Markdown', exact: true }); await input.waitFor()
     const openMs = Date.now() - start
@@ -91,7 +91,7 @@ try {
   const source = tablePage.getByRole('textbox', { name: 'Markdown 源码编辑器' }), floating = tablePage.getByRole('toolbar', { name: '选区格式工具栏', exact: true })
   const times = []
   for (let i = 0; i < 10; i++) {
-    await source.press('Control+Home'); await tablePage.waitForTimeout(150); const start = Date.now(); await source.press('Shift+End'); await floating.waitFor()
+    await source.press('ControlOrMeta+Home'); await tablePage.waitForTimeout(150); const start = Date.now(); await source.press('Shift+End'); await floating.waitFor()
     times.push(Date.now() - start)
     const box = await floating.boundingBox(); assert.ok(box.x >= 0 && box.x + box.width <= 1440 && box.y >= 0 && box.y + box.height <= 900)
     const rect = await source.boundingBox(); await tablePage.mouse.move(rect.x + 100, rect.y + 100); await tablePage.mouse.wheel(0, 600); await floating.waitFor({ state: 'detached' })

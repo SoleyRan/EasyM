@@ -48,7 +48,7 @@ export async function verifySelection(page, selectTheme) {
     for (const mode of ['源码', '分屏']) {
       await page.getByRole('button', { name: mode, exact: true }).click()
       await fillSource(page, text)
-      await editor.press('Control+Home')
+      await editor.press('ControlOrMeta+Home')
       const sample = await point(from), before = await pixel(sample)
       await select(text, from, to)
       const after = await pixel(sample)
@@ -127,14 +127,14 @@ export async function verifySelection(page, selectTheme) {
       await boldButton.click()
       assert.equal(await body(), '**bold plain**')
       assert.equal(await boldButton.getAttribute('aria-pressed'), 'true')
-      await editor.press('Control+End')
+      await editor.press('ControlOrMeta+End')
       assert.equal(await boldButton.getAttribute('aria-pressed'), 'false', 'Caret outside formatting clears pressed state')
     }
   }
   // Exercise a native drag across visual wraps in a single physical line.
   const wrapped = '中文 soft wrap words🙂 '.repeat(30)
   await fillSource(page, wrapped)
-  await editor.press('Control+Home')
+  await editor.press('ControlOrMeta+Home')
   await select(wrapped, 5, wrapped.indexOf('中文', 120))
   const selected = await page.evaluate(() => window.getSelection().toString())
   await fixed.getByRole('button', { name: '加粗', exact: true }).click()

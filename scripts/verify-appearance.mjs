@@ -45,11 +45,11 @@ try {
     return { html: await readFile(htmlPath, 'utf8'), xml, print }
   }
   await fillSource(page, text); const beforeExport = await exportSignature('before')
-  await source.press('Control+End'); await source.press('!')
+  await source.press('ControlOrMeta+End'); await source.press('!')
   await open(); assert.equal(await settings.getByLabel('编辑字号', { exact: true }).inputValue(), '19')
   for (const [label, value] of [['编辑字号', '20'], ['正文行高', '2'], ['正文宽度', '720'], ['代码字号', '18']]) await settings.getByLabel(label, { exact: true }).selectOption(value)
   await settings.getByLabel('代码自动换行', { exact: true }).uncheck(); await close()
-  await source.press('Control+Home')
+  await source.press('ControlOrMeta+Home')
   const sourceStyle = await source.evaluate(node => {
     const code = node.querySelectorAll('.cm-source-code')[1], regular = node.querySelector('.cm-line')
     return { width: node.getBoundingClientRect().width, font: getComputedStyle(regular).fontSize, height: getComputedStyle(regular).lineHeight, codeFont: getComputedStyle(code).fontSize, codeWidth: code.scrollWidth, codeViewport: code.clientWidth, regularOverflow: regular.scrollWidth > regular.clientWidth + 1 }
@@ -57,7 +57,7 @@ try {
   assert.equal(sourceStyle.font, '20px'); assert.equal(sourceStyle.height, '40px'); assert.equal(sourceStyle.codeFont, '18px'); assert.ok(sourceStyle.width <= 720.5); assert.ok(sourceStyle.codeWidth > sourceStyle.codeViewport); assert.equal(sourceStyle.regularOverflow, false)
   assert.equal(await body(), text + '!')
   // Appearance changes do not consume the Markdown undo history.
-  await source.press('Control+z'); assert.equal(await body(), text)
+  await source.press('ControlOrMeta+z'); assert.equal(await body(), text)
   report.checks.push('legacy migration; bounded source width, independent code font, code-only horizontal scrolling; appearance preserves text and undo')
   await page.getByRole('button', { name: '分屏', exact: true }).click()
   await page.locator('.preview pre code').waitFor()
@@ -68,7 +68,7 @@ try {
   assert.equal(previewStyle.font, '20px'); assert.equal(previewStyle.height, '40px'); assert.equal(previewStyle.codeFont, '18px'); assert.ok(previewStyle.preWidth > previewStyle.viewport); assert.ok(previewStyle.width <= 720)
   await open(); await settings.getByLabel('代码自动换行', { exact: true }).check(); await close()
   await page.waitForFunction(() => { const pre = document.querySelector('.preview pre'); return pre.scrollWidth <= pre.clientWidth + 1 })
-  await page.getByRole('button', { name: '即时渲染', exact: true }).click(); await source.press('Control+End')
+  await page.getByRole('button', { name: '即时渲染', exact: true }).click(); await source.press('ControlOrMeta+End')
   assert.equal(await source.locator('.cm-line').last().evaluate(node => getComputedStyle(node).fontSize), '20px')
   assert.equal(await source.locator('.cm-line').last().evaluate(node => getComputedStyle(node).lineHeight), '40px')
   await page.locator('.live-rendered-block pre code').waitFor()
