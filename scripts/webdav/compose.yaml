@@ -1,0 +1,52 @@
+# EasyM v2.0 step 1: isolated WebDAV targets for protocol verification only.
+# Ports bind to loopback; credentials come from the environment created by
+# scripts/verify-webdav.mjs and are never committed. Images are pinned by digest.
+name: easym-webdav-step1
+
+services:
+  apache:
+    image: httpd@sha256:c842ac797bd1fe8b3cd26d002ac9d948aa2814097544600600b35aef42e6785a # 2.4.69
+    environment:
+      EASYM_DAV_USER: ${EASYM_DAV_USER:?}
+      EASYM_DAV_PASSWORD: ${EASYM_DAV_PASSWORD:?}
+    volumes:
+      - ./apache/easym-dav.conf:/usr/local/apache2/conf/extra/easym-dav.conf:ro
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /srv/dav/root /srv/dav/lock
+        chown -R www-data:www-data /srv/dav
+        htpasswd -cbB /usr/local/apache2/conf/easym.htpasswd "$$EASYM_DAV_USER" "$$EASYM_DAV_PASSWORD" >/dev/null
+        echo 'Include conf/extra/easym-dav.conf' >> /usr/local/apache2/conf/httpd.conf
+        exec httpd-foreground
+    ports:
+      - 127.0.0.1:18081:80
+
+  mariadb:
+    image: mariadb@sha256:250e1609e93c0e6aecf64bfbab2d84d5e89d2481540fe77447ff6c855c3b1873 # 11.4.13
+    environment:
+      MARIADB_RANDOM_ROOT_PASSWORD: '1'
+      MARIADB_DATABASE: nextcloud
+      MARIADB_USER: nextcloud
+      MARIADB_PASSWORD: ${EASYM_DB_PASSWORD:?}
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+
+  redis:
+    image: redis@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499 # 7.4.11
+
+  nextcloud:
+    image: nextcloud@sha256:07ec73cc816e58d6f45a162cd53ef886462c29271a23fc68d0124cec276e3767 # 31.0.14
+    depends_on: [mariadb, redis]
+    environment:
+      MYSQL_HOST: mariadb
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${EASYM_DB_PASSWORD:?}
+      REDIS_HOST: redis
+      NEXTCLOUD_ADMIN_USER: ${EASYM_NC_ADMIN_USER:?}
+      NEXTCLOUD_ADMIN_PASSWORD: ${EASYM_NC_ADMIN_PASSWORD:?}
+      NEXTCLOUD_TRUSTED_DOMAINS: 127.0.0.1 localhost
+    ports:
+      - 127.0.0.1:18082:80

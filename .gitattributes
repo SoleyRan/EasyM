@@ -11,3 +11,6 @@ Docs/verification/v0.7/step-4/** -text whitespace=-blank-at-eof,cr-at-eol
 
 # v1.0 evidence hashes preserve exact bytes.
 Docs/verification/v1.0/** -text whitespace=-blank-at-eof,cr-at-eol
+
+# v2.0 step 1 WebDAV verification
+Docs/verification/v2.0/** -text whitespace=-blank-at-eof,cr-at-eol

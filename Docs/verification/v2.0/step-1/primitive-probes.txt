@@ -1,0 +1,16 @@
+# Raw primitive probes, 2026-10-20, loopback containers (see compose.yaml digests)
+apache {"rounds":50,"racers":2,"multiSuccess":50,"zeroSuccess":0,"finalNotWinner":0,"statuses":{"204":100}}
+nextcloud {"rounds":50,"racers":2,"multiSuccess":0,"zeroSuccess":23,"finalNotWinner":23,"statuses":{"204":27,"423":73}}
+nextcloud {"rounds":50,"racers":8,"multiSuccess":0,"zeroSuccess":20,"finalNotWinner":20,"statuses":{"204":30,"412":1,"423":369}}
+apache create {"rounds":50,"racers":2,"multiSuccess":50,"zeroSuccess":0,"finalNotWinner":0,"statuses":{"201":100}}
+nextcloud create {"rounds":50,"racers":2,"multiSuccess":1,"zeroSuccess":0,"finalNotWinner":0,"statuses":{"201":50,"204":1,"404":6,"412":20,"423":23}}
+nextcloud create {"rounds":50,"racers":8,"multiSuccess":9,"zeroSuccess":0,"finalNotWinner":0,"statuses":{"201":50,"204":9,"404":22,"412":211,"423":108}}
+apache mkcol {"rounds":100,"racers":16,"multiSuccess":0,"zeroSuccess":0,"finalNotWinner":0,"statuses":{"201":100,"403":1227,"405":273}}
+nextcloud mkcol {"rounds":100,"racers":16,"multiSuccess":0,"zeroSuccess":6,"finalNotWinner":0,"statuses":{"201":94,"405":1120,"423":386}}
+nextcloud {"rounds":50,"racers":2,"multiSuccess":0,"zeroSuccess":33,"finalNotWinner":33,"finalFromRefused":0,"statuses":{"204":17,"423":83}}
+apache lock {"rounds":30,"racers":8,"multiLock":13,"zeroLock":0,"unlockedWriteRefused":30,"lockedWriteOk":22,"statuses":{"200":52,"423":188}}
+apache move {"rounds":30,"racers":8,"multiSuccess":27,"zeroSuccess":0,"finalNotWinner":0,"statuses":{"201":82,"412":158}}
+nextcloud lock {"rounds":30,"racers":8,"multiLock":0,"zeroLock":30,"unlockedWriteRefused":0,"lockedWriteOk":0,"statuses":{"501":240}}
+nextcloud move {"rounds":30,"racers":8,"multiSuccess":0,"zeroSuccess":8,"finalNotWinner":2,"statuses":{"201":22,"412":94,"500":124}}
+apache listing {"rounds":30,"racers":8,"entries":240,"acknowledged":240,"missingFromListing":0,"missingFromGet":0,"listingP95Ms":5,"statuses":{"201":240}}
+nextcloud listing {"rounds":30,"racers":8,"entries":240,"acknowledged":240,"missingFromListing":0,"missingFromGet":0,"listingP95Ms":243,"statuses":{"201":240}}

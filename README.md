@@ -4,7 +4,7 @@ EasyM 是本地优先的 Markdown 桌面编辑器，使用 React、CodeMirror �
 
 ## 当前阶段
 
-1.0 已发布，当前按[2.0 实施计划](Docs/Easy-Markdown-v2.0-设计与实施计划.md)分阶段开发单用户多端同步。第 0 步交付[同步 RFC](Docs/Easy-Markdown-v2.0-第0步-RFC.md)、最小 Provider 契约与头指针校验；先面向桌面双设备，WebDAV 的实际服务支持在第 1 步验证。每个阶段使用独立分支，进度与检查结果见[第 0 步验收记录](Docs/Easy-Markdown-v2.0-第0步-验收与交付.md)。1.0 的历史计划、发行说明和验收记录保留在 Docs 中。
+1.0 已发布，当前按[2.0 实施计划](Docs/Easy-Markdown-v2.0-设计与实施计划.md)分阶段开发单用户多端同步。第 0 步交付[同步 RFC](Docs/Easy-Markdown-v2.0-第0步-RFC.md)、最小 Provider 契约与头指针校验；先面向桌面双设备，WebDAV 的实际服务支持在第 1 步验证。每个阶段使用独立分支，进度与检查结果见[第 0 步验收记录](Docs/Easy-Markdown-v2.0-第0步-验收与交付.md)和[第 1 步 WebDAV 能力报告](Docs/Easy-Markdown-v2.0-第1步-WebDAV能力报告.md)；第 1 步实测两个 WebDAV 服务均未满足条件更新契约，Provider 方向待定。1.0 的历史计划、发行说明和验收记录保留在 Docs 中。
 
 ## 功能
 

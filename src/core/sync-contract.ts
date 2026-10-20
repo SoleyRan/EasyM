@@ -45,6 +45,13 @@ export class SyncContractError extends Error {
 // A negative lookahead enforces the absolute end; `$` also accepts a final newline.
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\s\S])/
 const sha256 = /^sha256:[0-9a-f]{64}(?![\s\S])/
+export const isSyncId = (value: unknown): value is string => typeof value === 'string' && uuid.test(value)
+export const isSyncHash = (value: unknown): value is string => typeof value === 'string' && sha256.test(value)
+
+export async function syncHash(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
+  return 'sha256:' + Array.from(digest, (v) => v.toString(16).padStart(2, '0')).join('')
+}
 
 /** Treat remote JSON as untrusted. This validates a pointer, not its referenced objects. */
 export function parseSyncHead(bytes: Uint8Array, expectedWorkspaceId: string): SyncHead {
