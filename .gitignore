@@ -20,6 +20,10 @@ src-tauri/gen/schemas/
 .env.*
 !.env.example
 
+# Local editor settings and setup helper
+/.vscode/
+/codex-install.ps1
+
 # Operating system metadata
 .DS_Store
 Thumbs.db

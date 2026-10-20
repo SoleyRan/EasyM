@@ -2,9 +2,9 @@
 
 EasyM 是本地优先的 Markdown 桌面编辑器，使用 React、CodeMirror 和 Tauri 2。文档保存在自己的目录中，支持源码、分屏和即时渲染。
 
-## 1.0 状态
+## 当前阶段
 
-当前分支 feature/v1.0，正在完成 1.0.0 发版收尾，尚未发布正式 Release。范围见 [发布计划](Docs/Easy-Markdown-v1.0-发布计划.md)，功能、升级方式、已知限制及实机检查见 [发行说明](Docs/Easy-Markdown-v1.0-发行说明.md)。历史阶段和证据保留在 Docs 中，不把旧版本检查当作本轮验收。
+1.0 已发布，当前按[2.0 实施计划](Docs/Easy-Markdown-v2.0-设计与实施计划.md)分阶段开发单用户多端同步。第 0 步交付[同步 RFC](Docs/Easy-Markdown-v2.0-第0步-RFC.md)、最小 Provider 契约与头指针校验；先面向桌面双设备，WebDAV 的实际服务支持在第 1 步验证。每个阶段使用独立分支，进度与检查结果见[第 0 步验收记录](Docs/Easy-Markdown-v2.0-第0步-验收与交付.md)。1.0 的历史计划、发行说明和验收记录保留在 Docs 中。
 
 ## 功能
 
@@ -19,7 +19,7 @@ EasyM 是本地优先的 Markdown 桌面编辑器，使用 React、CodeMirror �
 
 ## 下载和使用
 
-正式下载以 [GitHub Releases](https://github.com/SoleyRan/EasyM/releases) 为准。Windows x64 包需要 WebView2 Runtime；当前没有签名或自动更新。1.0 按三平台同时正式发布；正在等待 Windows/macOS/Linux 实机验收，自动构建通过不代替该验收。首发目标为 Windows x64、macOS Apple Silicon、Ubuntu 24.04 x86_64。
+正式下载及各版本的签名、更新方式以 [GitHub Releases](https://github.com/SoleyRan/EasyM/releases) 的实际资产和说明为准。Windows x64 包需要 WebView2 Runtime。1.0 发布目标为 Windows x64、macOS Apple Silicon、Ubuntu 24.04 x86_64；2.0 的平台支持按其独立验收结果确定。
 
 目标文件名：EasyM_1.0.0_x64-setup.exe、EasyM-1.0.0-windows-x64.zip。下载后可使用 PowerShell 的 Get-FileHash -Algorithm SHA256 核对同次发行的 SHA256SUMS.txt。便携包附带 [体验指南与样例](Docs/samples/v1.0/README.md)，练习前复制到临时目录。
 
