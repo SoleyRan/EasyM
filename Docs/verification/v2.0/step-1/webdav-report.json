@@ -1,7 +1,11 @@
 {
-  "verifiedAt": "2026-10-20T13:21:02.935Z",
+  "verifiedAt": {
+    "apache": "2026-10-21T03:59:51.025Z",
+    "nextcloud": "2026-10-21T05:39:12.849Z"
+  },
   "node": "v24.20.0",
-  "scope": "Loopback HTTP containers, isolated test namespace. Protocol semantics only; no TLS, native credential store or editor integration.",
+  "design": "per-device log (devices/<id>.json single writer, immutable content-addressed objects, deterministic merges)",
+  "scope": "Loopback HTTP containers, isolated test namespaces. Protocol semantics only; no TLS, native credential store or editor integration.",
   "targets": {
     "apache": {
       "checks": [
@@ -12,136 +16,113 @@
         },
         {
           "id": "bad_credentials_are_errors_not_absent",
-          "passed": true,
-          "code": "unauthorized"
+          "passed": true
         },
         {
           "id": "cross_origin_request_refused_locally",
           "passed": true
         },
         {
-          "id": "missing_head_is_absent",
+          "id": "empty_workspace_lists_no_heads",
           "passed": true
         },
         {
-          "id": "object_create_only",
+          "id": "racing_object_creates_store_exact_bytes",
           "passed": true,
-          "overwriteStatus": 412
-        },
-        {
-          "id": "absent_create_race_single_winner",
-          "passed": false,
-          "rounds": 10,
-          "racers": 8,
-          "multiAck": 8,
-          "statuses": {
-            "201": 36,
-            "412": 44
+          "outcomes": {
+            "created": 7,
+            "exists": 1
           }
         },
         {
-          "id": "strong_etag_on_head",
-          "passed": true,
-          "form": "strong"
-        },
-        {
-          "id": "weak_if_match_never_writes",
+          "id": "object_not_overwritten_sequentially",
           "passed": true,
           "status": 412
         },
         {
-          "id": "if_match_race_single_winner",
-          "passed": false,
-          "rounds": 20,
-          "racers": 8,
-          "multiAck": 13,
-          "lostUpdates": 0,
-          "undetermined": 0
+          "id": "concurrent_devices_converge",
+          "passed": true,
+          "devices": 4,
+          "rounds": 6,
+          "distinctViews": 1
         },
         {
-          "id": "if_match_race_progress",
+          "id": "no_acknowledged_edit_lost",
           "passed": true,
-          "roundsWithoutWinner": 0,
-          "statuses": {
-            "204": 45,
-            "412": 115
+          "written": 48,
+          "knowinglyReplaced": 6,
+          "lost": 0,
+          "documents": 46,
+          "conflicts": {
+            "both_changed": 49
           }
         },
         {
-          "id": "etag_changes_on_same_size_rewrite",
+          "id": "one_head_per_device",
           "passed": true,
-          "stale": "conflict"
+          "heads": 4
         },
         {
-          "id": "lost_response_after-response_resolved_consistently",
+          "id": "lost_reply_after-response_settles",
           "passed": true,
-          "publish": "unknown",
-          "resolved": "committed"
+          "first": "unknown_outcome",
+          "settled": "ok"
         },
         {
-          "id": "lost_response_after-response_retry_safe",
+          "id": "lost_reply_after-send_settles",
           "passed": true,
-          "retry": "conflict"
+          "first": "unknown_outcome",
+          "settled": "ok"
         },
         {
-          "id": "lost_response_after-send_resolved_consistently",
+          "id": "cloned_device_id_refused",
           "passed": true,
-          "publish": "unknown",
-          "resolved": "committed"
+          "outcome": "device_conflict"
         },
         {
-          "id": "lost_response_after-send_retry_safe",
+          "id": "rollback_and_removed_head_detected",
           "passed": true,
-          "retry": "conflict"
+          "rolled": "rollback",
+          "removed": "rollback"
         },
         {
-          "id": "superseded_after_other_device",
+          "id": "tampered_or_missing_commit_rejected",
           "passed": true,
-          "resolved": "superseded"
+          "missing": "missing_object",
+          "tampered": "hash_mismatch"
         },
         {
-          "id": "cancel_before_head_keeps_head",
+          "id": "cancel_never_advances_head",
           "passed": true,
-          "outcome": 20
+          "outcome": "aborted"
         },
         {
-          "id": "read_after_write_visible",
-          "passed": true,
-          "samples": 10
-        },
-        {
-          "id": "mismatched_object_rejected",
-          "passed": true,
-          "code": "hash_mismatch"
+          "id": "unknown_device_entry_rejected",
+          "passed": true
         }
       ],
       "observations": {
         "dav": "1,2, <http://apache.org/dav/propset/fs/1>",
-        "allow": "OPTIONS,GET,HEAD,POST,DELETE,TRACE,PROPFIND,PROPPATCH,COPY,MOVE,LOCK,UNLOCK",
-        "objectEtag": "weak",
-        "headEtag": "strong",
-        "putReturnsEtag": false,
-        "weakIfMatchStatus": 412
+        "headEtag": "strong"
       },
       "measurements": {
-        "raceRoundMs": {
-          "n": 20,
-          "p50": 62,
-          "p95": 95,
-          "max": 95
+        "syncPassMs": {
+          "n": 40,
+          "p50": 432,
+          "p95": 600,
+          "max": 602
         },
-        "upload1MiBMs": 62,
-        "download1MiBMs": 5,
-        "readHeadMs": 3,
-        "unknownOutcomesSettled": 59,
-        "provider": {
-          "requests": 1179,
-          "bytesSent": 1178389,
-          "bytesReceived": 1416412,
-          "weakEtagRetries": 176
-        }
+        "requestsPerPass": {
+          "n": 40,
+          "p50": 141,
+          "p95": 191,
+          "max": 193
+        },
+        "transientRetries": 0,
+        "upload1MiBMs": 51,
+        "download1MiBMs": 19
       },
-      "passed": false
+      "passed": true
     },
     "nextcloud": {
       "checks": [
@@ -152,140 +133,114 @@
         },
         {
           "id": "bad_credentials_are_errors_not_absent",
-          "passed": true,
-          "code": "unauthorized"
+          "passed": true
         },
         {
           "id": "cross_origin_request_refused_locally",
           "passed": true
         },
         {
-          "id": "missing_head_is_absent",
+          "id": "empty_workspace_lists_no_heads",
           "passed": true
         },
         {
-          "id": "object_create_only",
+          "id": "racing_object_creates_store_exact_bytes",
           "passed": true,
-          "overwriteStatus": 412
-        },
-        {
-          "id": "absent_create_race_single_winner",
-          "passed": false,
-          "rounds": 10,
-          "racers": 8,
-          "multiAck": 1,
-          "statuses": {
-            "201": 10,
-            "204": 1,
-            "404": 3,
-            "412": 50,
-            "423": 16
+          "outcomes": {
+            "exists": 7,
+            "created": 1
           }
         },
         {
-          "id": "strong_etag_on_head",
-          "passed": true,
-          "form": "strong"
-        },
-        {
-          "id": "weak_if_match_never_writes",
+          "id": "object_not_overwritten_sequentially",
           "passed": true,
           "status": 412
         },
         {
-          "id": "if_match_race_single_winner",
+          "id": "concurrent_devices_converge",
           "passed": true,
-          "rounds": 20,
-          "racers": 8,
-          "multiAck": 0,
-          "lostUpdates": 0,
-          "undetermined": 0
+          "devices": 4,
+          "rounds": 6,
+          "distinctViews": 1
         },
         {
-          "id": "if_match_race_progress",
-          "passed": false,
-          "roundsWithoutWinner": 3,
-          "statuses": {
-            "204": 17,
-            "412": 4,
-            "423": 139
+          "id": "no_acknowledged_edit_lost",
+          "passed": true,
+          "written": 48,
+          "knowinglyReplaced": 6,
+          "lost": 0,
+          "documents": 45,
+          "conflicts": {
+            "both_changed": 41
           }
         },
         {
-          "id": "etag_changes_on_same_size_rewrite",
+          "id": "one_head_per_device",
           "passed": true,
-          "stale": "conflict"
+          "heads": 4
         },
         {
-          "id": "lost_response_after-response_resolved_consistently",
+          "id": "lost_reply_after-response_settles",
           "passed": true,
-          "publish": "unknown",
-          "resolved": "committed"
+          "first": "unknown_outcome",
+          "settled": "ok"
         },
         {
-          "id": "lost_response_after-response_retry_safe",
+          "id": "lost_reply_after-send_settles",
           "passed": true,
-          "retry": "conflict"
+          "first": "unknown_outcome",
+          "settled": "ok"
         },
         {
-          "id": "lost_response_after-send_resolved_consistently",
+          "id": "cloned_device_id_refused",
           "passed": true,
-          "publish": "unknown",
-          "resolved": "committed"
+          "outcome": "device_conflict"
         },
         {
-          "id": "lost_response_after-send_retry_safe",
+          "id": "rollback_and_removed_head_detected",
           "passed": true,
-          "retry": "conflict"
+          "rolled": "rollback",
+          "removed": "rollback"
         },
         {
-          "id": "superseded_after_other_device",
+          "id": "tampered_or_missing_commit_rejected",
           "passed": true,
-          "resolved": "superseded"
+          "missing": "missing_object",
+          "tampered": "hash_mismatch"
         },
         {
-          "id": "cancel_before_head_keeps_head",
+          "id": "cancel_never_advances_head",
           "passed": true,
-          "outcome": 20
+          "outcome": "aborted"
         },
         {
-          "id": "read_after_write_visible",
-          "passed": true,
-          "samples": 10
-        },
-        {
-          "id": "mismatched_object_rejected",
-          "passed": true,
-          "code": "hash_mismatch"
+          "id": "unknown_device_entry_rejected",
+          "passed": true
         }
       ],
       "observations": {
         "dav": "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar",
-        "allow": "OPTIONS, GET, HEAD, DELETE, PROPFIND, PUT, PROPPATCH, COPY, MOVE, REPORT",
-        "objectEtag": "strong",
-        "headEtag": "strong",
-        "putReturnsEtag": true,
-        "weakIfMatchStatus": 412
+        "headEtag": "strong"
       },
       "measurements": {
-        "raceRoundMs": {
-          "n": 20,
-          "p50": 1138,
-          "p95": 1265,
-          "max": 1265
+        "syncPassMs": {
+          "n": 40,
+          "p50": 25867,
+          "p95": 40718,
+          "max": 40912
         },
-        "upload1MiBMs": 241,
-        "download1MiBMs": 211,
-        "readHeadMs": 212,
-        "unknownOutcomesSettled": 141,
-        "provider": {
-          "requests": 2235,
-          "bytesSent": 1178389,
-          "bytesReceived": 1866738
-        }
+        "requestsPerPass": {
+          "n": 40,
+          "p50": 139,
+          "p95": 187,
+          "max": 187
+        },
+        "transientRetries": 0,
+        "upload1MiBMs": 248,
+        "download1MiBMs": 206
       },
-      "passed": false
+      "passed": true
     }
   },
-  "passed": false
+  "passed": true
 }

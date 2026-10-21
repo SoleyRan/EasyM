@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { encodeSyncCommit, isPortableSyncPath, parseSyncCommit, publishSyncCommit, readSyncCommit, resolveSyncPublication, SyncCommitError, type SyncCommit } from './sync-commit'
-import { syncHash } from './sync-contract'
+import { encodeSyncCommit, isPortableSyncPath, parseSyncCommit, readSyncCommit, SyncCommitError, uploadSyncCommit, type SyncCommit } from './sync-commit'
+import { MERGE_DEVICE_ID, syncHash } from './sync-contract'
 import { MemorySyncProvider } from './sync-memory-provider'
 
 const workspaceId = '1358f0a2-25b8-441b-9d55-379f6ca303dc'
 const deviceA = '6f0c1c55-3c9e-4f53-9c9b-0b8f4d9f6a01'
-const deviceB = '6f0c1c55-3c9e-4f53-9c9b-0b8f4d9f6a02'
 const documentId = 'a1b2c3d4-0000-4000-8000-000000000001'
 const op = (n: number) => `0b0b0b0b-0000-4000-8000-${String(n).padStart(12, '0')}`
 const encode = (value: unknown) => new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value))
@@ -78,79 +77,33 @@ describe('sync commit manifest', () => {
     await expect(readSyncCommit(provider, workspaceId, `sha256:${'0'.repeat(64)}`, signal())).rejects.toThrow('missing_object')
   })
 })
-describe('conditional publication against a fault-injecting provider', () => {
-  it('uploads objects before the commit and moves the head last', async () => {
+
+describe('commit upload', () => {
+  it('uploads referenced objects before the commit object', async () => {
     const provider = new MemorySyncProvider(), { commit, uploads } = await commitFor('x', op(1))
-    const { result } = await publishSyncCommit(provider, commit, uploads, new Set(), { kind: 'absent' }, signal())
-    expect(result.kind).toBe('committed')
-    expect(provider.requests).toEqual(['createObject', 'createObject', 'publishHead'])
+    const hash = await uploadSyncCommit(provider, commit, uploads, new Set(), signal())
+    expect(hash).toBe(await syncHash(encodeSyncCommit(commit)))
+    expect(provider.requests).toEqual(['createObject', 'createObject'])
   })
 
-  it('never moves the head when an object upload fails', async () => {
-    const provider = new MemorySyncProvider(), { commit, uploads } = await commitFor('x', op(1))
-    provider.failNextObject = true
-    await expect(publishSyncCommit(provider, commit, uploads, new Set(), { kind: 'absent' }, signal())).rejects.toThrow('transport_failed')
-    expect(provider.head).toBeNull()
-  })
-
-  it('refuses to publish a commit that references objects neither uploaded nor known remote', async () => {
+  it('refuses commits referencing objects neither uploaded nor known remote', async () => {
     const provider = new MemorySyncProvider(), { commit } = await commitFor('x', op(1))
-    await expect(publishSyncCommit(provider, commit, [], new Set(), { kind: 'absent' }, signal())).rejects.toThrow('missing_object')
+    await expect(uploadSyncCommit(provider, commit, [], new Set(), signal())).rejects.toThrow('missing_object')
     expect(provider.requests).toEqual([])
   })
 
-  it('rejects upload bytes that do not match their hash', async () => {
+  it('rejects upload bytes that do not match their hash and stops when cancelled', async () => {
     const provider = new MemorySyncProvider(), { commit, uploads } = await commitFor('x', op(1))
-    await expect(publishSyncCommit(provider, commit, [{ ...uploads[0], bytes: encode('y') }], new Set(), { kind: 'absent' }, signal())).rejects.toThrow('hash_mismatch')
+    await expect(uploadSyncCommit(provider, commit, [{ ...uploads[0], bytes: encode('y') }], new Set(), signal())).rejects.toThrow('hash_mismatch')
+    const controller = new AbortController(); controller.abort()
+    await expect(uploadSyncCommit(provider, commit, uploads, new Set(), controller.signal)).rejects.toThrow()
+    expect(provider.objects.size).toBe(0)
   })
 
-  it('lets exactly one of two racing first commits win and keeps both object sets', async () => {
-    const provider = new MemorySyncProvider()
-    const a = await commitFor('A', op(1), [], deviceA), b = await commitFor('B', op(2), [], deviceB)
-    const results = await Promise.all([a, b].map((x) => publishSyncCommit(provider, x.commit, x.uploads, new Set(), { kind: 'absent' }, signal())))
-    expect(results.map((r) => r.result.kind).sort()).toEqual(['committed', 'conflict'])
-    for (const r of results) expect(provider.objects.has(`${workspaceId}/${r.commitHash}`)).toBe(true)
-  })
-
-  it('rejects a stale revision instead of overwriting a newer head', async () => {
-    const provider = new MemorySyncProvider(), first = await commitFor('1', op(1))
-    const base = await publishSyncCommit(provider, first.commit, first.uploads, new Set(), { kind: 'absent' }, signal())
-    if (base.result.kind !== 'committed') throw new Error('setup')
-    const expected = { kind: 'match' as const, revision: base.result.value.revision }
-    const a = await commitFor('A', op(2), [base.commitHash]), b = await commitFor('B', op(3), [base.commitHash], deviceB)
-    expect((await publishSyncCommit(provider, a.commit, a.uploads, new Set(), expected, signal())).result.kind).toBe('committed')
-    expect((await publishSyncCommit(provider, b.commit, b.uploads, new Set(), expected, signal())).result.kind).toBe('conflict')
-    expect((await provider.readHead(workspaceId, signal()))?.head.commitHash).not.toBe(base.commitHash)
-  })
-
-  it('resolves a lost response as committed, then superseded after another device builds on it', async () => {
-    const provider = new MemorySyncProvider(), first = await commitFor('1', op(1))
-    provider.loseNextPublishResponse = true
-    const lost = await publishSyncCommit(provider, first.commit, first.uploads, new Set(), { kind: 'absent' }, signal())
-    expect(lost.result.kind).toBe('unknown')
-    const publication = { operationId: op(1), commitHash: lost.commitHash }
-    const resolved = await resolveSyncPublication(provider, workspaceId, publication, signal())
-    expect(resolved.kind).toBe('committed')
-    if (resolved.kind !== 'committed') throw new Error('setup')
-    const next = await commitFor('2', op(2), [lost.commitHash], deviceB)
-    await publishSyncCommit(provider, next.commit, next.uploads, new Set(), { kind: 'match', revision: resolved.value.revision }, signal())
-    expect((await resolveSyncPublication(provider, workspaceId, publication, signal())).kind).toBe('superseded')
-  })
-
-  it('reports absent only after a complete ancestry walk and undetermined on gaps or budget', async () => {
-    const provider = new MemorySyncProvider(), first = await commitFor('1', op(1))
-    const published = await publishSyncCommit(provider, first.commit, first.uploads, new Set(), { kind: 'absent' }, signal())
-    const other = { operationId: op(7), commitHash: `sha256:${'f'.repeat(64)}` }
-    expect((await resolveSyncPublication(provider, workspaceId, other, signal())).kind).toBe('absent')
-    expect((await resolveSyncPublication(provider, workspaceId, other, signal(), 0)).kind).toBe('undetermined')
-    provider.objects.delete(`${workspaceId}/${published.commitHash}`)
-    expect((await resolveSyncPublication(provider, workspaceId, other, signal())).kind).toBe('undetermined')
-  })
-
-  it('stops before the head request once cancelled', async () => {
-    const provider = new MemorySyncProvider(), { commit, uploads } = await commitFor('x', op(1)), controller = new AbortController()
-    controller.abort()
-    await expect(publishSyncCommit(provider, commit, uploads, new Set(), { kind: 'absent' }, controller.signal)).rejects.toThrow()
-    expect(provider.head).toBeNull()
+  it('accepts at most one parent for device commits and two sorted parents for merges', async () => {
+    const { commit } = await commitFor('x', op(1)), a = `sha256:${'a'.repeat(64)}`, b = `sha256:${'b'.repeat(64)}`
+    expect(code(() => parse({ ...commit, parents: [a, b] }))).toBe('invalid_commit')
+    expect(parse({ ...commit, deviceId: MERGE_DEVICE_ID, parents: [a, b] }).parents).toEqual([a, b])
+    for (const parents of [[b, a], [a], [a, a]]) expect(code(() => parse({ ...commit, deviceId: MERGE_DEVICE_ID, parents }))).toBe('invalid_commit')
   })
 })

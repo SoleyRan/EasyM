@@ -1,4 +1,4 @@
-// v2.0 step 1: protocol probe against real WebDAV targets started from scripts/webdav/compose.yaml.
+// v2.0 step 1: per-device log verification against real WebDAV targets (scripts/webdav/compose.yaml).
 // Usage: node scripts/verify-webdav.mjs [apache|nextcloud ...]
 // Raw output goes to ignored test-results/v2.0/step-1/; the redacted report is copied to Docs separately.
 import http from 'node:http'
@@ -22,31 +22,76 @@ const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.k
 const bundle = resolve(out, 'core')
 const entry = resolve('scripts/webdav/core-entry.ts')
 await build({ configFile: false, logLevel: 'warn', build: { outDir: bundle, emptyOutDir: true, target: 'node22', minify: false, lib: { entry, formats: ['es'], fileName: () => 'core.js' }, rollupOptions: { input: entry } } })
-const core = await import(pathToFileURL(resolve(bundle, 'core.js')).href), contract = core
-const report = { verifiedAt: new Date().toISOString(), node: process.version, scope: 'Loopback HTTP containers, isolated test namespace. Protocol semantics only; no TLS, native credential store or editor integration.', targets: {} }
-const encoder = new TextEncoder(), signal = () => AbortSignal.timeout(30000)
-const ROUNDS = 20, CREATE_ROUNDS = 10, RACERS = 8
-
-async function body(text) { const bytes = encoder.encode(text); return { bytes, hash: await contract.syncHash(bytes) } }
-async function commit(workspaceId, text, parents, deviceId = randomUUID()) {
-  const doc = await body(text)
-  return {
-    uploads: [doc],
-    commit: { schemaVersion: 1, workspaceId, operationId: randomUUID(), deviceId, parents, documents: [{ documentId: randomUUID(), path: '笔记/同步.md', text: { object: doc.hash, bytes: doc.bytes.byteLength }, imageMetadata: null, resources: [] }], tombstones: [] },
-  }
-}
+const core = await import(pathToFileURL(resolve(bundle, 'core.js')).href)
+const report = { verifiedAt: new Date().toISOString(), node: process.version, design: 'per-device log (devices/<id>.json single writer, immutable content-addressed objects, deterministic merges)', scope: 'Loopback HTTP containers, isolated test namespaces. Protocol semantics only; no TLS, native credential store or editor integration.', targets: {} }
+const encoder = new TextEncoder(), decoder = new TextDecoder(), signal = () => AbortSignal.timeout(60000)
+const DEVICES = 4, ROUNDS = 6, SHARED = 3
 const tally = (values) => values.reduce((all, v) => ({ ...all, [v]: (all[v] ?? 0) + 1 }), {})
-const etagForm = (etag) => (etag == null ? 'missing' : etag.startsWith('W/') ? 'weak' : 'strong')
-const etagValue = (etag) => etag?.replace(/^W\//, '') ?? null
 function summary(values) {
   const sorted = [...values].sort((a, b) => a - b), at = (q) => Math.round(sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))])
   return { n: sorted.length, p50: at(0.5), p95: at(0.95), max: Math.round(sorted.at(-1)) }
 }
-
 /**
- * Sends the complete PUT, then loses the reply. `after-response` waits until the server has
- * answered (committed, reply lost); `after-send` hangs up as soon as the body is flushed.
+ * Independent simulated device: own provider instance (own connections), own local snapshot and
+ * own persisted state file. Mirrors src/core/sync-log.test.ts but against a real server.
  */
+class Device {
+  constructor(target, workspaceId, name) {
+    this.provider = new WebDavSyncProvider(target, core)
+    this.workspaceId = workspaceId; this.name = name
+    this.state = core.initialDeviceState(workspaceId, randomUUID())
+    this.docs = new Map(); this.tombs = new Map(); this.passes = []; this.saved = null
+  }
+  edit(id, path, text) { this.docs.set(id, { path, text }); this.tombs.delete(id) }
+  remove(id) { const doc = this.docs.get(id); if (!doc) return; this.docs.delete(id); this.tombs.set(id, { path: doc.path, operationId: randomUUID() }) }
+  async change() {
+    const uploads = [], documents = []
+    for (const [documentId, doc] of [...this.docs].sort()) {
+      const bytes = encoder.encode(doc.text), hash = await core.syncHash(bytes)
+      uploads.push({ hash, bytes })
+      documents.push({ documentId, path: doc.path, text: { object: hash, bytes: bytes.byteLength }, imageMetadata: null, resources: [] })
+    }
+    const tombstones = [...this.tombs].sort().map(([documentId, t]) => ({ documentId, ...t }))
+    const view = (c) => JSON.stringify([c.documents.map((d) => [d.documentId, d.path, d.text.object]).sort(), c.tombstones.map((t) => [t.documentId, t.path, t.operationId]).sort()])
+    const commit = { schemaVersion: 1, workspaceId: this.workspaceId, operationId: randomUUID(), deviceId: this.state.deviceId, parents: this.state.commitHash ? [this.state.commitHash] : [], documents, tombstones }
+    if (this.state.commitHash) { if (view(await core.readSyncCommit(this.provider, this.workspaceId, this.state.commitHash, signal())) === view(commit)) return undefined }
+    else if (!documents.length && !tombstones.length) return undefined
+    return { commit, uploads }
+  }
+  async sync() {
+    const started = performance.now(), before = this.provider.stats.requests
+    const result = await core.runSyncPass(this.provider, this.state, { change: await this.change(), persist: async (s) => { this.saved = structuredClone(s) } }, signal())
+    this.state = result.state
+    if (result.commitHash) await this.load(result.commitHash)
+    this.passes.push({ ms: performance.now() - started, requests: this.provider.stats.requests - before })
+    return result
+  }
+  async load(hash) {
+    const commit = await core.readSyncCommit(this.provider, this.workspaceId, hash, signal())
+    this.docs.clear(); this.tombs.clear()
+    for (const d of commit.documents) {
+      const bytes = await this.provider.readObject(this.workspaceId, d.text.object, signal())
+      if (!bytes || (await core.syncHash(bytes)) !== d.text.object) throw new Error('object_mismatch')
+      this.docs.set(d.documentId, { path: d.path, text: decoder.decode(bytes) })
+    }
+    for (const t of commit.tombstones) this.tombs.set(t.documentId, { path: t.path, operationId: t.operationId })
+  }
+  view() { return JSON.stringify([...this.docs].sort().map(([id, d]) => [id, d.path, d.text])) }
+}
+
+/** Sync passes may legitimately fail on a transient server refusal; retry those, stop on the rest. */
+async function syncRetrying(device, tries = 6) {
+  for (let attempt = 0; ; attempt++) {
+    try { return await device.sync() }
+    catch (error) {
+      const transient = error.code === 'unexpected_status' && [423, 500, 503].includes(error.status)
+      if (!transient || attempt >= tries) throw error
+      device.retries = (device.retries ?? 0) + 1
+      await sleep(200 * (attempt + 1))
+    }
+  }
+}
+/** Sends the complete PUT, then loses the reply (after the server answered, or right after sending). */
 function lossyPut(target, path, { headers = {}, body }, mode) {
   const lost = () => Object.assign(new Error('response_lost'), { code: 'response_lost' })
   return new Promise((_, reject) => {
@@ -62,172 +107,149 @@ async function waitReady(name, target) {
   for (;;) {
     try {
       const res = name === 'nextcloud' ? await request(target, 'GET', '/status.php', { timeoutMs: 5000 }) : await request(target, 'OPTIONS', target.root, { timeoutMs: 5000 })
-      if (res.status === 200 && (name !== 'nextcloud' || JSON.parse(new TextDecoder().decode(res.body)).installed === true)) return
+      if (res.status === 200 && (name !== 'nextcloud' || JSON.parse(decoder.decode(res.body)).installed === true)) return
     } catch { /* not listening yet */ }
     if (Date.now() > deadline) throw Object.assign(new Error('not_ready'), { code: 'not_ready' })
     await sleep(3000)
   }
 }
+
+const codeOf = (promise) => promise.then(() => 'ok', (error) => error.code ?? error.message)
+
 async function probe(name, target) {
   const result = { checks: [], observations: {}, measurements: {} }
   const check = (id, passed, detail = {}) => { result.checks.push({ id, passed, ...detail }); console.log(`${passed ? 'PASS' : 'FAIL'} ${name} ${id}`) }
-  const workspaceId = randomUUID()
-  const provider = new WebDavSyncProvider(target, contract.parseSyncHead)
-  const headPath = provider.path(workspaceId, 'head.json')
+  const workspace = async () => { const id = randomUUID(); await new WebDavSyncProvider(target, core).prepare(id, signal()); return id }
   const raw = (method, path, options) => request(target, method, path, options)
-  const readHead = () => provider.readHead(workspaceId, signal())
-  const publish = (x, expected, uploads = x.uploads, existing = new Set()) => core.publishSyncCommit(provider, x.commit, uploads, existing, expected, signal())
-  const match = (head) => ({ kind: 'match', revision: head.revision })
-  // `unknown` is a legal Provider answer; settle it through ancestry as the sync engine will.
-  let unknownOutcomes = 0
-  const settle = async (x, outcome) => {
-    if (outcome.result.kind !== 'unknown') return outcome.result.kind
-    unknownOutcomes++
-    const resolved = await core.resolveSyncPublication(provider, workspaceId, { operationId: x.commit.operationId, commitHash: outcome.commitHash }, signal())
-    return resolved.kind === 'committed' || resolved.kind === 'superseded' ? 'committed' : resolved.kind === 'absent' ? 'conflict' : 'undetermined'
-  }
 
   const options = await raw('OPTIONS', target.root)
   result.observations.dav = options.headers.dav ?? null
-  result.observations.allow = options.headers.allow ?? null
   check('authenticated_options', options.status === 200 || options.status === 204, { status: options.status })
-  let unauthorized = 'none'
-  try { await new WebDavSyncProvider({ ...target, password: 'wrong-' + randomUUID() }, contract.parseSyncHead).readHead(workspaceId, signal()) } catch (error) { unauthorized = error.code }
-  check('bad_credentials_are_errors_not_absent', unauthorized === 'unauthorized', { code: unauthorized })
-  const crossOrigin = await Promise.resolve().then(() => request(target, 'GET', 'http://example.invalid/x')).then(() => 'sent', (error) => error.code)
-  check('cross_origin_request_refused_locally', crossOrigin === 'cross_origin')
+  const ws0 = await workspace()
+  const wrong = new WebDavSyncProvider({ ...target, password: 'wrong-' + randomUUID() }, core)
+  check('bad_credentials_are_errors_not_absent', (await codeOf(wrong.listDeviceHeads(ws0, signal()))) === 'unauthorized')
+  check('cross_origin_request_refused_locally', (await codeOf(Promise.resolve().then(() => request(target, 'GET', 'http://example.invalid/x')))) === 'cross_origin')
+  const empty = await new WebDavSyncProvider(target, core).listDeviceHeads(ws0, signal())
+  check('empty_workspace_lists_no_heads', Array.isArray(empty) && empty.length === 0)
 
-  await provider.prepare(workspaceId, signal())
-  check('missing_head_is_absent', (await readHead()) === null)
-
-  // Immutable objects: create-only, verified on collision.
-  const object = await body('immutable ' + randomUUID())
-  const objectPath = provider.path(workspaceId, `objects/sha256/${object.hash.slice(7)}`)
-  const created = await provider.createObject(workspaceId, object.hash, object.bytes, signal())
-  const again = await provider.createObject(workspaceId, object.hash, object.bytes, signal())
-  const overwrite = await raw('PUT', objectPath, { body: encoder.encode('tampered'), headers: { 'If-None-Match': '*' } })
-  const stored = await provider.readObject(workspaceId, object.hash, signal())
-  check('object_create_only', created === 'created' && again === 'exists' && overwrite.status === 412 && (await contract.syncHash(stored)) === object.hash, { overwriteStatus: overwrite.status })
-  const objectGet = await raw('GET', objectPath)
-  result.observations.objectEtag = etagForm(objectGet.headers.etag)
-  // First-commit race: RACERS clients create the head with If-None-Match: *.
-  const first = await Promise.all(Array.from({ length: RACERS }, () => commit(workspaceId, 'first ' + randomUUID(), [])))
-  const firstResults = await Promise.all(first.map((x) => publish(x, { kind: 'absent' })))
-  const firstKinds = await Promise.all(firstResults.map((r, i) => settle(first[i], r)))
-  let head = await readHead()
-  const winner = firstResults[firstKinds.indexOf('committed')]
-  // Count server acknowledgements, not settled outcomes: ancestry resolution can hide a
-  // writer that was told 2xx but whose head was then overwritten by a concurrent 2xx.
-  const acked = (outcomes) => outcomes.filter((o) => o.result.httpStatus === 201 || o.result.httpStatus === 204).length
-  // One round rarely exposes a non-atomic create; repeat on fresh workspaces.
-  const createStatuses = firstResults.map((r) => r.result.httpStatus); let createMultiAck = acked(firstResults) > 1 ? 1 : 0
-  for (let round = 1; round < CREATE_ROUNDS; round++) {
-    const ws = randomUUID(), other = new WebDavSyncProvider(target, contract.parseSyncHead)
-    await other.prepare(ws, signal())
-    const racers = await Promise.all(Array.from({ length: RACERS }, () => commit(ws, `create ${round} ` + randomUUID(), [])))
-    const outcomes = await Promise.all(racers.map((x) => core.publishSyncCommit(other, x.commit, x.uploads, new Set(), { kind: 'absent' }, signal())))
-    createStatuses.push(...outcomes.map((o) => o.result.httpStatus))
-    if (acked(outcomes) > 1) createMultiAck++
+  // Immutable objects: create-only, and content addressing makes racing creates harmless.
+  const p0 = new WebDavSyncProvider(target, core), bytes = encoder.encode('immutable ' + randomUUID()), hash = await core.syncHash(bytes)
+  const creates = await Promise.all(Array.from({ length: 8 }, () => new WebDavSyncProvider(target, core).createObject(ws0, hash, bytes, signal()).catch((e) => e.code)))
+  const stored = await p0.readObject(ws0, hash, signal())
+  check('racing_object_creates_store_exact_bytes', creates.every((c) => c === 'created' || c === 'exists') && (await core.syncHash(stored)) === hash, { outcomes: tally(creates) })
+  const overwrite = await raw('PUT', p0.path(ws0, `objects/sha256/${hash.slice(7)}`), { body: encoder.encode('tampered'), headers: { 'If-None-Match': '*' } })
+  check('object_not_overwritten_sequentially', overwrite.status === 412 && (await core.syncHash(await p0.readObject(ws0, hash, signal()))) === hash, { status: overwrite.status })
+  // Core scenario: DEVICES devices edit concurrently for ROUNDS rounds, syncing in parallel.
+  // Every acknowledged edit must survive (in place or as a conflict copy) and all devices converge.
+  {
+    const ws = await workspace(), devices = Array.from({ length: DEVICES }, (_, i) => new Device(target, ws, `d${i}`))
+    const shared = Array.from({ length: SHARED }, () => randomUUID())
+    shared.forEach((id, i) => devices[0].edit(id, `共享/文档-${i}.md`, `base ${i}`))
+    await syncRetrying(devices[0])
+    await Promise.all(devices.slice(1).map(syncRetrying))
+    // An edit made while the device already saw text T at that document intentionally replaces T;
+    // only texts that no device knowingly replaced must survive.
+    const written = new Set(), superseded = new Set(), conflicts = []
+    for (let round = 0; round < ROUNDS; round++) {
+      devices.forEach((d, i) => {
+        const id = shared[(round + i) % SHARED], text = `r${round} d${i} ${randomUUID()}`
+        if (d.docs.has(id)) superseded.add(d.docs.get(id).text)
+        d.edit(id, d.docs.get(id)?.path ?? `共享/文档-${(round + i) % SHARED}.md`, text); written.add(text)
+        const own = randomUUID(), ownText = `own r${round} d${i}`; d.edit(own, `设备${i}/r${round}.md`, ownText); written.add(ownText)
+      })
+      const results = await Promise.all(devices.map(syncRetrying))
+      for (const r of results) conflicts.push(...r.conflicts.map((c) => c.reason))
+    }
+    for (let i = 0; i < 3; i++) for (const d of devices) await syncRetrying(d)
+    const views = devices.map((d) => d.view()), texts = new Set([...devices[0].docs.values()].map((d) => d.text))
+    const lost = [...written].filter((t) => !texts.has(t) && !superseded.has(t))
+    check('concurrent_devices_converge', new Set(views).size === 1 && new Set(devices.map((d) => d.state.commitHash)).size === 1, { devices: DEVICES, rounds: ROUNDS, distinctViews: new Set(views).size })
+    check('no_acknowledged_edit_lost', lost.length === 0, { written: written.size, knowinglyReplaced: [...written].filter((t) => superseded.has(t)).length, lost: lost.length, documents: devices[0].docs.size, conflicts: tally(conflicts) })
+    const heads = await devices[0].provider.listDeviceHeads(ws, signal())
+    check('one_head_per_device', heads.length === DEVICES && heads.every((h) => h.head.commitHash === devices[0].state.commitHash), { heads: heads.length })
+    const passes = devices.flatMap((d) => d.passes)
+    result.measurements.syncPassMs = summary(passes.map((p) => p.ms))
+    result.measurements.requestsPerPass = summary(passes.map((p) => p.requests))
+    result.measurements.transientRetries = devices.reduce((n, d) => n + (d.retries ?? 0), 0)
+    result.observations.headEtag = heads[0]?.revision ? 'strong' : 'weak_or_missing'
   }
-  check('absent_create_race_single_winner', createMultiAck === 0 && firstKinds.filter((k) => k === 'committed').length === 1 && head?.head.commitHash === winner?.commitHash, { rounds: CREATE_ROUNDS, racers: RACERS, multiAck: createMultiAck, statuses: tally(createStatuses) })
-  const headGet = await raw('GET', headPath)
-  result.observations.headEtag = etagForm(headGet.headers.etag)
-  result.observations.putReturnsEtag = winner?.result.kind === 'committed'
-  check('strong_etag_on_head', result.observations.headEtag === 'strong', { form: result.observations.headEtag })
-  const weakMatch = await raw('PUT', headPath, { body: headGet.body, headers: { 'If-Match': `W/${etagValue(headGet.headers.etag)}` } })
-  result.observations.weakIfMatchStatus = weakMatch.status
-  check('weak_if_match_never_writes', weakMatch.status === 412 || weakMatch.status === 400, { status: weakMatch.status })
-
-  // Conditional update races on the same revision, repeated to catch intermittent lost updates.
-  const rounds = [], statuses = []; let lostUpdates = 0, multiAck = 0, noWinner = 0, undetermined = 0
-  for (let round = 0; round < ROUNDS; round++) {
-    const base = await readHead()
-    const racers = await Promise.all(Array.from({ length: RACERS }, () => commit(workspaceId, `r${round} ` + randomUUID(), [base.head.commitHash])))
-    const started = performance.now()
-    const outcomes = await Promise.all(racers.map((x) => publish(x, match(base))))
-    rounds.push(performance.now() - started)
-    const kinds = await Promise.all(outcomes.map((o, i) => settle(racers[i], o)))
-    const after = await readHead()
-    const committed = outcomes.filter((_, i) => kinds[i] === 'committed')
-    statuses.push(...outcomes.map((o) => o.result.httpStatus))
-    undetermined += kinds.filter((k) => k === 'undetermined').length
-    if (acked(outcomes) > 1) multiAck++
-    if (committed.length === 0) noWinner++
-    else if (committed.length !== 1 || committed[0].commitHash !== after.head.commitHash) lostUpdates++
-  }
-  check('if_match_race_single_winner', multiAck === 0 && lostUpdates === 0 && undetermined === 0, { rounds: ROUNDS, racers: RACERS, multiAck, lostUpdates, undetermined })
-  // Zero winners (e.g. every racer refused with 423 Locked) is safe but costs liveness; record it separately.
-  check('if_match_race_progress', noWinner === 0, { roundsWithoutWinner: noWinner, statuses: tally(statuses) })
-  result.measurements.raceRoundMs = summary(rounds)
-
-  // Head JSON has a fixed length, so consecutive heads are same-size rewrites milliseconds apart.
-  head = await readHead()
-  const sameSize = await Promise.all([0, 1].map(() => commit(workspaceId, 'same-size ' + randomUUID(), [head.head.commitHash])))
-  await settle(sameSize[0], await publish(sameSize[0], match(head)))
-  const mid = await readHead()
-  await settle(sameSize[1], await publish(sameSize[1], match(mid)))
-  const end = await readHead()
-  const stale = await publish(sameSize[0], match(mid), [], core.commitObjects(sameSize[0].commit))
-  check('etag_changes_on_same_size_rewrite', head.revision !== mid.revision && mid.revision !== end.revision && stale.result.kind === 'conflict', { stale: stale.result.kind })
-  // Response loss, two variants: reply lost after the server answered, and hang-up right after sending.
+  // Lost reply on the own head write: the persisted pending record settles it on the next pass.
   for (const mode of ['after-response', 'after-send']) {
-    const base = await readHead()
-    const lost = await commit(workspaceId, `lost ${mode} ` + randomUUID(), [base.head.commitHash])
-    const dropping = new WebDavSyncProvider({ ...target, request: (t, method, path, opts) => (method === 'PUT' && path === headPath ? lossyPut(t, path, opts, mode) : request(t, method, path, opts)) }, contract.parseSyncHead)
-    const lostResult = await core.publishSyncCommit(dropping, lost.commit, lost.uploads, new Set(), match(base), signal())
-    await sleep(1000)
-    const publication = { operationId: lost.commit.operationId, commitHash: lostResult.commitHash }
-    const resolved = await core.resolveSyncPublication(provider, workspaceId, publication, signal())
-    const after = await readHead()
-    // Either outcome is legal for a hang-up; what matters is that resolution matches the actual head.
-    const consistent = resolved.kind === 'committed' ? after.head.commitHash === lostResult.commitHash : resolved.kind === 'absent' && after.head.commitHash === base.head.commitHash
-    check(`lost_response_${mode}_resolved_consistently`, lostResult.result.kind === 'unknown' && consistent && (mode !== 'after-response' || resolved.kind === 'committed'), { publish: lostResult.result.kind, resolved: resolved.kind })
-    // Retrying a committed publication with its old revision must conflict, never duplicate.
-    const retry = await publish(lost, match(base), [], core.commitObjects(lost.commit))
-    const settledRetry = resolved.kind === 'committed' ? retry.result.kind : await settle(lost, retry)
-    check(`lost_response_${mode}_retry_safe`, resolved.kind === 'committed' ? retry.result.kind === 'conflict' : settledRetry === 'committed', { retry: retry.result.kind })
+    const ws = await workspace(), a = new Device(target, ws, 'a'), b = new Device(target, ws, 'b')
+    a.edit(randomUUID(), 'a.md', 'v1'); await syncRetrying(a)
+    const text = `lost ${mode} ${randomUUID()}`; a.edit(randomUUID(), 'lost.md', text)
+    const headPath = a.provider.path(ws, `devices/${a.state.deviceId}.json`)
+    a.provider.target = { ...target, request: (t, method, path, opts) => (method === 'PUT' && path === headPath ? lossyPut(t, path, opts, mode) : request(t, method, path, opts)) }
+    const first = await codeOf(a.sync())
+    a.provider.target = target
+    const pending = a.saved?.pending
+    a.state = a.saved
+    await sleep(500)
+    const settled = await codeOf(syncRetrying(a))
+    await syncRetrying(b)
+    check(`lost_reply_${mode}_settles`, first === 'unknown_outcome' && !!pending && settled === 'ok' && !a.state.pending && b.view() === a.view() && [...b.docs.values()].some((d) => d.text === text), { first, settled })
   }
 
-  // Another device builds on an earlier commit; resolution must report superseded, not absent.
-  const current = await readHead()
-  const anchor = { operationId: (await core.readSyncCommit(provider, workspaceId, current.head.commitHash, signal())).operationId, commitHash: current.head.commitHash }
-  const next = await commit(workspaceId, 'next ' + randomUUID(), [current.head.commitHash])
-  await settle(next, await publish(next, match(current)))
-  const superseded = await core.resolveSyncPublication(provider, workspaceId, anchor, signal())
-  check('superseded_after_other_device', superseded.kind === 'superseded', { resolved: superseded.kind })
-
-  // Cancelling during an object upload never moves the head.
-  const before = await readHead()
-  const big = await commit(workspaceId, 'x'.repeat(8 * 1024 * 1024), [before.head.commitHash])
-  const controller = new AbortController(); setTimeout(() => controller.abort(), 5)
-  let cancelled = 'completed'
-  try { await core.publishSyncCommit(provider, big.commit, big.uploads, new Set(), match(before), controller.signal) } catch (error) { cancelled = error.code ?? error.name }
-  check('cancel_before_head_keeps_head', cancelled !== 'completed' && (await readHead()).head.commitHash === before.head.commitHash, { outcome: cancelled })
-
-  // Read-after-write on fresh connections.
-  const visible = []
-  for (let i = 0; i < 10; i++) {
-    const base = await readHead(), x = await commit(workspaceId, `raw ${i} ` + randomUUID(), [base.head.commitHash])
-    const published = await publish(x, match(base))
-    await settle(x, published)
-    visible.push((await readHead()).head.commitHash === published.commitHash)
+  // A second installation reusing a device id is refused, never merged into the first one's head.
+  {
+    const ws = await workspace(), a = new Device(target, ws, 'a')
+    a.edit(randomUUID(), 'a.md', 'v1'); await syncRetrying(a)
+    const clone = new Device(target, ws, 'clone'); clone.state = core.initialDeviceState(ws, a.state.deviceId)
+    clone.edit(randomUUID(), 'b.md', 'clone')
+    const outcome = await codeOf(clone.sync())
+    const heads = await a.provider.listDeviceHeads(ws, signal())
+    check('cloned_device_id_refused', outcome === 'device_conflict' && heads.length === 1 && heads[0].head.commitHash === a.state.commitHash, { outcome })
   }
-  check('read_after_write_visible', visible.every(Boolean), { samples: visible.length })
 
-  // Objects whose bytes do not match their address are rejected on read.
-  const forged = await body('{"schemaVersion":1}')
-  const forgedHash = `sha256:${'e'.repeat(64)}`
-  await raw('PUT', provider.path(workspaceId, `objects/sha256/${forgedHash.slice(7)}`), { body: forged.bytes, headers: { 'If-None-Match': '*' } })
-  let tamper = 'accepted'
-  try { await core.readSyncCommit(provider, workspaceId, forgedHash, signal()) } catch (error) { tamper = error.code }
-  check('mismatched_object_rejected', tamper === 'hash_mismatch', { code: tamper })
+  // Rollback of another device's head (e.g. restored server backup) stops sync instead of resurrecting state.
+  {
+    const ws = await workspace(), a = new Device(target, ws, 'a'), b = new Device(target, ws, 'b')
+    a.edit(randomUUID(), 'a.md', 'v1'); await syncRetrying(a); await syncRetrying(b)
+    const headPath = a.provider.path(ws, `devices/${a.state.deviceId}.json`), old = await raw('GET', headPath)
+    a.edit(randomUUID(), 'b.md', 'v2'); await syncRetrying(a); await syncRetrying(b)
+    await raw('PUT', headPath, { body: old.body })
+    const rolled = await codeOf(b.sync())
+    await raw('DELETE', headPath)
+    const removed = await codeOf(b.sync())
+    check('rollback_and_removed_head_detected', rolled === 'rollback' && removed === 'rollback', { rolled, removed })
+  }
 
-  // Transfer cost for a 1 MiB object and a head round trip on loopback.
-  const mib = await body('m'.repeat(1024 * 1024)), t0 = performance.now()
-  await provider.createObject(workspaceId, mib.hash, mib.bytes, signal())
-  const t1 = performance.now(); await provider.readObject(workspaceId, mib.hash, signal())
-  const t2 = performance.now(); await readHead()
-  Object.assign(result.measurements, { upload1MiBMs: Math.round(t1 - t0), download1MiBMs: Math.round(t2 - t1), readHeadMs: Math.round(performance.now() - t2), unknownOutcomesSettled: unknownOutcomes, provider: provider.stats })
+  // A head pointing at a tampered or missing commit is never applied.
+  {
+    const ws = await workspace(), a = new Device(target, ws, 'a'), b = new Device(target, ws, 'b')
+    a.edit(randomUUID(), 'a.md', 'v1'); await syncRetrying(a)
+    const objectPath = a.provider.path(ws, `objects/sha256/${a.state.commitHash.slice(7)}`)
+    await raw('DELETE', objectPath)
+    const missing = await codeOf(b.sync())
+    await raw('PUT', objectPath, { body: encoder.encode('{"schemaVersion":1}') })
+    const tampered = await codeOf(b.sync())
+    check('tampered_or_missing_commit_rejected', missing === 'missing_object' && tampered === 'hash_mismatch' && b.docs.size === 0, { missing, tampered })
+  }
+
+  // Cancelling during a large upload never advances the head; the next pass completes.
+  {
+    const ws = await workspace(), a = new Device(target, ws, 'a')
+    a.edit(randomUUID(), 'big.md', 'x'.repeat(8 * 1024 * 1024))
+    const controller = new AbortController(); setTimeout(() => controller.abort(), 5)
+    const change = await a.change()
+    const outcome = await codeOf(core.runSyncPass(a.provider, a.state, { change, persist: async () => {} }, controller.signal))
+    const heads = await a.provider.listDeviceHeads(ws, signal())
+    const retried = await codeOf(syncRetrying(a))
+    check('cancel_never_advances_head', outcome !== 'ok' && heads.length === 0 && retried === 'ok', { outcome })
+  }
+
+  // Unexpected entries in devices/ stop sync rather than being silently ignored.
+  {
+    const ws = await workspace(), a = new Device(target, ws, 'a')
+    await raw('PUT', a.provider.path(ws, 'devices/not-a-device.json'), { body: encoder.encode('{}') })
+    check('unknown_device_entry_rejected', (await codeOf(a.sync())) === 'invalid_listing')
+  }
+
+  // Loopback transfer cost.
+  const p1 = new WebDavSyncProvider(target, core), mib = encoder.encode('m'.repeat(1024 * 1024)), mibHash = await core.syncHash(mib), t0 = performance.now()
+  await p1.createObject(ws0, mibHash, mib, signal())
+  const t1 = performance.now(); await p1.readObject(ws0, mibHash, signal())
+  Object.assign(result.measurements, { upload1MiBMs: Math.round(t1 - t0), download1MiBMs: Math.round(performance.now() - t1) })
   result.passed = result.checks.every((c) => c.passed)
   return result
 }
@@ -237,7 +259,7 @@ try {
   for (const name of selected) {
     if (!targets[name]) throw new Error(`Unknown target ${name}`)
     try { await waitReady(name, targets[name]); report.targets[name] = await probe(name, targets[name]) }
-    catch (error) { report.targets[name] = { passed: false, error: error.code ?? error.message }; console.error(`ERROR ${name}`, error.code ?? error.message) }
+    catch (error) { report.targets[name] = { passed: false, error: error.code ?? error.message }; console.error(`ERROR ${name}`, error.code ?? error.message, error.status ?? '') }
   }
   report.passed = selected.every((name) => report.targets[name]?.passed)
 } finally {

@@ -1,9 +1,9 @@
 import { assetPath } from './images'
-import { isSyncHash, isSyncId, syncHash, type ExpectedSyncHead, type PublishSyncHeadResult, type SyncProvider, type VersionedSyncHead } from './sync-contract'
+import { isSyncHash, isSyncId, MERGE_DEVICE_ID, syncHash, type SyncProvider } from './sync-contract'
 
 /**
  * v2 step 1 commit manifest (schemaVersion 1). Stored as an immutable object addressed by
- * the SHA-256 of its exact bytes; the head points to it. Not yet connected to the editor.
+ * the SHA-256 of its exact bytes; device heads point to it. Not yet connected to the editor.
  */
 export const SYNC_COMMIT_SCHEMA_VERSION = 1
 export const MAX_SYNC_COMMIT_BYTES = 4 * 1024 * 1024
@@ -12,8 +12,6 @@ export const MAX_SYNC_RESOURCES_PER_DOCUMENT = 1_000
 export const MAX_SYNC_TEXT_BYTES = 10 * 1024 * 1024
 export const MAX_SYNC_IMAGE_BYTES = 20 * 1024 * 1024
 export const MAX_SYNC_METADATA_BYTES = 2 * 1024 * 1024
-/** Bounded ancestry walk when resolving an unknown publication. */
-export const MAX_SYNC_RESOLVE_DEPTH = 256
 
 export interface SyncObjectRef { object: string; bytes: number }
 /** `path` is relative to the document's directory and must be an EasyM asset path. */
@@ -33,7 +31,7 @@ export interface SyncCommit {
   workspaceId: string
   operationId: string
   deviceId: string
-  /** Empty for the first commit, one parent for a fast-forward, two for a merge. */
+  /** Device commits have at most one parent; merge commits exactly two, sorted ascending. */
   parents: string[]
   documents: SyncDocumentEntry[]
   tombstones: SyncTombstone[]
@@ -110,7 +108,10 @@ export function parseSyncCommit(bytes: Uint8Array, expectedWorkspaceId: string):
   exactKeys(commit, ['schemaVersion', 'workspaceId', 'operationId', 'deviceId', 'parents', 'documents', 'tombstones'])
   const workspaceId = id(commit.workspaceId)
   if (workspaceId !== expectedWorkspaceId) fail('workspace_mismatch')
-  if (!Array.isArray(commit.parents) || commit.parents.length > 2 || !commit.parents.every(isSyncHash) || new Set(commit.parents).size !== commit.parents.length) fail()
+  const deviceId = id(commit.deviceId)
+  if (!Array.isArray(commit.parents) || !commit.parents.every(isSyncHash)) fail()
+  const parents = commit.parents as string[]
+  if (deviceId === MERGE_DEVICE_ID ? parents.length !== 2 || parents[0] >= parents[1] : parents.length > 1) fail()
   if (!Array.isArray(commit.documents) || !Array.isArray(commit.tombstones) || commit.documents.length + commit.tombstones.length > MAX_SYNC_DOCUMENTS) fail()
   const documents = (commit.documents as unknown[]).map(documentEntry)
   const tombstones = (commit.tombstones as unknown[]).map((item) => {
@@ -120,7 +121,7 @@ export function parseSyncCommit(bytes: Uint8Array, expectedWorkspaceId: string):
     return { documentId: id(tombstone.documentId), path: tombstone.path as string, operationId: id(tombstone.operationId) }
   })
   checkIdentities(documents, tombstones)
-  return { schemaVersion: 1, workspaceId, operationId: id(commit.operationId), deviceId: id(commit.deviceId), parents: commit.parents as string[], documents, tombstones }
+  return { schemaVersion: 1, workspaceId, operationId: id(commit.operationId), deviceId, parents, documents, tombstones }
 }
 
 function checkIdentities(documents: SyncDocumentEntry[], tombstones: SyncTombstone[]) {
@@ -183,12 +184,11 @@ export function commitObjects(commit: SyncCommit): Set<string> {
 }
 
 /**
- * Uploads immutable objects, then the commit object, then conditionally moves the head.
- * Objects not uploaded here must be listed in `existing` (already verified on the remote,
- * normally the base commit's objects), so the head never references a missing object.
- * A thrown error before the head request means the head was not touched.
+ * Uploads immutable objects, then the commit object. Objects not uploaded here must be in
+ * `existing` (already on the remote, normally the parent's objects), so no published head can
+ * reference a missing object. The head is advanced separately (see sync-log.ts).
  */
-export async function publishSyncCommit(provider: SyncProvider, commit: SyncCommit, uploads: SyncUpload[], existing: ReadonlySet<string>, expected: ExpectedSyncHead, signal: AbortSignal): Promise<{ commitHash: string; result: PublishSyncHeadResult }> {
+export async function uploadSyncCommit(provider: SyncProvider, commit: SyncCommit, uploads: SyncUpload[], existing: ReadonlySet<string>, signal: AbortSignal): Promise<string> {
   const bytes = encodeSyncCommit(commit)
   const pending = new Map<string, Uint8Array>()
   for (const upload of uploads) {
@@ -207,45 +207,5 @@ export async function publishSyncCommit(provider: SyncProvider, commit: SyncComm
   const commitHash = await syncHash(bytes)
   signal.throwIfAborted()
   await provider.createObject(commit.workspaceId, commitHash, bytes, signal)
-  signal.throwIfAborted()
-  const result = await provider.publishHead({ schemaVersion: 1, workspaceId: commit.workspaceId, commitHash }, expected, signal)
-  return { commitHash, result }
-}
-
-export type ResolvedPublication =
-  /** The head is the publication's commit. */
-  | { kind: 'committed'; value: VersionedSyncHead }
-  /** The publication committed and another commit has since built on it: reconcile, do not republish. */
-  | { kind: 'superseded'; value: VersionedSyncHead }
-  /** A complete ancestry walk did not contain it. Retry only with the same operationId and commit bytes. */
-  | { kind: 'absent'; value: VersionedSyncHead | null }
-  /** Missing/unreadable ancestry or the walk budget was exhausted; keep the task paused. */
-  | { kind: 'undetermined' }
-
-/**
- * Decides the outcome of an `unknown` publication from the remote head and its ancestry.
- * Relies on every writer using conditional head updates, so a committed operation stays reachable.
- */
-export async function resolveSyncPublication(provider: SyncProvider, workspaceId: string, publication: { operationId: string; commitHash: string }, signal: AbortSignal, maxCommits = MAX_SYNC_RESOLVE_DEPTH): Promise<ResolvedPublication> {
-  const value = await provider.readHead(workspaceId, signal)
-  if (!value) return { kind: 'absent', value: null }
-  const visited = new Set<string>()
-  const queue = [value.head.commitHash]
-  while (queue.length) {
-    const hash = queue.shift() as string
-    if (visited.has(hash)) continue
-    if (visited.size >= maxCommits) return { kind: 'undetermined' }
-    visited.add(hash)
-    let commit: SyncCommit
-    try { commit = await readSyncCommit(provider, workspaceId, hash, signal) }
-    catch (error) {
-      if (error instanceof SyncCommitError) return { kind: 'undetermined' }
-      throw error
-    }
-    if (hash === publication.commitHash || commit.operationId === publication.operationId) {
-      return { kind: hash === value.head.commitHash ? 'committed' : 'superseded', value }
-    }
-    queue.push(...commit.parents)
-  }
-  return { kind: 'absent', value }
+  return commitHash
 }
