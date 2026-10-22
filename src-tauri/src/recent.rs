@@ -67,6 +67,14 @@ impl Recents {
         data.records.retain(|r| { let count = if r.kind == "file" { files += 1; files } else { workspaces += 1; workspaces }; count <= if r.kind == "file" { 30 } else { 10 } });
         self.write(&data)?; Ok(id)
     }
+    /// Points file records at a renamed path; records of other kinds and other paths are kept.
+    pub fn relocate(&self, from: &Path, to: &Path) -> Result<(), String> {
+        let _guard = self.lock.lock().map_err(|_| "recent_write_failed")?;
+        let mut data = self.read()?;
+        if data.records.iter().any(|r| r.kind == "file" && r.path == to) { data.records.retain(|r| !(r.kind == "file" && r.path == from)); }
+        else { for record in data.records.iter_mut().filter(|r| r.kind == "file" && r.path == from) { record.path = to.to_path_buf(); } }
+        self.write(&data)
+    }
     pub fn snapshot(&self) -> Result<Snapshot, String> {
         let _guard = self.lock.lock().map_err(|_| "recent_read_failed")?;
         let data = self.read()?;

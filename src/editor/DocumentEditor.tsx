@@ -25,6 +25,8 @@ import { useImages } from './useImages'
 import { emptyResources } from '../platform/images'
 import { usePreview } from './usePreview'
 import { WorkspaceTree } from './WorkspaceTree'
+import { RenameDialog, TrashDialog } from './WorkspaceOpsDialog'
+import { trashDocument, workspaceOpError } from '../platform/workspace-ops'
 import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, searchWorkspace, cancelWorkspaceSearch, type Workspace, type WorkspaceImage, type WorkspaceSearchReport, type WorkspaceLocation } from '../platform/workspace'
 import type { OpenedFile } from '../platform/storage'
 import { readClipboardImageFiles } from '../platform/clipboard'
@@ -138,6 +140,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   const [highlightLimited, setHighlightLimited] = useState(false)
   const [workspacePath, setWorkspacePath] = useState<string | null>(path ?? null)
   const [treeRevision, setTreeRevision] = useState(0)
+  const [workspaceOp, setWorkspaceOp] = useState<{ kind: 'rename'; path: string } | { kind: 'trash' } | null>(null)
   const [workspaceQuery, setWorkspaceQuery] = useState('')
   const [workspaceReport, setWorkspaceReport] = useState<WorkspaceSearchReport | null>(null)
   const [workspaceSearching, setWorkspaceSearching] = useState(false)
@@ -794,6 +797,23 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     finally { setBusy(false) }
   }
 
+  async function refreshWorkspaceTree() {
+    if (!workspace) return
+    try { onWorkspaceChange({ ...workspace, entries: await listWorkspace(workspace.id) }); setTreeRevision((value) => value + 1) }
+    catch (err) { setError(errorMessage(err)) }
+  }
+  async function trashFromTree(path: string) {
+    if (!workspace || disabled || !window.confirm(`将“${path}”移到工作区回收站？可在“工作区回收站”中恢复；图片和版本历史保留。`)) return
+    setBusy(true); setError('')
+    try {
+      const result = await trashDocument(workspace.id, path)
+      setStatus(`已移到回收站：${path}`)
+      if (result.warning) setError('文档已移到回收站，但同步身份未更新；请在“同步身份”中处理。')
+      await refreshWorkspaceTree()
+    } catch (err) { setError(workspaceOpError(err)) }
+    finally { setBusy(false) }
+  }
+
   async function importWorkspaceImage(image: WorkspaceImage) {
     if (disabled) return
     await images.importFiles(async () => [await readWorkspaceImage(image)])
@@ -1013,7 +1033,9 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
           {workspaceReport.results.length ? workspaceReport.results.map((result, index) => <button key={`${result.path}:${result.line}:${index}`} className="workspace-search-result" title={`${result.path}:${result.line}`} onClick={() => void open(() => openWorkspaceDocument(workspace.id, result.path), result.path, { token: crypto.randomUUID(), line: result.line, revision: result.revision })}><strong>{result.path}</strong><span>第 {result.line} 行 · {result.preview || '空行'}</span></button>) : <div className="tree-empty">没有匹配结果</div>}
         </div>}
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
-        {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))} />}
+        {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))}
+          onRename={desktop ? (path) => setWorkspaceOp({ kind: 'rename', path }) : undefined} onTrash={desktop ? (path) => void trashFromTree(path) : undefined} />}
+        {workspace && desktop && <button className="file-row" disabled={disabled} onClick={() => setWorkspaceOp({ kind: 'trash' })}><span aria-hidden="true">⌫</span><span className="tree-name">工作区回收站</span></button>}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v1.0.0</span></div>
       </ResizableSidebar>}
@@ -1090,7 +1112,9 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       ])} onClick={() => jumpTo(heading.offset)}>{heading.title}</button>)}</nav>{!parsed.headings.length && <div className="outline-empty"><div className="empty-icon">⌁</div><strong>尚无标题</strong><p>输入 # 标题创建大纲，点击标题可跳转到正文。</p></div>}</ResizableSidebar>}
     </div>
   </div>
-  {backupDraft && active && <BackupDialog draft={backupDraft} onClose={closeBackup} />}{contentTool && active && contentTool.kind === 'link' && <LinkDialog existing={toolExistingLink} label={toolExistingLink?.label ?? text.slice(Math.min(contentTool.context.selection.anchor, contentTool.context.selection.head), Math.max(contentTool.context.selection.anchor, contentTool.context.selection.head))} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={(label, url) => applyContentTool(context => linkCommand(context.textRevision, textRef.current, context.selection, label, url))} onUnlink={() => applyContentTool(context => unlinkCommand(context.textRevision, textRef.current, context.selection))} onOpen={() => { if (toolExistingLink) void openLinkTarget(toolExistingLink.url) }} />}
+  {backupDraft && active && <BackupDialog draft={backupDraft} onClose={closeBackup} />}
+  {workspaceOp?.kind === 'rename' && active && workspace && <RenameDialog workspace={workspace.id} path={workspaceOp.path} onClose={() => setWorkspaceOp(null)} onDone={(path) => { setWorkspaceOp(null); setStatus(`已重命名为 ${path}`); void refreshWorkspaceTree() }} />}
+  {workspaceOp?.kind === 'trash' && active && workspace && <TrashDialog workspace={workspace.id} onClose={() => setWorkspaceOp(null)} onRestored={() => void refreshWorkspaceTree()} />}{contentTool && active && contentTool.kind === 'link' && <LinkDialog existing={toolExistingLink} label={toolExistingLink?.label ?? text.slice(Math.min(contentTool.context.selection.anchor, contentTool.context.selection.head), Math.max(contentTool.context.selection.anchor, contentTool.context.selection.head))} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={(label, url) => applyContentTool(context => linkCommand(context.textRevision, textRef.current, context.selection, label, url))} onUnlink={() => applyContentTool(context => unlinkCommand(context.textRevision, textRef.current, context.selection))} onOpen={() => { if (toolExistingLink) void openLinkTarget(toolExistingLink.url) }} />}
   {contentTool && active && contentTool.kind === 'language' && toolCode && <LanguageDialog language={toolCode.language} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={language => applyContentTool(context => codeBlockCommand(context.textRevision, textRef.current, context.selection, language, toolCode))} />}
   {contentTool && active && contentTool.paragraph && <ParagraphDialog target={contentTool.paragraph} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={kind => applyContentTool(context => paragraphCommand(context.textRevision, textRef.current, context.selection, kind))} />}
   {tableInsert && active && <TableInsert error={error} onClose={() => { setTableInsert(null); editor.current?.focus() }} onInsert={(rows, columns) => {

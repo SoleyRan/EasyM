@@ -954,6 +954,29 @@ pub(crate) fn history_identities(directory: &Path) -> Result<Option<BTreeMap<Str
     Ok(Some(index.documents.into_iter().map(|(name, entry)| (name, entry.document_id)).collect()))
 }
 
+/// Same-directory rename support: moves the index key from `old_name` to `new_name`, keeping
+/// the documentId and snapshots. Idempotent for roll-forward: an already moved key is accepted.
+/// Refuses when both keys exist (a different document already owns the new name).
+pub(crate) fn rename_key(directory: &Path, old_name: &str, new_name: &str) -> Result<(), String> {
+    let root = directory.canonicalize().map_err(|_| "permission_denied")?;
+    relative(old_name)?; relative(new_name)?;
+    if history_identities(&root)?.is_none() { return Ok(()); }
+    let mut index = index_read(&root)?;
+    match (index.documents.contains_key(old_name), index.documents.contains_key(new_name)) {
+        (false, _) => Ok(()),
+        (true, true) => Err("history_invalid".into()),
+        (true, false) => { let entry = index.documents.remove(old_name).ok_or("history_invalid")?; index.documents.insert(new_name.to_string(), entry); index_write(&root, &index) }
+    }
+}
+/// Fails if `new_name` already has a history entry, so a rename never merges two histories.
+pub(crate) fn check_rename(directory: &Path, old_name: &str, new_name: &str) -> Result<(), String> {
+    let root = directory.canonicalize().map_err(|_| "permission_denied")?;
+    let Some(map) = history_identities(&root)? else { return Ok(()); };
+    if map.contains_key(new_name) && map.contains_key(old_name) { return Err("history_name_taken".into()); }
+    if map.contains_key(new_name) && !old_name.eq_ignore_ascii_case(new_name) { return Err("history_name_taken".into()); }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn history_operation(state: State<'_, Storage>, id: String, request: Request) -> Result<Value, String> {
     let storage = state.inner().clone();

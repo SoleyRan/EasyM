@@ -76,7 +76,7 @@ pub(crate) fn scan(root: &Path) -> Result<IdentityScan, String> {
     Ok(IdentityScan { identity, identity_error, documents, unreadable })
 }
 
-fn read_identity(root: &Path) -> Result<Option<Vec<u8>>, String> {
+pub(crate) fn read_identity(root: &Path) -> Result<Option<Vec<u8>>, String> {
     match fs::symlink_metadata(root.join(IDENTITY)) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(_) => return Err("io_failed".into()),

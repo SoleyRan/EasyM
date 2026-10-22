@@ -6,6 +6,8 @@ import { useContextMenu } from './ContextMenu'
 interface Props {
   workspace: Workspace; disabled: boolean; selected: string | null
   onOpen(path: string): void; onImage(image: WorkspaceImage): void; onError(message: string): void
+  /** Desktop only; omitted in the browser build. */
+  onRename?(path: string): void; onTrash?(path: string): void
 }
 
 function Entry({ entry, depth, ...props }: Props & { entry: WorkspaceEntry; depth: number }) {
@@ -33,6 +35,8 @@ function Entry({ entry, depth, ...props }: Props & { entry: WorkspaceEntry; dept
       onContextMenu={event => contextMenu(event, [
         { label: entry.kind === 'directory' ? expanded ? '收起目录' : '展开目录' : entry.kind === 'document' ? '打开文档' : '插入图片副本', disabled: props.disabled || loading, run: () => { if (entry.kind === 'directory') void toggle(); else if (entry.kind === 'document') props.onOpen(entry.path); else props.onImage(image) } },
         { label: '复制相对路径', run: () => navigator.clipboard.writeText(entry.path) },
+        ...(entry.kind === 'document' && props.onRename ? [{ label: '重命名…', disabled: props.disabled, run: () => props.onRename?.(entry.path) }] : []),
+        ...(entry.kind === 'document' && props.onTrash ? [{ label: '移到回收站', disabled: props.disabled, run: () => props.onTrash?.(entry.path) }] : []),
       ])}
       onClick={() => entry.kind === 'directory' ? void toggle() : entry.kind === 'document' ? props.onOpen(entry.path) : props.onImage(image)}>
       <span aria-hidden>{entry.kind === 'directory' ? expanded ? '▾' : '▸' : entry.kind === 'image' ? '▣' : '□'}</span>

@@ -28,3 +28,30 @@
 | `pnpm verify:commands`、`verify:workspace`、`verify:browser` 回归 | 通过 |
 
 本机 Playwright 自带 Chromium 未安装，浏览器验证使用 `EASYM_TEST_BROWSER=msedge`。未运行原生 GUI 实机操作和 macOS/Linux 构建。
+
+## 2B：受控重命名、回收站与链接更新（2026-10-22）
+
+### 交付内容
+
+- [链接重写](../src/core/link-rewrite.ts)：按 mdast 位置只替换链接、图片和引用定义的 URL 片段，保留 BOM、换行和其余字节；处理尖括号、带空格与百分号编码的路径和 `#锚点`；代码块、外链、页内锚点和越出工作区的链接不改动。
+- [原生操作](../src-tauri/src/workspace_ops.rs)：
+  - 同目录重命名。先写 `.easym/sync/operations/<op>/` 日志和暂存正文，再以不覆盖的方式改名（提交点）。之后依次更新版本历史索引键、同步身份路径和其他文档的链接，每一步都可幂等前滚；崩溃时，提交前的日志直接丢弃，提交后的日志继续完成。
+  - 仅大小写不同的改名经临时名完成，按精确文件名判断提交状态。
+  - 以下情况拒绝改名：目标已存在、跨目录、文件名无法跨平台保存、文档有未完成的保存日志、新名称已有版本历史、文档正在标签页中打开。
+  - 链接更新带预览时的版本；任一文档被并发修改则在改名前放弃。前滚时若文档已被修改，则跳过并提示，不覆盖。
+  - 回收站：移到 `.easym/trash/<op>/`，记录原路径和同步身份；恢复时不覆盖已有文件，并在可能时恢复原身份。图片和版本历史不动。
+- 配套辅助：`history::rename_key`/`check_rename`、`transaction::pending`、`merge::record_names`、`Recents::relocate`。
+- 界面：工作区文件树右键“重命名…”（先预览受影响的链接，再确认）、“移到回收站”（需确认）；侧栏新增“工作区回收站”。仅桌面版提供。
+
+已打开的文档需先关闭标签页再重命名或删除，避免编辑器的名称、草稿和版本与磁盘不一致。合并恢复记录仍按原文件名列出（记录不可改写），改名后会提示。跨目录移动在 2C 实施。
+
+### 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `corepack.cmd pnpm typecheck` | 通过 |
+| `corepack.cmd pnpm test --maxWorkers=2` | 62 个文件、377 项通过（新增链接重写 7 项、平台流程 3 项） |
+| `cargo test --manifest-path src-tauri/Cargo.toml --locked` | 104 项通过（新增 8 项：保留身份/历史/字节、拒绝场景、大小写改名、并发修改、提交前后崩溃、前滚不覆盖、保存日志阻止、回收站） |
+| `corepack.cmd pnpm build` | 通过 |
+| `pnpm verify:workspace-ops`（Edge，确定性 IPC） | 6 项通过，证据 [workspace-ops-ui.json](verification/v2.0/step-2/workspace-ops-ui.json)（SHA256 `19f2182b…1d91`） |
+| `verify:workspace`、`verify:commands`、`verify:sync-identity`、`verify:context-menu`、`verify:browser` 回归 | 通过 |
