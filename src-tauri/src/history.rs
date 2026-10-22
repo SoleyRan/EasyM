@@ -943,6 +943,17 @@ fn execute(path: &Path, sessions: &BTreeSet<PathBuf>, request: Request) -> Resul
     }
 }
 
+/// Read-only view of a directory's history identities, keyed by file name, for sync identity
+/// reconciliation. Never writes, reconciles or recovers. Ok(None) means no history exists;
+/// any unreadable, newer or inconsistent history is an error so no identity is guessed.
+pub(crate) fn history_identities(directory: &Path) -> Result<Option<BTreeMap<String, String>>, String> {
+    let root = directory.canonicalize().map_err(|_| "permission_denied")?;
+    let index_path = history_path(&root, format!("{BASE}/index.json"))?;
+    if fs::symlink_metadata(&index_path).is_err() && fs::symlink_metadata(history_path(&root, BASE)?).is_err() { return Ok(None); }
+    let index = index_read(&root)?;
+    Ok(Some(index.documents.into_iter().map(|(name, entry)| (name, entry.document_id)).collect()))
+}
+
 #[tauri::command]
 pub async fn history_operation(state: State<'_, Storage>, id: String, request: Request) -> Result<Value, String> {
     let storage = state.inner().clone();

@@ -49,7 +49,7 @@ fn directory_entries(root: &Path, relative: &str) -> Result<Vec<Entry>, String> 
     Ok(entries)
 }
 
-fn root(workspaces: &Workspaces, id: &str) -> Result<PathBuf, String> {
+pub(crate) fn root(workspaces: &Workspaces, id: &str) -> Result<PathBuf, String> {
     workspaces.0.lock().map_err(|_| "io_failed")?.get(id).cloned().ok_or_else(|| "permission_denied".into())
 }
 
