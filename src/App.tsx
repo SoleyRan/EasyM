@@ -20,6 +20,7 @@ import { CommandPalette, QuickOpen } from './editor/QuickEntry'
 import { openWorkspaceDocument } from './platform/workspace'
 import { decodeFile } from './core/codec'
 import { RecentDialog } from './editor/RecentDialog'
+import { IdentityDialog } from './editor/IdentityDialog'
 import { recentState, rememberSession, reopenRecentFile, reopenRecentWorkspace, recentError, type RecentState, type RecentEntry } from './platform/recent'
 import { planRestoration } from './platform/restore-session'
 import { loadMathRendering, saveMathRendering, loadMermaidRendering, saveMermaidRendering } from './platform/preferences'
@@ -55,6 +56,7 @@ function Application() {
   const [templateOpen, setTemplateOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
+  const [identityOpen, setIdentityOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(needsGuide)
   const [appearance, setAppearance] = useState(loadAppearance)
   const [mermaidRendering, setMermaidRendering] = useState(loadMermaidRendering)
@@ -85,7 +87,7 @@ function Application() {
     if (appearance !== initialAppearance.current && !saveAppearance(appearance)) setError('无法保存外观设置，当前会话仍可使用。')
   }, [appearance])
   const previousGuideVersion = useRef(storedPreference('easym-guide-version'))
-  const appModal = settingsOpen || guideOpen || recentOpen
+  const appModal = settingsOpen || guideOpen || recentOpen || identityOpen
   const appModalRef = useRef(false)
   appModalRef.current = appModal
   function closeApplicationDialog() {
@@ -97,6 +99,8 @@ function Application() {
   const restoreTemplateFocus = useRef(false)
   const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
+  const workspaceRef = useRef<Workspace | null>(null)
+  workspaceRef.current = workspace
   const [quickEntry, setQuickEntry] = useState<{ kind: 'commands' | 'open'; context: CommandContext } | null>(null)
   const quickEntryRef = useRef(quickEntry); quickEntryRef.current = quickEntry
   const quickGeneration = useRef(0), quickOpening = useRef(false)
@@ -324,7 +328,7 @@ function Application() {
   const appCommands = useMemo(() => {
     const registry = new CommandRegistry(() => appRuntime.current.context())
     for (const definition of commandDefinitions.filter(item => item.id.startsWith('app.'))) registry.register({ ...definition,
-      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
+      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : definition.id === 'app.syncIdentity' && (!desktop || !workspaceRef.current) ? { enabled: false, reason: '请先在桌面版打开工作区。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
     return registry
   }, [])
   appRuntime.current = {
@@ -334,6 +338,7 @@ function Application() {
       setMenuOpen(false)
       if (commandId === 'app.template') setTemplateOpen(true)
       else if (commandId === 'app.recent') { if (desktop) setRecentOpen(true); else setError('浏览器不能记忆磁盘权限，请使用打开文件重新选择；独立草稿仍可恢复。') }
+      else if (commandId === 'app.syncIdentity') { if (desktop && workspace) setIdentityOpen(true); else setError('请先在桌面版打开工作区。') }
       else if (commandId === 'app.commands' || commandId === 'app.quickOpen') { setQuickError(''); setQuickEntry({ kind: commandId === 'app.commands' ? 'commands' : 'open', context: appCommands.capture() }) }
       else setSettingsOpen(true)
     },
@@ -451,6 +456,7 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.backup').enabled} onClick={() => fileAction('backup')}>文档备份与恢复</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.batchImages').enabled} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
+          <button role="menuitem" title={desktop ? '为当前工作区记录文档的持久同步身份' : '仅桌面版可用'} disabled={blocked || !desktop || !workspace} onClick={() => executeApp('app.syncIdentity')}>同步身份</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => executeApp('app.settings')}>设置</button>
         </PositionedOverlay>}
       </div>
@@ -496,7 +502,7 @@ function Application() {
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
     {!sessionReady && <p role="status">正在检查上次会话与草稿…</p>}
     {sessionReady && tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!sessionReady || !!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
+      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!sessionReady || !!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} openHandles={() => tabs.map(t => handles.current.get(t.id)).filter((h): h is DocumentHandle => !!h)} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
@@ -505,6 +511,7 @@ function Application() {
     {settingsOpen && <SettingsDialog fileId={summaries[active]?.fileId} theme={theme} onTheme={setTheme} appearance={appearance} onAppearance={updateAppearance} onResetAppearance={() => setAppearance({ ...defaultAppearance })} mathRendering={mathRendering} onMathRendering={updateMathRendering} mermaidRendering={mermaidRendering} onMermaidRendering={updateMermaidRendering} onClose={closeApplicationDialog} onGuide={() => { setSettingsOpen(false); setGuideOpen(true) }} />}
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {recentOpen && <RecentDialog open={openRecent} close={() => setRecentOpen(false)} />}
+    {identityOpen && workspace && <IdentityDialog workspace={workspace.id} name={workspace.name} onClose={() => setIdentityOpen(false)} />}
     {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
     {quickEntry?.kind === 'open' && <QuickOpen tabs={tabs.map(tab => ({ id: tab.id, name: summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md', path: tab.path }))} workspace={workspace} pending={quickBusy} error={quickError} choose={chooseQuickFile} close={closeQuickEntry} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {

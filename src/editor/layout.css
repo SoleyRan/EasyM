@@ -13,6 +13,8 @@
 .view-tabs button { padding: 10px 14px; font-size: 12px; }
 .pane-actions { display: flex; align-items: center; gap: 4px; }
 .recent-list { max-height: 50vh; overflow: auto; }
+.identity-list { max-height: 30vh; overflow: auto; margin: 0; padding-left: 1.2em; overflow-wrap: anywhere; }
+.identity-list small { margin-left: .5em; opacity: .75; }
 .recent-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .recent-open { min-width: 0; flex: 1; text-align: left; }
 .recent-open strong, .recent-open small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -50,7 +50,9 @@
     "verify:protection-delivery": "node scripts/verify-protection-delivery.mjs",
     "verify:mermaid": "node scripts/verify-mermaid.mjs",
     "verify:extension-delivery": "node scripts/verify-extension-delivery.mjs",
-    "verify:webdav": "node scripts/verify-webdav.mjs"
+    "verify:webdav": "node scripts/verify-webdav.mjs",
+    "verify:sync-identity": "node scripts/verify-sync-identity.mjs",
+    "verify:workspace-ops": "node scripts/verify-workspace-ops.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

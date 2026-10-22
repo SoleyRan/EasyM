@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-22T03:43:55.443Z",
+  "passed": true,
+  "checks": [
+    "identity menu disabled without a workspace",
+    "preview lists documents, marks reused history id and writes nothing",
+    "enable writes once with absent precondition and rescans clean",
+    "external rename pauses and binds only after explicit choice, keeping identity",
+    "stale preview is rejected as a conflict",
+    "incomplete scan stops before planning",
+    "disable removes only the identity file after confirmation"
+  ],
+  "scope": "Production UI with deterministic IPC; native filesystem semantics are covered by Rust tests.",
+  "browser": "155.0.4283.62"
+}

@@ -697,6 +697,82 @@ fn recover_history(root: &Path, index: &mut Index, path: &Path) -> Result<(), St
     Ok(())
 }
 
+/// Cross-directory move, step 1 of 2: copies one document's history (from `portable_history`)
+/// into `target_dir` under `target_name`. Objects are content-addressed and never overwritten;
+/// manifests are immutable. Idempotent: an entry already imported with the same documentId and
+/// snapshots is accepted. Refuses when `target_name` owns a different history.
+pub(crate) fn import_history(target_dir: &Path, target_name: &str, files: &BTreeMap<String, Vec<u8>>) -> Result<(), String> {
+    let root = target_dir.canonicalize().map_err(|_| "permission_denied")?;
+    relative(target_name)?;
+    let subset: Index = serde_json::from_slice(files.get(&format!("{BASE}/index.json")).ok_or("history_invalid")?).map_err(|_| "history_invalid")?;
+    if subset.documents.len() != 1 { return Err("history_invalid".into()); }
+    let entry = subset.documents.into_values().next().ok_or("history_invalid")?;
+    uuid(&entry.document_id)?;
+    let mut index = if history_identities(&root)?.is_some() { let mut index = index_read(&root)?; reconcile(&root, &mut index)?; index } else { Index { budget_bytes: subset.budget_bytes, ..Index::default() } };
+    if let Some(existing) = index.documents.get(target_name) {
+        if existing.document_id == entry.document_id && existing.snapshots == entry.snapshots { return Ok(()); }
+        return Err("history_name_taken".into());
+    }
+    if index.documents.values().any(|e| e.document_id == entry.document_id) { return Err("history_invalid".into()); }
+    for (path, bytes) in files {
+        if path == &format!("{BASE}/index.json") { continue; }
+        if let Some(hash) = path.strip_prefix(&format!("{BASE}/objects/")) {
+            if digest(bytes) != hash { return Err("history_corrupt".into()); }
+            object_write(&root, bytes)?;
+        } else {
+            let prefix = format!("{BASE}/documents/{}/snapshots/", entry.document_id);
+            if !path.starts_with(&prefix) || !path.ends_with(".json") { return Err("history_invalid".into()); }
+            if fs::symlink_metadata(history_path(&root, path)?).is_ok() { if bounded(&root, path, MAX_JSON)? != *bytes { return Err("history_invalid".into()); } }
+            else { atomic(&root, path, bytes, true)?; }
+        }
+    }
+    for id in &entry.snapshots { manifest_read(&root, &entry.document_id, id)?; }
+    index.documents.insert(target_name.to_string(), entry);
+    index_write(&root, &index)
+}
+/// Test helper for other modules: enables history for `path` (or, if already enabled, reads
+/// status), panicking on any failure so callers can assert the directory history is valid.
+#[cfg(test)]
+pub(crate) fn history_operation_for_tests(path: &Path) {
+    let request = if history_identities(path.parent().unwrap()).unwrap().is_some_and(|m| m.contains_key(&key(path).unwrap())) { Request::Status }
+        else { Request::Enable { references: vec![], unarchived_references: vec![], expected_revision: None } };
+    execute(path, &BTreeSet::new(), request).unwrap();
+}
+/// Undoes `import_history` for a move that never committed: drops the target index entry if it
+/// still is exactly the imported one. Copied manifests/objects remain as unindexed extras, so
+/// the documents folder is renamed into an orphan entry instead of being left unindexed.
+pub(crate) fn abandon_import(target_dir: &Path, target_name: &str, document_id: &str) -> Result<(), String> {
+    let root = target_dir.canonicalize().map_err(|_| "permission_denied")?;
+    if history_identities(&root)?.is_none() { return Ok(()); }
+    let mut index = index_read(&root)?;
+    if index.documents.get(target_name).is_some_and(|e| e.document_id == document_id) {
+        let entry = index.documents.remove(target_name).ok_or("history_invalid")?;
+        index.documents.insert(format!("history-abandoned-{document_id}.md"), Entry { enabled: false, ..entry });
+        index_write(&root, &index)?;
+    }
+    Ok(())
+}
+/// Cross-directory move, step 2 of 2: once the target holds the history, the source entry is
+/// kept under an orphan name (as `separate_destination` does), because the source directory
+/// still stores its manifests and an unindexed document folder would make that history
+/// invalid. The orphan no longer claims the moved file name. Idempotent.
+pub(crate) fn forget_history(source_dir: &Path, name: &str, document_id: &str) -> Result<(), String> {
+    let root = source_dir.canonicalize().map_err(|_| "permission_denied")?;
+    if history_identities(&root)?.is_none() { return Ok(()); }
+    let mut index = index_read(&root)?;
+    match index.documents.get(name) {
+        Some(entry) if entry.document_id == document_id => {
+            let entry = index.documents.remove(name).ok_or("history_invalid")?;
+            let mut orphan = format!("history-moved-{document_id}.md");
+            while index.documents.contains_key(&orphan) || root.join(&orphan).exists() { orphan = format!("history-moved-{document_id}-{}.md", uuid::Uuid::new_v4()); }
+            index.documents.insert(orphan, Entry { enabled: false, ..entry });
+            index_write(&root, &index)
+        }
+        Some(_) => Err("history_invalid".into()),
+        None => Ok(()),
+    }
+}
+
 pub(crate) fn separate_destination(path: &Path) -> Result<(), String> {
     let root = root(path)?; let mut index = index_read(&root)?; reconcile(&root, &mut index)?;
     let key = key(path)?;
@@ -941,6 +1017,40 @@ fn execute(path: &Path, sessions: &BTreeSet<PathBuf>, request: Request) -> Resul
             result
         },
     }
+}
+
+/// Read-only view of a directory's history identities, keyed by file name, for sync identity
+/// reconciliation. Never writes, reconciles or recovers. Ok(None) means no history exists;
+/// any unreadable, newer or inconsistent history is an error so no identity is guessed.
+pub(crate) fn history_identities(directory: &Path) -> Result<Option<BTreeMap<String, String>>, String> {
+    let root = directory.canonicalize().map_err(|_| "permission_denied")?;
+    let index_path = history_path(&root, format!("{BASE}/index.json"))?;
+    if fs::symlink_metadata(&index_path).is_err() && fs::symlink_metadata(history_path(&root, BASE)?).is_err() { return Ok(None); }
+    let index = index_read(&root)?;
+    Ok(Some(index.documents.into_iter().map(|(name, entry)| (name, entry.document_id)).collect()))
+}
+
+/// Same-directory rename support: moves the index key from `old_name` to `new_name`, keeping
+/// the documentId and snapshots. Idempotent for roll-forward: an already moved key is accepted.
+/// Refuses when both keys exist (a different document already owns the new name).
+pub(crate) fn rename_key(directory: &Path, old_name: &str, new_name: &str) -> Result<(), String> {
+    let root = directory.canonicalize().map_err(|_| "permission_denied")?;
+    relative(old_name)?; relative(new_name)?;
+    if history_identities(&root)?.is_none() { return Ok(()); }
+    let mut index = index_read(&root)?;
+    match (index.documents.contains_key(old_name), index.documents.contains_key(new_name)) {
+        (false, _) => Ok(()),
+        (true, true) => Err("history_invalid".into()),
+        (true, false) => { let entry = index.documents.remove(old_name).ok_or("history_invalid")?; index.documents.insert(new_name.to_string(), entry); index_write(&root, &index) }
+    }
+}
+/// Fails if `new_name` already has a history entry, so a rename never merges two histories.
+pub(crate) fn check_rename(directory: &Path, old_name: &str, new_name: &str) -> Result<(), String> {
+    let root = directory.canonicalize().map_err(|_| "permission_denied")?;
+    let Some(map) = history_identities(&root)? else { return Ok(()); };
+    if map.contains_key(new_name) && map.contains_key(old_name) { return Err("history_name_taken".into()); }
+    if map.contains_key(new_name) && !old_name.eq_ignore_ascii_case(new_name) { return Err("history_name_taken".into()); }
+    Ok(())
 }
 
 #[tauri::command]

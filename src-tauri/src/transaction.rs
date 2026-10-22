@@ -120,6 +120,24 @@ fn save_with(path: &Path, expected: Option<&str>, bytes: &[u8], assets: &[Asset]
     Ok(finish.err().map(|_| "正文与图片已保存，恢复记录仍保留；重新打开将重试图片历史提交。".to_string()))
 }
 
+/// True if an incomplete save journal still names this document. Journals are keyed by file
+/// name, so a rename must wait until they are recovered rather than orphan them.
+pub(crate) fn pending(path: &Path) -> Result<bool, String> {
+    let root = path.parent().ok_or("invalid_data")?.canonicalize().map_err(|_| "permission_denied")?;
+    if !root.join(".easym/operations").exists() { return Ok(false); }
+    let directory = safe_existing(&root, ".easym/operations")?;
+    let document = path.file_name().ok_or("invalid_data")?.to_string_lossy().to_string();
+    for (count, entry) in fs::read_dir(directory).map_err(|_| "io_failed")?.enumerate() {
+        if count > 4096 { return Err("quota_exceeded".into()); }
+        let name = entry.map_err(|_| "io_failed")?.file_name().to_string_lossy().to_string();
+        let Some(operation) = name.strip_prefix("op-").and_then(|s| s.strip_suffix(".json")) else { continue; };
+        if uuid::Uuid::parse_str(operation).is_err() { continue; }
+        let record = read_record(&root, &format!(".easym/operations/{name}"))?;
+        if !record.complete && record.document == document { return Ok(true); }
+    }
+    Ok(false)
+}
+
 // Only finish records whose proposed body hash matches the user's current file.
 pub(crate) fn recover(path: &Path) -> Option<String> {
     let root = path.parent()?.canonicalize().ok()?;

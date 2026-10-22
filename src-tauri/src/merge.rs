@@ -168,6 +168,22 @@ fn commit(path: &Path, operation: &str) -> Result<Value, String> {
     let warning = transaction::save(path, Some(&record.disk_revision), &bodies[3], &assets, record.metadata, operation)?;
     Ok(json!({"revision":transaction::hash(&bodies[3]),"warning":warning,"recoveryPath":folder}))
 }
+/// Document names that own recovery records in this directory (records are immutable and keyed
+/// by file name, so a rename leaves them listed under the previous name).
+pub(crate) fn record_names(root: &Path) -> Result<BTreeSet<String>, String> {
+    let mut names = BTreeSet::new();
+    if !root.join(BASE).exists() { return Ok(names); }
+    let folder = safe(root, BASE)?;
+    for (index, entry) in fs::read_dir(&folder).map_err(|_| "io_failed")?.enumerate() {
+        if index > 1000 { return Err("merge_archive_quota".into()); }
+        let name = entry.map_err(|_| "io_failed")?.file_name().to_string_lossy().to_string();
+        if uuid::Uuid::parse_str(&name).is_err() { continue; }
+        let Ok(manifest) = safe(&folder.join(&name), "record.json") else { continue; };
+        if fs::metadata(&manifest).map(|m| m.len()).unwrap_or(u64::MAX) > 2 * 1024 * 1024 { continue; }
+        if let Ok(record) = serde_json::from_slice::<Record>(&fs::read(manifest).map_err(|_| "io_failed")?) { names.insert(record.document); }
+    }
+    Ok(names)
+}
 fn records(path: &Path) -> Result<Value, String> {
     let root = path.parent().ok_or("invalid_data")?;
     if !root.join(BASE).exists() { return Ok(json!({"records":[],"warnings":[]})); }

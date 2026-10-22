@@ -49,7 +49,7 @@ fn directory_entries(root: &Path, relative: &str) -> Result<Vec<Entry>, String> 
     Ok(entries)
 }
 
-fn root(workspaces: &Workspaces, id: &str) -> Result<PathBuf, String> {
+pub(crate) fn root(workspaces: &Workspaces, id: &str) -> Result<PathBuf, String> {
     workspaces.0.lock().map_err(|_| "io_failed")?.get(id).cloned().ok_or_else(|| "permission_denied".into())
 }
 
@@ -111,12 +111,14 @@ pub async fn search_workspace_filenames(state: State<'_, Workspaces>, id: String
 
 pub(crate) fn open_path(workspaces: &Workspaces, path: PathBuf) -> Result<Workspace, String> {
     let path = path.canonicalize().map_err(|_| "resource_missing")?;
+    // Finish or discard rename/move journals left by a crash before showing the tree.
+    let recovery = crate::workspace_ops::recover_all(&path).err().map(|e| format!("工作区有未完成的重命名/移动（{e}）；已保留原文件，请检查 .easym/sync/operations。"));
     let entries = directory_entries(&path, "")?;
     let mut sessions = workspaces.0.lock().map_err(|_| "io_failed")?;
     let id = sessions.iter().find(|(_, p)| **p == path).map(|(id, _)| id.clone()).unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
     let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
     sessions.insert(id.clone(), path);
-    Ok(Workspace { id, name, entries, recent_id: None, warning: None })
+    Ok(Workspace { id, name, entries, recent_id: None, warning: recovery })
 }
 
 #[tauri::command]
