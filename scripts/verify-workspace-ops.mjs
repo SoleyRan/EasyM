@@ -17,7 +17,7 @@ try {
   await page.addInitScript(() => {
     const enc = (s) => [...new TextEncoder().encode(s)]
     window.files = { 'notes/a.md': '# A\r\n[自身](a.md#x)\r\n', 'notes/index.md': '﻿[去 A](a.md)\r\n', 'other.md': '无关' }
-    window.trash = []; window.calls = []
+    window.trash = []; window.calls = []; window.moves = []; window.sessions = {}
     let callback = 0
     window.isTauri = true; window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
     const entries = (dir) => Object.keys(window.files).filter((p) => (p.includes('/') ? p.split('/').slice(0, -1).join('/') : '') === dir).map((p) => ({ name: p.split('/').at(-1), path: p, kind: 'document' }))
@@ -36,8 +36,22 @@ try {
       if (command === 'workspace_rename') {
         for (const rewrite of args.rewrites) window.files[rewrite.path] = new TextDecoder('utf-8', { ignoreBOM: true }).decode(new Uint8Array(rewrite.bytes))
         window.files[args.to] = window.files[args.from]; delete window.files[args.from]
-        return { path: args.to, warnings: [] }
+        window.moves.push({ from: args.from, to: args.to, images: args.resources?.references ?? [] })
+        const sessions = Object.entries(window.sessions).filter(([, p]) => p === args.from).map(([id]) => id)
+        for (const id of sessions) window.sessions[id] = args.to
+        return { path: args.to, warnings: [], sessions }
       }
+      if (command === 'workspace_directories') return ['', 'archive', 'notes']
+      if (command === 'open_workspace_document') {
+        const id = 'session-' + args.relativePath; window.sessions[id] = args.relativePath
+        return { id, name: args.relativePath.split('/').at(-1), bytes: enc(window.files[args.relativePath]), revision: 'r:' + args.relativePath, metadata: null, warning: null, recentId: null }
+      }
+      if (command === 'reload_document') {
+        const path = window.sessions[args.id]
+        return { id: args.id, name: path.split('/').at(-1), bytes: enc(window.files[path]), revision: 'r2:' + path, metadata: null, warning: null, recentId: null }
+      }
+      if (command === 'inspect_document') { const path = window.sessions[args.id]; return { revision: args.expectedRevision ?? 'r:' + path } }
+      if (command === 'history_operation') return { enabled: false, documentId: null, readOnly: false, usedBytes: 0, budgetBytes: 1, paused: false, snapshots: [], orphans: [] }
       if (command === 'workspace_trash') {
         window.trash.push({ operationId: args.operationId, path: args.path, deletedAt: Date.now(), documentId: null, text: window.files[args.path] })
         delete window.files[args.path]
@@ -113,6 +127,36 @@ try {
   assert.equal(await page.evaluate(() => window.files['other.md']), '无关')
   await bin.getByRole('button', { name: '完成', exact: true }).click()
   report.checks.push('trash lists and restores the document')
+
+  // Cross-directory move of an open, saved document: images travel, links update both ways,
+  // and the tab reloads from the moved session instead of being refused.
+  await page.evaluate(() => { window.files['notes/甲.md'] = '# A\r\n![图](assets/img-x-v1.png) [索引](index.md)\r\n' })
+  const notes = tree.getByRole('button', { name: 'notes' })
+  if (await notes.getAttribute('aria-expanded') !== 'true') await notes.click()
+  await tree.locator('button[title="notes/甲.md"]').click()
+  await page.getByRole('tab', { name: '甲.md' }).waitFor()
+  // Opening a document may re-mount the tree collapsed; expand again before the context menu.
+  if (await notes.getAttribute('aria-expanded') !== 'true') await notes.click()
+  await tree.locator('button[title="notes/甲.md"]').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: '移动到…' }).click()
+  const move = page.getByRole('dialog', { name: '移动文档' })
+  await move.getByRole('combobox').selectOption('archive')
+  await move.getByRole('button', { name: '预览', exact: true }).click()
+  const plan = move.getByRole('status')
+  await plan.filter({ hasText: 'archive/甲.md' }).waitFor()
+  assert.match(await plan.textContent(), /notes\/index\.md\s*1 处链接/)
+  assert.match(await plan.textContent(), /1 张图片会复制到目标目录/)
+  report.checks.push('move preview lists the target, incoming links and copied images')
+
+  await move.getByRole('button', { name: '确认移动', exact: true }).click()
+  await move.waitFor({ state: 'detached' })
+  const done = await page.evaluate(() => ({ moves: window.moves.at(-1), index: window.files['notes/index.md'], body: window.files['archive/甲.md'] }))
+  assert.deepEqual(done.moves, { from: 'notes/甲.md', to: 'archive/甲.md', images: ['assets/img-x-v1.png'] })
+  assert.equal(done.index, '﻿[去 A](../archive/%E7%94%B2.md)\r\n')
+  assert.equal(done.body, '# A\r\n![图](assets/img-x-v1.png) [索引](../notes/index.md)\r\n')
+  await page.locator('.document-panel:not([hidden]) .cm-content').filter({ hasText: '../notes/index.md' }).waitFor()
+  assert.ok(await page.evaluate(() => window.calls.some((c) => c.command === 'reload_document')))
+  report.checks.push('confirmed move copies images, rewrites links both ways and reloads the open tab')
 
   assert.deepEqual(errors, [])
   report.passed = true

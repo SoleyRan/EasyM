@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-22T06:51:03.345Z",
+  "verifiedAt": "2026-10-22T08:40:43.688Z",
   "passed": true,
   "checks": [
     "unportable names are refused locally before any native call",
@@ -7,7 +7,9 @@
     "confirmed rename rewrites links byte-exactly and refreshes the tree",
     "existing target is refused before any change",
     "trash requires confirmation and removes the entry from the tree",
-    "trash lists and restores the document"
+    "trash lists and restores the document",
+    "move preview lists the target, incoming links and copied images",
+    "confirmed move copies images, rewrites links both ways and reloads the open tab"
   ],
   "scope": "Production UI with deterministic IPC; native filesystem semantics are covered by Rust tests.",
   "browser": "155.0.4283.62"

@@ -68,6 +68,9 @@ function urlSpans(text: string): UrlSpan[] {
 // Markdown backslash escapes and entity-free raw URLs only; other forms are skipped, never guessed.
 const unescape = (raw: string) => raw.replace(/\\([!-/:-@[-`{-~])/g, '$1')
 
+/** Parsed URLs of every link, image and definition in the document (code is excluded). */
+export const linkUrls = (text: string): string[] => urlSpans(text).map((span) => span.url)
+
 export interface LinkRewrite { patches: TextPatch[]; text: string; changed: number; skipped: number }
 
 function apply(text: string, patches: TextPatch[]): string {
@@ -91,6 +94,8 @@ export function rewriteOutgoing(text: string, oldPath: string, newPath: string, 
     const target = resolveRelative(oldPath, parts.path)
     if (target === null) { skipped++; continue }
     const destination = moved.get(target) ?? target
+    // A link that already resolves to the right place from the new location is left byte-exact.
+    if (resolveRelative(newPath, parts.path) === destination) continue
     const next = relativeTo(newPath, destination) + parts.suffix
     if (resolveRelative(newPath, next.split(/[?#]/)[0]) === destination && next !== span.url) patches.push({ from: span.from, to: span.to, insert: format(next, span.bracketed) })
   }

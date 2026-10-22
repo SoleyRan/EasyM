@@ -26,7 +26,7 @@ import { emptyResources } from '../platform/images'
 import { usePreview } from './usePreview'
 import { WorkspaceTree } from './WorkspaceTree'
 import { RenameDialog, TrashDialog } from './WorkspaceOpsDialog'
-import { trashDocument, workspaceOpError } from '../platform/workspace-ops'
+import { renameWarning, trashDocument, workspaceOpError, type RenameResult } from '../platform/workspace-ops'
 import { openWorkspace, listWorkspace, openWorkspaceDocument, readWorkspaceImage, searchWorkspace, cancelWorkspaceSearch, type Workspace, type WorkspaceImage, type WorkspaceSearchReport, type WorkspaceLocation } from '../platform/workspace'
 import type { OpenedFile } from '../platform/storage'
 import { readClipboardImageFiles } from '../platform/clipboard'
@@ -86,7 +86,9 @@ function errorMessage(error: unknown): string {
 
 export interface DocumentSummary { name: string; dirty: boolean; busy: boolean; pendingImage: boolean; fileId: string | null; recentId?: string | null; tableDecision?: boolean }
 export type FileAction = 'new' | 'open' | 'workspace' | 'saveAs' | 'reload' | 'exportHtml' | 'exportDocx' | 'print' | 'history' | 'batchImages' | 'mergeRecovery' | 'backup'
-export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean> }
+export interface DocumentHandle { summary: DocumentSummary; prepareLeave?(): Promise<boolean>; canLeave(): boolean; canSwitch(): boolean; canEdit(): boolean; run(action: FileAction): void; commandContext(): CommandContext; commandStatus(id: string, expected?: CommandContext): CommandStatus; execute(id: string, argument?: unknown, expected?: CommandContext): void; retain(): Promise<void>; discard(): Promise<void>; resume(): void; save(): Promise<boolean>
+  /** The native session now points at `path` after a workspace rename/move; reload in place. */
+  relocated?(path: string): Promise<void> }
 interface Props {
   mathRendering?: boolean
   mermaidRendering?: boolean
@@ -99,8 +101,10 @@ interface Props {
   onReleaseUnused(file: OpenedFile): Promise<void>
   onReport(id: string, summary: DocumentSummary, handle: DocumentHandle): void
   onReadOther?: () => void
+  /** Handles of every open tab, so a workspace rename/move can check and reload all of them. */
+  openHandles?: () => DocumentHandle[]
 }
-export default function DocumentEditor({ mathRendering = true, mermaidRendering = true, diagramTheme = 'light', quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther }: Props) {
+export default function DocumentEditor({ mathRendering = true, mermaidRendering = true, diagramTheme = 'light', quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther, openHandles }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -140,7 +144,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   const [highlightLimited, setHighlightLimited] = useState(false)
   const [workspacePath, setWorkspacePath] = useState<string | null>(path ?? null)
   const [treeRevision, setTreeRevision] = useState(0)
-  const [workspaceOp, setWorkspaceOp] = useState<{ kind: 'rename'; path: string } | { kind: 'trash' } | null>(null)
+  const [workspaceOp, setWorkspaceOp] = useState<{ kind: 'rename' | 'move'; path: string } | { kind: 'trash' } | null>(null)
   const [workspaceQuery, setWorkspaceQuery] = useState('')
   const [workspaceReport, setWorkspaceReport] = useState<WorkspaceSearchReport | null>(null)
   const [workspaceSearching, setWorkspaceSearching] = useState(false)
@@ -466,6 +470,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       retain: async () => { if (!pendingDraft && !draftUnavailable && (dirty || images.session)) { window.clearTimeout(draftTimer.current); await enqueueDraft() } },
       discard: async () => { discarded.current = true; await clearDraft() },
       resume: () => { discarded.current = false; flushDraft.current() }, save: () => save(),
+      relocated: (next) => reloadExternal(undefined, true, next),
     })
   })
   useEffect(() => () => { docxTask.current?.abort(); docxTask.current = null }, [])
@@ -802,6 +807,17 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     try { onWorkspaceChange({ ...workspace, entries: await listWorkspace(workspace.id) }); setTreeRevision((value) => value + 1) }
     catch (err) { setError(errorMessage(err)) }
   }
+  /** Reloads every tab whose native session followed the renamed/moved file. */
+  async function finishWorkspaceOp(result: RenameResult) {
+    setWorkspaceOp(null)
+    const moved = new Set(result.sessions)
+    for (const handle of openHandles?.() ?? []) {
+      if (handle.summary.fileId && moved.has(handle.summary.fileId)) await handle.relocated?.(result.path).catch(() => undefined)
+    }
+    setStatus(`已更新为 ${result.path}`)
+    if (result.warnings.length) setError(`操作已完成，但有 ${result.warnings.length} 项需要注意：${result.warnings.map(renameWarning).join('；')}`)
+    await refreshWorkspaceTree()
+  }
   async function trashFromTree(path: string) {
     if (!workspace || disabled || !window.confirm(`将“${path}”移到工作区回收站？可在“工作区回收站”中恢复；图片和版本历史保留。`)) return
     setBusy(true); setError('')
@@ -827,7 +843,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     })
   }
 
-  async function reloadExternal(expectedRevision?: string, confirmed = false) {
+  async function reloadExternal(expectedRevision?: string, confirmed = false, relocatedPath?: string) {
     if (!desktop || !fileId || busy || saving.current || images.session || images.busy || images.applying || panelApplying.current || contentToolRef.current || tableRef.current || editor.current?.composing() || (!confirmed && !mayReplace())) return
     setBusy(true); setError(''); setStatus('正在重新加载外部版本…')
     try {
@@ -835,6 +851,8 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       const decoded = decodeFile(file.bytes)
       await clearDraft()
       load(decoded.text, file.name, decoded, file.id, file.revision)
+      // load() forgets the workspace path; a rename/move keeps the document in the workspace.
+      if (relocatedPath) { setWorkspacePath(relocatedPath); setStatus(`已移动到 ${relocatedPath}`) }
       images.setResources(openedResources(decoded.text, file.metadata?.instances ?? []))
       setExternalOpen(false)
       if (file.warning && parseDocument(decoded.text, { math: false }).images.length) setError(errorMessage(file.warning))
@@ -1034,7 +1052,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
         </div>}
         <div className="sidebar-label">当前文件</div><div className="file-row active" title={name}><span aria-hidden="true">□</span><span className="current-file-name">{name}</span>{dirty && <span aria-label="未保存">·</span>}</div>
         {workspace && <WorkspaceTree key={`${workspace.id}:${treeRevision}`} workspace={workspace} disabled={disabled} selected={workspacePath} onOpen={(path) => void open(() => openWorkspaceDocument(workspace.id, path), path)} onImage={(image) => void importWorkspaceImage(image)} onError={(message) => setError(errorMessage(message))}
-          onRename={desktop ? (path) => setWorkspaceOp({ kind: 'rename', path }) : undefined} onTrash={desktop ? (path) => void trashFromTree(path) : undefined} />}
+          onRename={desktop ? (path) => setWorkspaceOp({ kind: 'rename', path }) : undefined} onMove={desktop ? (path) => setWorkspaceOp({ kind: 'move', path }) : undefined} onTrash={desktop ? (path) => void trashFromTree(path) : undefined} />}
         {workspace && desktop && <button className="file-row" disabled={disabled} onClick={() => setWorkspaceOp({ kind: 'trash' })}><span aria-hidden="true">⌫</span><span className="tree-name">工作区回收站</span></button>}
         {!workspace && <div className="outline-empty"><p>点击 EM 菜单打开工作区，浏览 Markdown 和图片文件。</p></div>}
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v1.0.0</span></div>
@@ -1113,7 +1131,9 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     </div>
   </div>
   {backupDraft && active && <BackupDialog draft={backupDraft} onClose={closeBackup} />}
-  {workspaceOp?.kind === 'rename' && active && workspace && <RenameDialog workspace={workspace.id} path={workspaceOp.path} onClose={() => setWorkspaceOp(null)} onDone={(path) => { setWorkspaceOp(null); setStatus(`已重命名为 ${path}`); void refreshWorkspaceTree() }} />}
+  {(workspaceOp?.kind === 'rename' || workspaceOp?.kind === 'move') && active && workspace && <RenameDialog workspace={workspace.id} path={workspaceOp.path} mode={workspaceOp.kind}
+    beforeCommit={async () => { if ((openHandles?.() ?? []).some((h) => h.summary.dirty || h.summary.busy || h.summary.pendingImage)) throw new Error('document_dirty') }}
+    onClose={() => setWorkspaceOp(null)} onDone={(result) => void finishWorkspaceOp(result)} />}
   {workspaceOp?.kind === 'trash' && active && workspace && <TrashDialog workspace={workspace.id} onClose={() => setWorkspaceOp(null)} onRestored={() => void refreshWorkspaceTree()} />}{contentTool && active && contentTool.kind === 'link' && <LinkDialog existing={toolExistingLink} label={toolExistingLink?.label ?? text.slice(Math.min(contentTool.context.selection.anchor, contentTool.context.selection.head), Math.max(contentTool.context.selection.anchor, contentTool.context.selection.head))} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={(label, url) => applyContentTool(context => linkCommand(context.textRevision, textRef.current, context.selection, label, url))} onUnlink={() => applyContentTool(context => unlinkCommand(context.textRevision, textRef.current, context.selection))} onOpen={() => { if (toolExistingLink) void openLinkTarget(toolExistingLink.url) }} />}
   {contentTool && active && contentTool.kind === 'language' && toolCode && <LanguageDialog language={toolCode.language} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={language => applyContentTool(context => codeBlockCommand(context.textRevision, textRef.current, context.selection, language, toolCode))} />}
   {contentTool && active && contentTool.paragraph && <ParagraphDialog target={contentTool.paragraph} error={contentError} onComposing={value => { contentComposing.current = value }} onCancel={cancelContentTool} onSubmit={kind => applyContentTool(context => paragraphCommand(context.textRevision, textRef.current, context.selection, kind))} />}

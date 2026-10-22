@@ -114,7 +114,7 @@
 | --- | --- | --- |
 | 0 | `feature/v2.0-step-0-contracts` | 已合并（PR #11，main `058a994`） |
 | 1 | `feature/v2.0-step-1-webdav` | 已合并（PR #12，main `10e42f0`） |
-| 2 | `feature/v2.0-step-2-identity` | 当前分支，从 main `10e42f0` 创建；2A、2B 已完成，见[第 2 步验收记录](Easy-Markdown-v2.0-第2步-验收与交付.md) |
+| 2 | `feature/v2.0-step-2-identity` | 当前分支，从 main `10e42f0` 创建；2A、2B、2C 已完成（本地验收通过），见[第 2 步验收记录](Easy-Markdown-v2.0-第2步-验收与交付.md) |
 | 3 | `feature/v2.0-step-3-sync` | 待前序阶段合并后创建 |
 | 4 | `feature/v2.0-step-4-conflicts` | 待前序阶段合并后创建 |
 | 5 | `feature/v2.0-step-5-experience` | 待前序阶段合并后创建 |

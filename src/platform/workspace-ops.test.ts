@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
-import { commitRename, planRename, renameTarget, trashDocument, workspaceOpError } from './workspace-ops'
+import { commitRename, isManagedImage, moveTarget, planRename, renameTarget, renameWarning, trashDocument, workspaceOpError } from './workspace-ops'
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }))
 beforeEach(() => vi.mocked(invoke).mockReset())
@@ -36,7 +36,7 @@ describe('rename planning', () => {
 
   it('commits with a fresh operation id and maps errors', async () => {
     vi.mocked(invoke).mockResolvedValueOnce({ path: 'b.md', warnings: [] })
-    await commitRename('ws', { from: 'a.md', to: 'b.md', incoming: [], outgoing: 0, skipped: [], rewrites: [] })
+    await commitRename('ws', { from: 'a.md', to: 'b.md', incoming: [], outgoing: 0, skipped: [], rewrites: [], images: [] })
     const [command, args] = vi.mocked(invoke).mock.calls[0] as [string, { operationId: string }]
     expect(command).toBe('workspace_rename')
     expect(args.operationId).toMatch(/^[0-9a-f-]{36}$/)
@@ -44,6 +44,37 @@ describe('rename planning', () => {
     await trashDocument('ws', 'a.md', 'sha256:x')
     expect(invoke).toHaveBeenLastCalledWith('workspace_trash', expect.objectContaining({ id: 'ws', path: 'a.md', expected: 'sha256:x' }))
     expect(workspaceOpError('target_exists')).toContain('同名')
-    expect(workspaceOpError('cross_directory')).toContain('跨目录')
+    expect(workspaceOpError('target_missing')).toContain('目标目录')
+  })
+})
+
+describe('cross-directory move planning', () => {
+  it('keeps managed images beside the document, re-points other links and updates incoming links', async () => {
+    vi.mocked(invoke).mockResolvedValueOnce({ from: 'notes/a.md', to: 'archive/2026/a.md', candidates: [
+      { path: 'notes/a.md', bytes: bytes('![图](assets/img-x-v1.png) [兄弟](b.md) [自身](a.md#h) [外](https://x.test)\n\n[ref]: ./assets/img-y-v1.png\n'), revision: 'r-a' },
+      { path: 'notes/b.md', bytes: bytes('[回](a.md)'), revision: 'r-b' },
+      { path: 'index.md', bytes: bytes('[入口](notes/a.md)'), revision: 'r-i' },
+    ] })
+    const plan = await planRename('ws', 'notes/a.md', 'archive/2026/a.md')
+    expect(plan.images).toEqual(['assets/img-x-v1.png', 'assets/img-y-v1.png'])
+    expect(text(plan.rewrites.find((r) => r.path === 'notes/a.md')!.bytes)).toBe('![图](assets/img-x-v1.png) [兄弟](../../notes/b.md) [自身](a.md#h) [外](https://x.test)\n\n[ref]: ./assets/img-y-v1.png\n')
+    expect(text(plan.rewrites.find((r) => r.path === 'notes/b.md')!.bytes)).toBe('[回](../archive/2026/a.md)')
+    expect(text(plan.rewrites.find((r) => r.path === 'index.md')!.bytes)).toBe('[入口](archive/2026/a.md)')
+    vi.mocked(invoke).mockResolvedValueOnce({ path: 'archive/2026/a.md', warnings: [], sessions: [] })
+    await commitRename('ws', plan)
+    expect((vi.mocked(invoke).mock.calls[1][1] as { resources: { references: string[] } }).resources.references).toEqual(plan.images)
+  })
+
+  it('builds move targets and never treats unmanaged images as copyable', async () => {
+    expect(moveTarget('notes/a.md', 'archive')).toBe('archive/a.md')
+    expect(moveTarget('notes/a.md', '')).toBe('a.md')
+    expect(() => moveTarget('notes/a.md', 'notes')).toThrow('invalid_name')
+    expect(isManagedImage('assets/img-a-v1.png')).toBe(true)
+    for (const path of ['photo.png', 'assets/photo.png', '../assets/img-a.png', 'assets/img-a.gif']) expect(isManagedImage(path)).toBe(false)
+    vi.mocked(invoke).mockResolvedValueOnce({ from: 'a.md', to: 'd/a.md', candidates: [{ path: 'a.md', bytes: bytes('![x](photo.png)'), revision: 'r' }] })
+    const plan = await planRename('ws', 'a.md', 'd/a.md')
+    expect(plan.images).toEqual([])
+    expect(text(plan.rewrites[0].bytes)).toBe('![x](../photo.png)')
+    expect(renameWarning('link_skipped:b.md')).toContain('b.md')
   })
 })
