@@ -458,6 +458,25 @@ pub async fn sync_probe(native: State<'_, SyncNative>, endpoint: String, usernam
     Dav::root(native.client()?, &endpoint, username, password)?.list_workspaces().await
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProbedHead { device_id: String, head: Vec<u8>, commit: Option<Vec<u8>> }
+
+/// Read-only pairing preview of an existing remote workspace: every device head and the commit
+/// object it points to (hash-checked here, parsed by the core). Nothing is stored.
+#[tauri::command]
+pub async fn sync_probe_workspace(native: State<'_, SyncNative>, endpoint: String, username: String, password: String, workspace_id: String) -> Result<Vec<ProbedHead>, String> {
+    let dav = Dav::new(native.client()?, &endpoint, &workspace_id, username, password)?;
+    let mut heads = vec![];
+    for device in dav.list_devices().await? {
+        let head = dav.read_head(&device).await?.ok_or("invalid_listing")?;
+        let value: serde_json::Value = serde_json::from_slice(&head.body).map_err(|_| "invalid_head")?;
+        let hash = value["commitHash"].as_str().ok_or("invalid_head")?;
+        heads.push(ProbedHead { commit: dav.read_object(hash).await?, device_id: device, head: head.body });
+    }
+    Ok(heads)
+}
+
 /// Binds the workspace (whose identity must be enabled) to an endpoint and creates the remote
 /// namespace. On any failure nothing is left behind locally.
 #[tauri::command]

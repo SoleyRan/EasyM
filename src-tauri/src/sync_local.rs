@@ -107,15 +107,15 @@ pub async fn sync_local_asset(workspaces: State<'_, Workspaces>, storage: State<
     let workspaces = workspaces.inner().clone(); let storage = storage.inner().clone();
     tauri::async_runtime::spawn_blocking(move || { let _queue = storage.0.lock().map_err(|_| "io_failed")?; read_asset(&root(&workspaces, &id)?, &directory, &asset) }).await.map_err(|_| "io_failed".to_string())?
 }
-/// Refuses documents open in a tab with a different revision: the editor would overwrite on save.
+/// Holds the write queue, so a save from the editor cannot interleave. Open documents are only
+/// written when the engine saw no unsaved edits; an edit started afterwards is caught by the
+/// editor's revision check on save (the file changed externally), never silently overwritten.
 #[tauri::command]
 pub async fn sync_local_write(workspaces: State<'_, Workspaces>, storage: State<'_, Storage>, id: String, request: WriteRequest) -> Result<Option<String>, String> {
     let workspaces = workspaces.inner().clone(); let storage = storage.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let sessions = storage.0.lock().map_err(|_| "io_failed")?;
-        let boundary = root(&workspaces, &id)?;
-        if request.expected.is_some() && sessions.values().any(|p| safe_existing(&boundary, &request.path).is_ok_and(|q| q == *p)) { return Err("document_open".into()); }
-        write(&boundary, request)
+        let _queue = storage.0.lock().map_err(|_| "io_failed")?;
+        write(&root(&workspaces, &id)?, request)
     }).await.map_err(|_| "io_failed".to_string())?
 }
 
@@ -133,14 +133,40 @@ pub(crate) fn move_document(root: &Path, operation: &str, from: &str, to: &str, 
 }
 
 #[tauri::command]
-pub async fn sync_local_move(workspaces: State<'_, Workspaces>, storage: State<'_, Storage>, id: String, operation_id: String, from: String, to: String, expected: String, references: Vec<String>) -> Result<(), String> {
+/// Open, saved documents may move: their sessions follow the file and the ids are returned so the
+/// tabs reload in place. The engine never moves documents with unsaved edits (they become copies).
+pub async fn sync_local_move(workspaces: State<'_, Workspaces>, storage: State<'_, Storage>, id: String, operation_id: String, from: String, to: String, expected: String, references: Vec<String>) -> Result<Vec<String>, String> {
     let workspaces = workspaces.inner().clone(); let storage = storage.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let sessions = storage.0.lock().map_err(|_| "io_failed")?;
+        let mut sessions = storage.0.lock().map_err(|_| "io_failed")?;
         let boundary = root(&workspaces, &id)?;
-        if sessions.values().any(|p| safe_existing(&boundary, &from).is_ok_and(|q| q == *p)) { return Err("document_open".into()); }
-        move_document(&boundary, &operation_id, &from, &to, &expected, references)
+        let old = safe_existing(&boundary, &from)?;
+        move_document(&boundary, &operation_id, &from, &to, &expected, references)?;
+        let new = safe_existing(&boundary, &to)?;
+        Ok(sessions.iter_mut().filter(|(_, p)| **p == old).map(|(session, path)| { *path = new.clone(); session.clone() }).collect())
     }).await.map_err(|_| "io_failed".to_string())?
+}
+
+#[derive(Serialize)]
+pub struct OpenDocument { path: String, session: String }
+
+/// Documents of this workspace open in any tab (however they were opened), as relative paths
+/// with their session ids, so the engine can treat them as open and the shell can map them to
+/// tabs with unsaved edits.
+pub(crate) fn open_documents(root: &Path, sessions: &std::collections::HashMap<String, std::path::PathBuf>) -> Vec<OpenDocument> {
+    let mut out: Vec<OpenDocument> = sessions.iter().filter_map(|(session, path)| {
+        let relative = path.strip_prefix(root).ok()?;
+        let parts: Option<Vec<&str>> = relative.components().map(|c| match c { std::path::Component::Normal(p) => p.to_str(), _ => None }).collect();
+        Some(OpenDocument { path: parts?.join("/"), session: session.clone() })
+    }).collect();
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    out
+}
+
+#[tauri::command]
+pub async fn sync_local_open(workspaces: State<'_, Workspaces>, storage: State<'_, Storage>, id: String) -> Result<Vec<OpenDocument>, String> {
+    let sessions = storage.0.lock().map_err(|_| "io_failed")?;
+    Ok(open_documents(&root(&workspaces, &id)?, &sessions))
 }
 
 /// Applies a remote deletion through the in-app trash (restorable), only at `expected`.
@@ -207,6 +233,19 @@ mod tests {
             assert!(write(&root, WriteRequest { operation_id: op(), path: path.into(), expected: None, bytes: b"x".to_vec(), assets: vec![], instances: vec![] }).is_err(), "{path}");
         }
         assert!(fs::read_dir(&root).unwrap().next().is_none() || !root.join(".easym/a.md").exists());
+    }
+
+    #[test]
+    fn open_documents_lists_only_sessions_inside_the_workspace() {
+        let (_t, root) = workspace();
+        let outside = tempfile::tempdir().unwrap();
+        let sessions = std::collections::HashMap::from([
+            ("s1".to_string(), root.join("notes").join("中文.md")),
+            ("s2".to_string(), root.join("a.md")),
+            ("s3".to_string(), outside.path().join("x.md")),
+        ]);
+        let open = open_documents(&root, &sessions);
+        assert_eq!(open.iter().map(|o| (o.path.as_str(), o.session.as_str())).collect::<Vec<_>>(), vec![("a.md", "s2"), ("notes/中文.md", "s1")]);
     }
 
     #[test]

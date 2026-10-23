@@ -167,6 +167,23 @@ describe('single-device round trip', () => {
 })
 
 describe('conflicts', () => {
+  it('distinct documents created at the same path on both devices both survive', async () => {
+    // Whichever side the merge renames, its apply moves a local file away from a path and creates
+    // the other document there in the same pass.
+    for (let round = 0; round < 6; round++) {
+      const { a, b, ea, eb } = pair()
+      a.edit('same.md', 'from A'); b.edit('same.md', 'from B')
+      await ea.pass(signal())
+      const report = await eb.pass(signal())
+      expect(report.failed).toEqual([])
+      await ea.pass(signal()); await eb.pass(signal())
+      const texts = (w: MemoryWorkspace) => w.view().map((l) => l.split('=')[1]).sort()
+      expect(texts(a)).toEqual(['from A', 'from B'])
+      expect(a.view()).toEqual(b.view())
+      expect(new Set(a.identity!.documents.map((d) => d.path)).size).toBe(2)
+    }
+  })
+
   it('concurrent edits keep both versions; neither side loses text', async () => {
     const { a, b, ea, eb } = pair()
     a.edit('n.md', 'base'); await ea.pass(signal()); await eb.pass(signal())

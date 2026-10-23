@@ -11,8 +11,8 @@ const workspaceId = '1358f0a2-25b8-441b-9d55-379f6ca303dc'
 const deviceId = '6f0c1c55-3c9e-4f53-9c9b-0b8f4d9f6a01'
 const A = 'a1b2c3d4-0000-4000-8000-000000000001'
 const binding: SyncBinding = { bindingId: 'b', workspaceId, deviceId, endpoint: 'https://dav.example.test/', username: 'u', createdAt: 1 }
-const tabs = () => ({ open: new Set(['a.md']), dirty: new Set<string>() })
-const host = () => new DesktopSyncHost('ws', binding, tabs)
+const dirty = () => new Set(['s1'])
+const host = () => new DesktopSyncHost('ws', binding, dirty)
 
 describe('desktop sync host', () => {
   it('parses the identity and uses the digest of its exact bytes as the write precondition', async () => {
@@ -33,6 +33,7 @@ describe('desktop sync host', () => {
     const h = host()
     await h.write({ operationId: 'op', path: 'n/a.md', expected: null, bytes: new Uint8Array([1, 2]), assets: [{ path: 'assets/img-a-v1.png', bytes: new Uint8Array([3]) }], instances: [] })
     expect(invoke).toHaveBeenLastCalledWith('sync_local_write', { id: 'ws', request: { operationId: 'op', path: 'n/a.md', expected: null, bytes: [1, 2], assets: [{ path: 'assets/img-a-v1.png', bytes: [3] }], instances: [] } })
+    vi.mocked(invoke).mockResolvedValueOnce([])
     await h.move({ operationId: 'op', from: 'a.md', to: 'd/a.md', expected: 'sha256:x', references: ['assets/img-a-v1.png'] })
     expect(invoke).toHaveBeenLastCalledWith('sync_local_move', { id: 'ws', operationId: 'op', from: 'a.md', to: 'd/a.md', expected: 'sha256:x', references: ['assets/img-a-v1.png'] })
     await h.trash({ operationId: 'op', path: 'a.md', expected: 'sha256:x' })
@@ -49,7 +50,12 @@ describe('desktop sync host', () => {
     ])
     const h = host()
     expect([...(await h.trashed())]).toEqual([[A, 'sha256:a']])
-    expect((await h.open()).open).toEqual(new Set(['a.md']))
+    vi.mocked(invoke).mockResolvedValueOnce([{ path: 'a.md', session: 's1' }, { path: 'n/b.md', session: 's2' }])
+    expect(await h.open()).toEqual({ open: new Set(['a.md', 'n/b.md']), dirty: new Set(['a.md']) })
+    expect(invoke).toHaveBeenLastCalledWith('sync_local_open', { id: 'ws' })
+    vi.mocked(invoke).mockResolvedValueOnce(['s2'])
+    await h.move({ operationId: 'o', from: 'n/b.md', to: 'm/b.md', expected: 'sha256:b', references: [] })
+    expect(h.movedSessions).toEqual(['s2'])
     expect([h.workspaceId, h.deviceId]).toEqual([workspaceId, deviceId])
   })
 })

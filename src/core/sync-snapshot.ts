@@ -259,6 +259,28 @@ export function planApply(input: ApplyInput): ApplyPlan {
   return plan
 }
 
+/**
+ * Joining with explicit user consent: a local document at the same (case-folded) path as a remote
+ * document, under a different id, takes the remote id. Same bytes then need no transfer; different
+ * bytes keep both versions through the normal conflict copy. The previous local id is kept as the
+ * history mapping so local version history still resolves. Never matches by content.
+ */
+export function linkSameNamed(identity: WorkspaceIdentity, remote: Pick<SyncCommit, 'documents'>[]): { identity: WorkspaceIdentity; linked: string[] } {
+  const remoteByPath = new Map<string, SyncDocumentEntry>()
+  for (const commit of remote) for (const entry of commit.documents) remoteByPath.set(syncPathKey(entry.path), entry)
+  const usedIds = new Set(identity.documents.map((d) => d.documentId))
+  const linked: string[] = []
+  const documents = identity.documents.map((doc) => {
+    const match = remoteByPath.get(syncPathKey(doc.path))
+    if (!match || match.documentId === doc.documentId || usedIds.has(match.documentId)) return doc
+    usedIds.add(match.documentId)
+    linked.push(doc.path)
+    const historyId = doc.historyId ?? doc.documentId
+    return historyId === match.documentId ? { documentId: match.documentId, path: doc.path } : { documentId: match.documentId, path: doc.path, historyId }
+  })
+  return { identity: { ...identity, documents }, linked }
+}
+
 export interface JoinPreview { download: number; upload: number; collisions: string[] }
 /** First pairing with an existing remote workspace: what will be fetched, sent and renamed. */
 export function previewJoin(remote: Pick<SyncCommit, 'documents'>[], identity: WorkspaceIdentity): JoinPreview {

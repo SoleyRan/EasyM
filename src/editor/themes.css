@@ -171,6 +171,9 @@
 .document-tab .tab-close { margin: 0; padding: 6px 8px; color: var(--muted); }
 .document-tab button:hover, .new-document:hover { background: var(--hover); }
 .new-document { background: transparent; padding: 6px 12px; }
+.sync-chip { align-self: center; flex: none; margin: 0 6px; padding: 2px 10px; border: 1px solid var(--border, currentColor); border-radius: 999px; background: transparent; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.sync-chip:hover { background: var(--hover); }
+.sync-chip.sync-paused, .sync-chip.sync-retrying { color: inherit; border-color: currentColor; }
 .document-panel { flex: 1; min-height: 0; overflow: hidden; }
 .document-panel[hidden] { display: none; }
 .document-panel .app-shell { height: 100%; min-height: 0; }

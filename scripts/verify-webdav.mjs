@@ -21,7 +21,7 @@ const selected = process.argv.slice(2).length ? process.argv.slice(2) : Object.k
 // Bundle the TypeScript core once; an in-process Vite dev server stalls node:http sockets on Windows.
 const bundle = resolve(out, 'core')
 const entry = resolve('scripts/webdav/core-entry.ts')
-await build({ configFile: false, logLevel: 'warn', build: { outDir: bundle, emptyOutDir: true, target: 'node22', minify: false, lib: { entry, formats: ['es'], fileName: () => 'core.js' }, rollupOptions: { input: entry } } })
+await build({ configFile: false, logLevel: 'warn', resolve: { conditions: ['worker', 'module', 'browser', 'production'] }, build: { outDir: bundle, emptyOutDir: true, target: 'node22', minify: false, lib: { entry, formats: ['es'], fileName: () => 'core.js' }, rollupOptions: { input: entry } } })
 const core = await import(pathToFileURL(resolve(bundle, 'core.js')).href)
 const report = { verifiedAt: new Date().toISOString(), node: process.version, design: 'per-device log (devices/<id>.json single writer, immutable content-addressed objects, deterministic merges)', scope: 'Loopback HTTP containers, isolated test namespaces. Protocol semantics only; no TLS, native credential store or editor integration.', targets: {} }
 const encoder = new TextEncoder(), decoder = new TextDecoder(), signal = () => AbortSignal.timeout(60000)

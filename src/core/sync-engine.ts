@@ -59,6 +59,8 @@ export interface PassReport {
   skipped: { path: string; reason: string }[]
   /** Operations that failed this pass; retried next time with fresh revisions. */
   failed: { path: string; error: string }[]
+  /** Existing local files replaced or moved this pass, so open tabs can reload in place. */
+  changed: { from: string; to: string }[]
 }
 
 export class SyncEngineError extends Error {
@@ -116,7 +118,7 @@ export class SyncEngine {
    */
   private async apply(target: SyncCommit, base: SyncCommit | null, state: EngineState, report: PassReport, signal: AbortSignal): Promise<boolean> {
     const scan = await this.host.scan()
-    let identity = scan.identity
+    const identity = scan.identity
     if (!identity) throw new SyncEngineError('identity_missing')
     const { open, dirty } = await this.host.open()
     const trashed = await this.host.trashed()
@@ -133,28 +135,46 @@ export class SyncEngine {
     for (const item of plan.deferred) if (!state.deferred.some((d) => d.documentId === item.documentId)) state.deferred.push(item)
     report.deferred.push(...state.deferred.map((d) => d.path))
 
-    // Register identities of documents about to be created before writing their files.
-    const creates = plan.ops.filter((op): op is Extract<ApplyOp, { kind: 'write' }> => op.kind === 'write' && op.expected === null)
-    // Trash and move update identity themselves (step 2); only new entries are written here.
+    // Register identities of documents about to be created before writing their files. Trash and
+    // move update identity themselves (step 2). A create at a path that a trash or move of this
+    // pass vacates is registered only after that op: until then the old document still owns it.
     const known = new Set(identity.documents.map((d) => d.documentId))
-    const fresh = creates.filter((op) => !known.has(op.documentId)).map((op) => ({ documentId: op.documentId, path: op.path }))
-    if (fresh.length) {
-      const withCreates = { ...identity, documents: [...identity.documents, ...fresh].sort((a, b) => (a.path < b.path ? -1 : 1)) }
-      await this.host.writeIdentity(withCreates, scan.identityRevision)
-      identity = withCreates
+    const creates = plan.ops.filter((op): op is Extract<ApplyOp, { kind: 'write' }> => op.kind === 'write' && op.expected === null && !known.has(op.documentId))
+    const vacated = new Set(plan.ops.flatMap((op) => (op.kind === 'trash' ? [op.path] : op.kind === 'move' ? [op.from] : [])).map((p) => p.normalize('NFC').toLowerCase()))
+    const waits = (op: { path: string }) => vacated.has(op.path.normalize('NFC').toLowerCase())
+    // Always appends to the identity as the host holds it now: trash and move rewrite it themselves,
+    // so a copy read before them is stale and writing it back would undo their changes.
+    const register = async (ops: { documentId: string; path: string }[], current: WorkspaceIdentity, expected: string | null) => {
+      if (!ops.length) return
+      const next = { ...current, documents: [...current.documents, ...ops.map((op) => ({ documentId: op.documentId, path: op.path }))].sort((a, b) => (a.path < b.path ? -1 : 1)) }
+      await this.host.writeIdentity(next, expected)
     }
+    await register(creates.filter((op) => !waits(op)), identity, scan.identityRevision)
+    let lateRegistered = !creates.some(waits)
 
     let ok = true
     for (const op of plan.ops) {
       signal.throwIfAborted()
+      if (!lateRegistered && op.kind === 'write') {
+        // Every trash and move ran first (planApply orders them), so the paths are free now.
+        lateRegistered = true
+        try {
+          const fresh = await this.host.scan()
+          if (!fresh.identity) throw new SyncEngineError('identity_missing')
+          await register(creates.filter(waits), fresh.identity, fresh.identityRevision)
+        } catch (error) { ok = false; report.failed.push({ path: creates.find(waits)!.path, error: errorCode(error) }); break }
+      }
       const operationId = this.host.newId()
       try {
         if (op.kind === 'trash') await this.host.trash({ operationId, path: op.path, expected: op.expected })
-        else if (op.kind === 'move') await this.host.move({ operationId, from: op.from, to: op.to, expected: op.expected, references: op.references })
-        else {
+        else if (op.kind === 'move') {
+          await this.host.move({ operationId, from: op.from, to: op.to, expected: op.expected, references: op.references })
+          report.changed.push({ from: op.from, to: op.to })
+        } else {
           const { bytes, assets, instances } = await this.materialize(op.entry, signal)
           await this.host.write({ operationId, path: op.path, expected: op.expected, bytes, assets, instances })
           if (op.expected === null) report.downloaded++
+          else report.changed.push({ from: op.path, to: op.path })
         }
       } catch (error) {
         ok = false
@@ -185,7 +205,7 @@ export class SyncEngine {
 
   /** One full pass. Errors from the network or the log propagate; local write failures are reported. */
   async pass(signal: AbortSignal): Promise<PassReport> {
-    const report: PassReport = { published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [] }
+    const report: PassReport = { published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [] }
     const state: EngineState = (await this.host.loadState()) ?? { device: initialDeviceState(this.host.workspaceId, this.host.deviceId), applied: null, deferred: [] }
     if (state.device.workspaceId !== this.host.workspaceId || state.device.deviceId !== this.host.deviceId) throw new SyncEngineError('identity_mismatch')
     const save = async () => this.host.saveState(state)

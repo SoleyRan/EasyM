@@ -1,0 +1,102 @@
+{
+  "verifiedAt": "2026-10-23T15:26:11.377Z",
+  "node": "v24.20.0",
+  "scope": "Real engine and WebDAV servers on loopback HTTP; directory-backed host mirrors the native commands. No GUI, TLS or OS credential store.",
+  "targets": {
+    "apache": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "device_a_publishes",
+          "passed": true,
+          "requests": 15
+        },
+        {
+          "id": "fresh_device_restores_bodies_and_images",
+          "passed": true,
+          "downloaded": 2,
+          "files": 4
+        },
+        {
+          "id": "image_metadata_restored",
+          "passed": true
+        },
+        {
+          "id": "wiped_device_rejoins_without_copies",
+          "passed": true,
+          "copies": 0,
+          "linked": 2
+        },
+        {
+          "id": "edit_travels_back",
+          "passed": true
+        },
+        {
+          "id": "concurrent_edits_keep_both",
+          "passed": true,
+          "files": 2
+        },
+        {
+          "id": "interrupted_apply_retries_without_duplicates",
+          "passed": true
+        },
+        {
+          "id": "deletion_reaches_other_device_as_trash",
+          "passed": true
+        }
+      ],
+      "requests": {
+        "a": 124,
+        "b": 114
+      }
+    },
+    "nextcloud": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "device_a_publishes",
+          "passed": true,
+          "requests": 15
+        },
+        {
+          "id": "fresh_device_restores_bodies_and_images",
+          "passed": true,
+          "downloaded": 2,
+          "files": 4
+        },
+        {
+          "id": "image_metadata_restored",
+          "passed": true
+        },
+        {
+          "id": "wiped_device_rejoins_without_copies",
+          "passed": true,
+          "copies": 0,
+          "linked": 2
+        },
+        {
+          "id": "edit_travels_back",
+          "passed": true
+        },
+        {
+          "id": "concurrent_edits_keep_both",
+          "passed": true,
+          "files": 2
+        },
+        {
+          "id": "interrupted_apply_retries_without_duplicates",
+          "passed": true
+        },
+        {
+          "id": "deletion_reaches_other_device_as_trash",
+          "passed": true
+        }
+      ],
+      "requests": {
+        "a": 124,
+        "b": 114
+      }
+    }
+  },
+  "passed": true
+}
