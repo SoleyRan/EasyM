@@ -177,7 +177,7 @@ pub fn setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[cfg(windows)]
-fn profile_registry_directory(default: PathBuf, profile: Option<std::ffi::OsString>) -> Result<PathBuf, String> {
+pub(crate) fn profile_registry_directory(default: PathBuf, profile: Option<std::ffi::OsString>) -> Result<PathBuf, String> {
     match profile {
         None => Ok(default),
         Some(value) => {
