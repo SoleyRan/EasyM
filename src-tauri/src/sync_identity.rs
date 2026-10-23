@@ -76,6 +76,14 @@ pub(crate) fn scan(root: &Path) -> Result<IdentityScan, String> {
     Ok(IdentityScan { identity, identity_error, documents, unreadable })
 }
 
+impl IdentityScan {
+    pub(crate) fn unreadable(&self) -> &[String] { &self.unreadable }
+    pub(crate) fn identity_error(&self) -> Option<&str> { self.identity_error.as_deref() }
+    pub(crate) fn identity_bytes(&self) -> Option<Vec<u8>> { self.identity.clone() }
+    /// (path, history documentId, history unreadable) of every Markdown document found.
+    pub(crate) fn entries(&self) -> Vec<(String, Option<String>, bool)> { self.documents.iter().map(|d| (d.path.clone(), d.history_id.clone(), d.history_unreadable)).collect() }
+}
+
 pub(crate) fn read_identity(root: &Path) -> Result<Option<Vec<u8>>, String> {
     match fs::symlink_metadata(root.join(IDENTITY)) {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),

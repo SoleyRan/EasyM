@@ -29,7 +29,7 @@ export function moveTarget(from: string, directory: string): string {
   if (to === from || !isPortableSyncPath(to)) throw new Error('invalid_name')
   return to
 }
-export interface TrashEntry { operationId: string; path: string; deletedAt: number; documentId: string | null }
+export interface TrashEntry { operationId: string; path: string; deletedAt: number; documentId: string | null; revision: string }
 
 export function renameTarget(from: string, name: string): string {
   const trimmed = name.normalize('NFC')

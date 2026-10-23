@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { encodeSyncDeviceHead, parseSyncDeviceHead, syncHash, type ExpectedSyncHead, type PublishSyncHeadResult, type SyncDeviceHead, type SyncProvider, type VersionedDeviceHead } from '../core/sync-contract'
 import type { SyncDeviceState } from '../core/sync-log'
+import type { EngineState } from '../core/sync-engine'
 
 /** What the webview knows about a binding: no password and no local path. */
 export interface SyncBinding { bindingId: string; workspaceId: string; deviceId: string; endpoint: string; username: string; createdAt: number }
@@ -16,15 +17,22 @@ export const bindWorkspace = (workspace: string, endpoint: string, username: str
 /** Exit sync: removes binding, credential, state and cache. Workspace and remote are kept. */
 export const unbindWorkspace = (workspace: string) => invoke<void>('sync_unbind', { id: workspace })
 
-export async function readSyncState(workspace: string): Promise<SyncDeviceState | null> {
+/**
+ * Persisted engine state. `workspaceId`/`deviceId` sit at the top level because the native side
+ * refuses state that does not belong to the binding.
+ */
+export async function readSyncState(workspace: string): Promise<EngineState | null> {
   const raw = await invoke<number[] | null>('sync_state_read', { id: workspace })
   if (!raw) return null
-  const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes(raw))) as SyncDeviceState
-  if (typeof value.sequence !== 'number' || (value.commitHash !== null && typeof value.commitHash !== 'string') || typeof value.seen !== 'object') throw new Error('sync_state_invalid')
-  return value
+  const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes(raw))) as { workspaceId?: string; deviceId?: string } & Partial<EngineState>
+  const device = value.device as SyncDeviceState | undefined
+  if (!device || typeof device.sequence !== 'number' || (device.commitHash !== null && typeof device.commitHash !== 'string') || typeof device.seen !== 'object'
+    || device.workspaceId !== value.workspaceId || device.deviceId !== value.deviceId
+    || (value.applied !== null && typeof value.applied !== 'string') || !Array.isArray(value.deferred)) throw new Error('sync_state_invalid')
+  return { device, applied: value.applied ?? null, deferred: value.deferred }
 }
-export const writeSyncState = (workspace: string, state: SyncDeviceState) =>
-  invoke<void>('sync_state_write', { id: workspace, bytes: Array.from(new TextEncoder().encode(JSON.stringify(state))) })
+export const writeSyncState = (workspace: string, state: EngineState) =>
+  invoke<void>('sync_state_write', { id: workspace, bytes: Array.from(new TextEncoder().encode(JSON.stringify({ workspaceId: state.device.workspaceId, deviceId: state.device.deviceId, ...state }))) })
 
 /**
  * SyncProvider over the native WebDAV commands of one bound workspace. Every call is checked

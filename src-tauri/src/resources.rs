@@ -50,6 +50,8 @@ fn managed(path: &str) -> bool {
     suffix.is_some_and(|name| name.starts_with("img-") && (name.ends_with(".png") || name.ends_with(".jpg")) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.'))
 }
 
+pub(crate) fn is_managed(path: &str) -> bool { managed(path) }
+
 pub(crate) fn validate_instance(instance: &serde_json::Value) -> Result<(), String> {
     for key in ["sourcePath", "displayPath"] { if !instance.get(key).and_then(|v| v.as_str()).is_some_and(managed) { return Err("invalid_data".into()); } }
     if instance.get("recipe").and_then(|v| v.get("version")).and_then(|v| v.as_u64()) != Some(1) { return Err("invalid_data".into()); }

@@ -59,12 +59,17 @@ describe('native sync provider adapter', () => {
   })
 
   it('round-trips persisted state and maps errors to actionable messages', async () => {
-    const state = { workspaceId, deviceId, sequence: 2, commitHash: `sha256:${'b'.repeat(64)}`, seen: { [other]: 1 } }
+    const device = { workspaceId, deviceId, sequence: 2, commitHash: `sha256:${'b'.repeat(64)}`, seen: { [other]: 1 } }
+    const state = { device, applied: `sha256:${'b'.repeat(64)}`, deferred: [] }
     vi.mocked(invoke).mockResolvedValueOnce(undefined)
     await writeSyncState('ws', state)
     const written = (vi.mocked(invoke).mock.lastCall![1] as { bytes: number[] }).bytes
+    const stored = JSON.parse(new TextDecoder().decode(new Uint8Array(written)))
+    expect([stored.workspaceId, stored.deviceId]).toEqual([workspaceId, deviceId])
     vi.mocked(invoke).mockResolvedValueOnce(written)
     expect(await readSyncState('ws')).toEqual(state)
+    vi.mocked(invoke).mockResolvedValueOnce(Array.from(new TextEncoder().encode(JSON.stringify({ ...stored, deviceId: other }))))
+    await expect(readSyncState('ws')).rejects.toThrow('sync_state_invalid')
     vi.mocked(invoke).mockResolvedValueOnce(null)
     expect(await readSyncState('ws')).toBeNull()
     vi.mocked(invoke).mockResolvedValueOnce(Array.from(new TextEncoder().encode('{"sequence":"x"}')))

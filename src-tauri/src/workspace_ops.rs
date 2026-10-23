@@ -28,6 +28,7 @@ pub struct Rewrite { path: String, expected: String, bytes: Vec<u8> }
 /// body references, found by the frontend's Markdown parser. Source images are copied, never moved.
 #[derive(Default, Deserialize)]
 pub struct MoveResources { #[serde(default)] references: Vec<String> }
+impl MoveResources { pub(crate) fn new(references: Vec<String>) -> Self { Self { references } } }
 
 #[derive(Deserialize, Serialize)]
 struct StagedRewrite { path: String, expected: String, revision: String }
@@ -373,7 +374,7 @@ pub(crate) fn trash_list(root: &Path) -> Result<Vec<Value>, String> {
         let Ok(manifest) = safe_existing(&folder, "record.json") else { continue; };
         let Ok(record) = serde_json::from_slice::<TrashRecord>(&fs::read(manifest).map_err(|_| "io_failed")?) else { continue; };
         if record.version != 1 || safe_existing(&folder, "document.md").is_err() { continue; }
-        items.push(json!({ "operationId": name, "path": record.path, "deletedAt": record.deleted_at, "documentId": record.document_id }));
+        items.push(json!({ "operationId": name, "path": record.path, "deletedAt": record.deleted_at, "documentId": record.document_id, "revision": record.revision }));
     }
     items.sort_by_key(|v| std::cmp::Reverse(v["deletedAt"].as_u64().unwrap_or(0)));
     Ok(items)
