@@ -8,19 +8,25 @@ function render(source: string, theme: string, signal: AbortSignal, timeout: num
     if (signal.aborted) { reject(new Error('cancelled')); return }
     const frame = document.createElement('iframe')
     frame.className = 'mermaid-sandbox'; frame.setAttribute('sandbox', 'allow-scripts'); frame.setAttribute('aria-hidden', 'true'); frame.tabIndex = -1
-    frame.style.cssText = 'position:fixed;left:-20000px;top:0;width:1200px;height:900px;visibility:hidden;pointer-events:none'
+    // Keep the frame inside the viewport but invisible: WebKit throttles timers and animation
+    // frames of cross-origin frames that are hidden or scrolled out of view, which can stall
+    // Mermaid's layout past the timeout.
+    frame.style.cssText = 'position:fixed;left:0;top:0;width:1200px;height:900px;opacity:0;pointer-events:none;border:0;contain:strict'
     const token = crypto.randomUUID()
+    // Reported on timeout so a stall can be located (sandbox start, engine load or layout).
+    let stage = '沙箱未启动'
     const finish = (error?: string, svg?: string) => { clearTimeout(timer); window.removeEventListener('message', receive); signal.removeEventListener('abort', abort); frame.remove(); error ? reject(new Error(error)) : resolve(svg!) }
     const abort = () => finish('cancelled')
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.contentWindow || !event.data) return
-      if (event.data.type === 'easym-mermaid-ready') frame.contentWindow?.postMessage({ type: 'easym-mermaid', token, source, theme, engine: new URL(engineUrl, document.baseURI).href }, '*')
+      if (event.data.type === 'easym-mermaid-ready') { stage = '引擎加载未完成'; frame.contentWindow?.postMessage({ type: 'easym-mermaid', token, source, theme, engine: new URL(engineUrl, document.baseURI).href }, '*') }
+      if (event.data.type === 'easym-mermaid-progress' && event.data.token === token) stage = '图表布局未完成'
       if (event.data.type === 'easym-mermaid-result' && event.data.token === token) {
         if (typeof event.data.svg === 'string') finish(undefined, event.data.svg)
         else finish('语法错误或渲染失败')
       }
     }
-    const timer = window.setTimeout(() => finish('图表渲染超时'), timeout)
+    const timer = window.setTimeout(() => finish(`图表渲染超时（${stage}）`), timeout)
     window.addEventListener('message', receive); signal.addEventListener('abort', abort, { once: true })
     frame.src = new URL('mermaid.html', document.baseURI).href; document.body.append(frame)
   })

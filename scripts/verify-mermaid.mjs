@@ -150,7 +150,8 @@ try {
   const held = new Promise(resolve => { releaseEngine = resolve })
   await page.route(enginePattern, async route => { await held; await route.abort().catch(() => {}) })
   await fillSource(page, '```mermaid\nsequenceDiagram\n A->>B: timeout\n```')
-  await preview().locator('figcaption', { hasText: '渲染超时' }).waitFor()
+  // The engine request is held, so the timeout must name the engine-load stage.
+  await preview().locator('figcaption', { hasText: '渲染超时（引擎加载未完成）' }).waitFor()
   assert.equal(await page.locator('iframe.mermaid-sandbox').count(), 0)
   releaseEngine(); await page.unroute(enginePattern)
   await fillSource(page, sample)
