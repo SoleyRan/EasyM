@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { emptyFormats, type Format } from '../core/formatting'
 import { blankSnapshot, decodeFile, encodeFile, type FileSnapshot } from '../core/codec'
 import type { NewDocument } from '../core/templates'
@@ -226,6 +226,10 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   const applyScroll = useRef<() => void>(() => undefined)
   const scrollOwner = useRef<'source' | 'preview'>('source')
   const expectedPreview = useRef<number | null>(null)
+  // Set when leaving reading mode: until the preview is resynced from the source (or the user
+  // scrolls/clicks), layout-driven preview scroll events must not move the editing position.
+  const restoringSource = useRef(false)
+  const wasReading = useRef(reading)
   const changeRevision = useRef(0)
   const persistedTextRevision = useRef<number | null>(null)
   const saving = useRef(false)
@@ -262,10 +266,13 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   applyScroll.current = () => {
     const position = sourceScroll.current
     const pane = preview.current
-    if (!active || reading || scrollOwner.current !== 'source' || !pane || view !== 'split' || parsedText.current !== text) return
+    if (!active || reading || scrollOwner.current !== 'source' || !pane) return
+    // No preview to resync: nothing can drag the source, so the restore guard can end.
+    if (view !== 'split') { endRestore(); return }
+    if (parsedText.current !== text) return
     const max = Math.max(0, pane.scrollHeight - pane.clientHeight)
-    if (position.ratio >= .999) { expectedPreview.current = max; pane.scrollTop = max; return }
-    if (position.ratio <= .001) { expectedPreview.current = 0; pane.scrollTop = 0; return }
+    if (position.ratio >= .999) { expectedPreview.current = max; pane.scrollTop = max; endRestore(); return }
+    if (position.ratio <= .001) { expectedPreview.current = 0; pane.scrollTop = 0; endRestore(); return }
     const top = pane.getBoundingClientRect().top
     const anchors = scrollAnchors.current ?? Array.from(pane.children, (element) => {
       // Endnotes move definitions out of source order. Their exact forward /
@@ -290,10 +297,16 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     const fraction = next.from > previous.from ? (offset - previous.from) / (next.from - previous.from) : 0
     expectedPreview.current = Math.max(0, Math.min(max, previous.top + fraction * (next.top - previous.top)))
     pane.scrollTop = expectedPreview.current
+    endRestore()
+  }
+  /** Ends the post-reading guard after the scroll events of the resync have been delivered. */
+  function endRestore() {
+    if (!restoringSource.current) return
+    requestAnimationFrame(() => requestAnimationFrame(() => { restoringSource.current = false }))
   }
   function syncSource() {
     const pane = preview.current
-    if (!active || reading || !pane || parsedText.current !== text) return
+    if (!active || reading || restoringSource.current || !pane || parsedText.current !== text) return
     if (expectedPreview.current !== null && Math.abs(pane.scrollTop - expectedPreview.current) < 2) return
     scrollOwner.current = 'preview'
     const max = pane.scrollHeight - pane.clientHeight
@@ -330,6 +343,14 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     expectedPreview.current = null
     syncPreview({ offset, fraction: 0, ratio: text.length ? offset / text.length : 0 }, true)
   }
+  useLayoutEffect(() => {
+    if (wasReading.current && !reading) {
+      // Leaving reading mode keeps the editing position: the preview follows the source, not the
+      // other way round (an outline jump in reading mode only moved the preview).
+      scrollOwner.current = 'source'; expectedPreview.current = null; restoringSource.current = true
+    }
+    wasReading.current = reading
+  }, [reading])
   useEffect(() => {
     syncPreview(sourceScroll.current, true)
     const resize = () => syncPreview(sourceScroll.current, true)
@@ -1071,7 +1092,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
         </div>}
         {pendingDraft && <div className="recovery-banner" role="dialog" aria-label="恢复草稿"><strong>发现未完成草稿：{pendingDraft.name}</strong><span>恢复为应用副本，可另存；原文件不会被覆盖。</span><button onClick={() => void recover(true)}>恢复草稿</button><button onClick={() => void recover(false)}>放弃草稿</button></div>}
         {images.busy && <div className="recovery-banner" role="status">正在处理图片…<button onClick={images.cancel}>取消任务</button></div>}
-        <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null }}>
+        <div className={`content-grid view-${reading ? 'reading' : view}`} inert={disabled} onWheelCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null; restoringSource.current = false }} onPointerDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null; restoringSource.current = false }} onKeyDownCapture={(event) => { scrollOwner.current = (event.target as HTMLElement).closest('.preview') ? 'preview' : 'source'; expectedPreview.current = null; restoringSource.current = false }}>
           <div className="source-pane" hidden={reading} inert={reading || !!tableSession}><Editor key={epoch} ref={editor} initialText={text} commandStatus={(commandId, expected) => registry.status(commandId, expected)} selectionTools={showSelectionTools && active && !reading && !suspended && !contentTool} commandContext={() => commandRuntime.current.context()} blocked={quickEntryOpen || !!contentTool || !!tableSession || reading || suspended || disabled} live={view === 'live' && !reading} parsed={parsed} previewText={parsedText.current} imageContext={liveImageContext} onRenderImage={renderImage} onEditImage={editRenderedImage} onEditTable={offset => execute('table.edit', offset)} onEditLanguage={offset => { if (parsedText.current === textRef.current) openContentTool('language', registry.capture(), offset) }} onChange={changed} onHighlightLimited={setHighlightLimited} onFormats={setFormats} onScroll={syncPreview} onSearchMatch={searchMatch} onCodeLanguage={(language) => { if (language !== null) setCodeLanguage(language) }} onSave={() => execute('file.save')} onImages={(files) => void images.importFiles(files)} onClipboardFiles={() => void importClipboardImages()} onWorkspaceImage={(image) => void importWorkspaceImage(image)} onCommand={execute} /></div>
           {(view === 'split' || reading) && <article ref={preview} className="preview" aria-label="Markdown 预览" onContextMenu={event => {
             const selected = window.getSelection()
