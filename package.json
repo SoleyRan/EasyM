@@ -52,7 +52,9 @@
     "verify:extension-delivery": "node scripts/verify-extension-delivery.mjs",
     "verify:webdav": "node scripts/verify-webdav.mjs",
     "verify:sync-identity": "node scripts/verify-sync-identity.mjs",
-    "verify:workspace-ops": "node scripts/verify-workspace-ops.mjs"
+    "verify:workspace-ops": "node scripts/verify-workspace-ops.mjs",
+    "verify:sync-e2e": "node scripts/verify-sync-e2e.mjs",
+    "verify:sync-ui": "node scripts/verify-sync-ui.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.8.1",

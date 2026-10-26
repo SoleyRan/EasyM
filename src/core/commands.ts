@@ -71,6 +71,7 @@ export const commandDefinitions = [
   definition('app.settings', '设置', '应用', ['settings']),
   definition('app.recent', '最近打开', '文件', ['recent files', 'recent workspace']),
   definition('app.syncIdentity', '同步身份', '文件', ['sync identity', 'workspace identity']),
+  definition('app.sync', '同步', '文件', ['sync', 'webdav']),
   definition('app.commands', '命令面板', '应用', ['command palette'], 'F1', true),
   definition('app.quickOpen', '快速打开', '文件', ['quick open', 'filename'], 'Mod+Alt+O'),
 ] as const

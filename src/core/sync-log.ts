@@ -247,6 +247,14 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
   return { state, commitHash: tip, conflicts, published: true }
 }
 
+/**
+ * Settles a head write whose reply was lost, without running a pass. Callers that build a local
+ * change from disk use this first, so disk can catch up with the published head beforehand.
+ */
+export async function settleSyncPending(provider: SyncProvider, state: SyncDeviceState, persist: SyncPassInput['persist'], signal: AbortSignal): Promise<SyncDeviceState> {
+  return state.pending ? settlePending(provider, state, { persist }, signal) : state
+}
+
 /** Reading the own head back shows the pending write, the previous head, or a foreign writer. */
 async function settlePending(provider: SyncProvider, state: SyncDeviceState, input: SyncPassInput, signal: AbortSignal): Promise<SyncDeviceState> {
   const pending = state.pending as NonNullable<SyncDeviceState['pending']>

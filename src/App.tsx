@@ -21,6 +21,8 @@ import { openWorkspaceDocument } from './platform/workspace'
 import { decodeFile } from './core/codec'
 import { RecentDialog } from './editor/RecentDialog'
 import { IdentityDialog } from './editor/IdentityDialog'
+import { SyncDialog, statusText } from './editor/SyncDialog'
+import { useSync } from './editor/useSync'
 import { recentState, rememberSession, reopenRecentFile, reopenRecentWorkspace, recentError, type RecentState, type RecentEntry } from './platform/recent'
 import { planRestoration } from './platform/restore-session'
 import { loadMathRendering, saveMathRendering, loadMermaidRendering, saveMermaidRendering } from './platform/preferences'
@@ -57,6 +59,7 @@ function Application() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [recentOpen, setRecentOpen] = useState(false)
   const [identityOpen, setIdentityOpen] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
   const [guideOpen, setGuideOpen] = useState(needsGuide)
   const [appearance, setAppearance] = useState(loadAppearance)
   const [mermaidRendering, setMermaidRendering] = useState(loadMermaidRendering)
@@ -87,7 +90,7 @@ function Application() {
     if (appearance !== initialAppearance.current && !saveAppearance(appearance)) setError('无法保存外观设置，当前会话仍可使用。')
   }, [appearance])
   const previousGuideVersion = useRef(storedPreference('easym-guide-version'))
-  const appModal = settingsOpen || guideOpen || recentOpen || identityOpen
+  const appModal = settingsOpen || guideOpen || recentOpen || identityOpen || syncOpen
   const appModalRef = useRef(false)
   appModalRef.current = appModal
   function closeApplicationDialog() {
@@ -101,6 +104,15 @@ function Application() {
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const workspaceRef = useRef<Workspace | null>(null)
   workspaceRef.current = workspace
+  const sync = useSync(workspace?.id ?? null, desktop, () => [...handles.current.values()], setError)
+  // A save makes local changes publishable; sync shortly after a tab goes from dirty to clean.
+  const wasDirty = useRef(new Set<string>())
+  useEffect(() => {
+    const dirty = new Set(Object.entries(summaries).filter(([, s]) => s.dirty).map(([id]) => id))
+    const saved = [...wasDirty.current].some((id) => !dirty.has(id) && summaries[id])
+    wasDirty.current = dirty
+    if (saved) sync.request()
+  }, [summaries, sync.request])
   const [quickEntry, setQuickEntry] = useState<{ kind: 'commands' | 'open'; context: CommandContext } | null>(null)
   const quickEntryRef = useRef(quickEntry); quickEntryRef.current = quickEntry
   const quickGeneration = useRef(0), quickOpening = useRef(false)
@@ -328,7 +340,7 @@ function Application() {
   const appCommands = useMemo(() => {
     const registry = new CommandRegistry(() => appRuntime.current.context())
     for (const definition of commandDefinitions.filter(item => item.id.startsWith('app.'))) registry.register({ ...definition,
-      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : definition.id === 'app.syncIdentity' && (!desktop || !workspaceRef.current) ? { enabled: false, reason: '请先在桌面版打开工作区。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
+      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : (definition.id === 'app.syncIdentity' || definition.id === 'app.sync') && (!desktop || !workspaceRef.current) ? { enabled: false, reason: '请先在桌面版打开工作区。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
     return registry
   }, [])
   appRuntime.current = {
@@ -339,6 +351,7 @@ function Application() {
       if (commandId === 'app.template') setTemplateOpen(true)
       else if (commandId === 'app.recent') { if (desktop) setRecentOpen(true); else setError('浏览器不能记忆磁盘权限，请使用打开文件重新选择；独立草稿仍可恢复。') }
       else if (commandId === 'app.syncIdentity') { if (desktop && workspace) setIdentityOpen(true); else setError('请先在桌面版打开工作区。') }
+      else if (commandId === 'app.sync') { if (desktop && workspace) setSyncOpen(true); else setError('请先在桌面版打开工作区。') }
       else if (commandId === 'app.commands' || commandId === 'app.quickOpen') { setQuickError(''); setQuickEntry({ kind: commandId === 'app.commands' ? 'commands' : 'open', context: appCommands.capture() }) }
       else setSettingsOpen(true)
     },
@@ -457,6 +470,7 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.batchImages').enabled} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
           <button role="menuitem" title={desktop ? '为当前工作区记录文档的持久同步身份' : '仅桌面版可用'} disabled={blocked || !desktop || !workspace} onClick={() => executeApp('app.syncIdentity')}>同步身份</button>
+          <button role="menuitem" title={desktop ? '连接 WebDAV 服务器并同步当前工作区' : '仅桌面版可用'} disabled={blocked || !desktop || !workspace} onClick={() => executeApp('app.sync')}>同步…</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => executeApp('app.settings')}>设置</button>
         </PositionedOverlay>}
       </div>
@@ -491,6 +505,7 @@ function Application() {
         </div>)}
         <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { const handle = handles.current.get(active); if (handle?.canLeave()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) add() })() }}>＋</button>
       </div>
+      {sync.binding && <button className={`sync-chip sync-${sync.status?.kind ?? 'idle'}`} aria-label={`同步状态：${statusText(sync.status)}`} title={statusText(sync.status)} disabled={blocked} onClick={() => executeApp('app.sync')}>{sync.status?.kind === 'syncing' ? '同步中' : sync.status?.kind === 'paused' ? '同步暂停' : sync.status?.kind === 'retrying' ? '同步重试' : '已同步'}</button>}
       <div className="titlebar-drag" aria-hidden="true" onMouseDown={(event) => { if (event.button === 0) void dragWindow().catch((err) => setError(String(err))) }} onDoubleClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))} />
       {desktop && <div className="window-controls" aria-label="窗口控制">
         <button aria-label="最小化窗口" title="最小化" onClick={() => void minimizeWindow().catch((err) => setError(String(err)))}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg></button>
@@ -512,6 +527,7 @@ function Application() {
     {guideOpen && <GuideDialog previousVersion={previousGuideVersion.current} onClose={closeApplicationDialog} />}
     {recentOpen && <RecentDialog open={openRecent} close={() => setRecentOpen(false)} />}
     {identityOpen && workspace && <IdentityDialog workspace={workspace.id} name={workspace.name} onClose={() => setIdentityOpen(false)} />}
+    {syncOpen && workspace && <SyncDialog workspace={workspace.id} name={workspace.name} sync={sync} onClose={() => setSyncOpen(false)} />}
     {quickEntry?.kind === 'commands' && <CommandPalette definitions={commandDefinitions.filter(command => !['code.language', 'app.commands'].includes(command.id))} status={id => id.startsWith('app.') ? appCommands.status(id, quickEntry.context) : handles.current.get(active)?.commandStatus(id, quickEntry.context) ?? { enabled: false, reason: '请先打开文档。' }} choose={chooseQuickCommand} close={closeQuickEntry} />}
     {quickEntry?.kind === 'open' && <QuickOpen tabs={tabs.map(tab => ({ id: tab.id, name: summaries[tab.id]?.name ?? tab.file?.name ?? '未命名.md', path: tab.path }))} workspace={workspace} pending={quickBusy} error={quickError} choose={chooseQuickFile} close={closeQuickEntry} />}
     {templateOpen && <TemplateDialog onCancel={cancelTemplate} onCreate={seed => {

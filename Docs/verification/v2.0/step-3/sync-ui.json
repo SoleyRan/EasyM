@@ -1,0 +1,15 @@
+{
+  "verifiedAt": "2026-10-23T15:33:10.370Z",
+  "passed": true,
+  "checks": [
+    "wrong credentials are reported and nothing is bound",
+    "join preview counts downloads, uploads and same-named documents without writing",
+    "connecting joins the remote workspace; the local file stays and the remote one arrives beside it",
+    "status chip and last-pass report reflect the completed sync",
+    "the password only crosses IPC for probe and bind; never stored by the webview",
+    "pause is persisted per binding and resume syncs again",
+    "exit sync removes the binding after confirmation and keeps workspace files"
+  ],
+  "scope": "Production UI with deterministic IPC; real servers are covered by verify-sync-e2e.",
+  "browser": "155.0.4283.62"
+}
