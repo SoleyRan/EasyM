@@ -118,7 +118,19 @@ try {
   await (await docxDownload).saveAs('test-results/mermaid/diagrams.docx'); await docx.waitFor({ state: 'detached' }); assert.equal(await text(), sample)
   report.checks.push('offline standalone HTML/static images/exact source, light print PDF and explicit DOCX source fallback')
 
-  const malicious = ['%%{init: {securityLevel: "loose"}}%%\nflowchart TD\n A-->B', 'flowchart TD\n click A "https://evil.example"', 'flowchart TD\n A[<img src="https://evil.example/a.png">]', 'flowchart TD\n classDef x fill:red', 'flowchart TD\n' + 'A'.repeat(8001)]
+  // Colour/number styles render; label words that look like directives are plain text.
+  const styled = 'flowchart TD\n A[style guide] --> B[image upload]\n B --> C[友情 link]\n style A fill:#bbdefb,color:#0d47a1\n classDef warm fill:#fff3e0,stroke:#e65100,stroke-width:2px\n class B warm\n C:::warm'
+  await fillSource(page, '```mermaid\n' + styled + '\n```'); await waitImages(1)
+  const styledSvg = decodeURIComponent(await svg())
+  for (const color of ['#bbdefb', '#0d47a1', '#fff3e0', '#e65100']) assert.match(styledSvg, new RegExp(color, 'i'), color)
+  // Plain-text labels put each word in its own tspan.
+  const labels = styledSvg.replace(/<style>[\s\S]*?<\/style>/, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
+  assert.match(labels, /style guide/); assert.match(labels, /image upload/); assert.match(labels, /友情 link/)
+  assert.doesNotMatch(styledSvg, /foreignObject|<script|url\((?!#)/)
+  await page.screenshot({ path: 'test-results/mermaid/styled.png' })
+  report.checks.push('colour/number style, classDef, class and ::: statements render into the cleaned SVG; directive words in labels are not rejected')
+
+  const malicious = ['%%{init: {securityLevel: "loose"}}%%\nflowchart TD\n A-->B', 'flowchart TD\n click A "https://evil.example"', 'flowchart TD\n A[<img src="https://evil.example/a.png">]', 'flowchart TD\n A-->B\n style A fill:url(#x)', 'flowchart TD\n' + 'A'.repeat(8001)]
   await fillSource(page, malicious.map(code => '```mermaid\n' + code + '\n```').join('\n\n'))
   await preview().locator('.markdown-mermaid details[open]').first().waitFor()
   await page.waitForFunction(() => document.querySelectorAll('.document-panel:not([hidden]) .preview .markdown-mermaid details[open]').length === 5)

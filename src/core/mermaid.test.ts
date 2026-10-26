@@ -15,9 +15,38 @@ describe('Mermaid input and immutable source contract', () => {
     expect(mermaidIssue('pie\n "A": 4')).toContain('仅支持')
   })
   it('rejects configuration, interaction, resource and style escapes before loading', () => {
-    for (const suffix of ['%%{init: {}}%%', 'click A "https://evil.test"', 'A[<img src=x>]', 'A@{img: "x"}', 'classDef x fill:red', 'linkStyle 0 stroke:red', '---\nconfig: x', 'A[![x](relative.png)]', 'A[\\u003cscript]']) expect(mermaidIssue(flow + '\n' + suffix)).not.toBeNull()
+    for (const suffix of ['%%{init: {}}%%', 'click A "https://evil.test"', 'click A callback', 'C-->D; click C call x()', ' Click A cb', 'A[<img src=x>]', 'A@{img: "x"}', 'linkStyle 0 stroke:red', '---\nconfig: x', 'A[![x](relative.png)]', 'A[\\u003cscript]']) expect(mermaidIssue(flow + '\n' + suffix)).not.toBeNull()
+    expect(mermaidIssue('sequenceDiagram\n participant A\n link A: Docs')).not.toBeNull()
+    expect(mermaidIssue('sequenceDiagram\n participant A\n properties A: {}')).not.toBeNull()
     expect(mermaidIssue('flowchart TD\n' + 'a'.repeat(MERMAID_LIMITS.source))).toContain('过大')
     expect(mermaidIssue('flowchart TD\n' + 'a-->b\n'.repeat(121))).toContain('过大')
+  })
+  it('permits colour and number style statements', () => {
+    const styled = [
+      'flowchart TD',
+      ' A[ChatCompletions] --> B[解析 agent_tag / session]',
+      ' B --> C{Agent Profile}',
+      ' C -->|luna_chatbot| E[Luna 工具集]',
+      ' style E fill:#bbdefb,color:#0d47a1',
+      ' style 开始 fill:#FFF3E0 , stroke:darkorange, stroke-width:2px;',
+      ' classDef hot,warm fill:#f96,stroke:#333,stroke-width:4.5px,stroke-dasharray:5 5,font-weight:bold,opacity:0.8',
+      ' classDef default color:black',
+      ' class A,B hot',
+      ' C:::warm',
+    ].join('\n')
+    expect(mermaidIssue(styled)).toBeNull()
+  })
+  it('does not mistake directive words inside labels or ids for directives', () => {
+    expect(mermaidIssue('flowchart LR\n A[style guide] --> B[image upload] --> C[友情 link]\n C -->|click here| D(classDef 说明)\n styles --> linked')).toBeNull()
+    expect(mermaidIssue('sequenceDiagram\n Alice->>Bob: click the link, see image')).toBeNull()
+  })
+  it('rejects style values or properties outside the colour/number subset', () => {
+    for (const line of [
+      'style A fill:url(#x)', 'style A fill:url(https://evil.test)', 'classDef x fill:"red"', "classDef x fill:'red'",
+      'style A background:red', 'style A fill:red !important', 'classDef x font-family:Comic', 'style A fill:red;B-->C',
+      'style A fill:#f00; click A cb', 'B-->C; style A fill:red', 'style A fill:', 'style A', 'classDef x', 'style A fill:red stroke:blue',
+      'style A fill:rgb(1,2,3)', 'style A fill:#12', 'style A fill:red}', 'style A fill:red/*x*/', 'classDef x;y fill:red',
+    ]) expect(mermaidIssue(flow + '\n ' + line), line).toContain('样式指令')
   })
   it('keeps exact fences and positions including nested diagrams, without Worker DOM requirements', async () => {
     const text = '# 图\n\n```mermaid\n' + flow + '\n```\n\n```js\nalert(1)\n```'
