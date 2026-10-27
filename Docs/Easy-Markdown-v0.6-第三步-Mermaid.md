@@ -14,6 +14,8 @@ HTML/系统打印 PDF 内嵌清理后的 SVG data 图片，无脚本、网络或
 
 渲染在独立本地 HTML iframe（sandbox 仅 allow-scripts，无同源权限、导航、表单、弹窗权限）中进行，运行页 CSP 禁止网络、图片和外部样式。父窗口校验消息来源窗口与随机请求标识，不接收文档提供的 SVG。引擎 strict、禁用 HTML 标签与交互，不运行 bindFunctions。拒绝配置指令、Front Matter、click/link、HTML、URL、图像、样式/classDef/style 等扩展输入；正文不获得修改配置或资源读取权限。普通代码块不执行。
 
+2026-10-26 修订：样式指令放开为窄子集。`style`、`classDef` 须单独成行，属性仅限 fill、color、stroke、stroke-width、stroke-dasharray、font-weight、opacity，值仅限十六进制颜色、颜色名、数字或 px；`class A,B 类名` 与 `A:::类名` 可引用。`url()`、`rgb()`、引号、`!important`、其他属性及 linkStyle 仍拒绝。指令只在语句开头识别，节点文字中的 style/link/image 等词不再误判。输出仍经 SVG 白名单重建与 CSP 断网两层约束。
+
 每图最多 8,000 UTF-16 字符、120 行、120 条语句；每文档最多 12 图、32,000 图源码字符。每图加载加渲染最多 5 秒、全任务最多 20 秒，超时移除 iframe。SVG 最多 1 MiB、10,000 元素、视口边长 8,192；拒绝 DOCTYPE，按 SVG 元素/属性白名单重建，丢弃事件、foreignObject、脚本、链接、外部引用与危险 CSS，仅允许内部片段引用。图片经过清理后作为不可交互 image 呈现。输入有界和计时移除不等于独立进程 CPU 硬中断：各平台 iframe 布局调度仍需交付阶段验证。
 
 ## 验证与交付
@@ -38,7 +40,7 @@ Windows 依赖清单从 447 增至 563 个版本，296 份许可文件全部通�
 
 ## 使用与复现
 
-使用语言为 `mermaid` 的代码围栏，在其中写 `flowchart TD`、`graph LR` 或 `sequenceDiagram`。完整样例见 [Mermaid.md](samples/v0.6/Mermaid.md)。分屏和阅读模式显示图表；展开“图表源码”可查看完整输入，即时渲染点击“源码”返回编辑。设置路径为 EM → 设置 → Markdown 扩展 → Mermaid 图表渲染。自定义样式、配置、链接点击、外部资源及其他图类型当前保留源码并提示。
+使用语言为 `mermaid` 的代码围栏，在其中写 `flowchart TD`、`graph LR` 或 `sequenceDiagram`。完整样例见 [Mermaid.md](samples/v0.6/Mermaid.md)。分屏和阅读模式显示图表；展开“图表源码”可查看完整输入，即时渲染点击“源码”返回编辑。设置路径为 EM → 设置 → Markdown 扩展 → Mermaid 图表渲染。配置、链接点击、外部资源、超出颜色/数值子集的样式及其他图类型当前保留源码并提示。
 
 ```powershell
 pnpm.cmd build
