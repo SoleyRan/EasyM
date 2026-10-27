@@ -205,6 +205,69 @@ function inlineCommand(revision: number, doc: Text, selection: Selection, tree: 
   return { baseTextRevision: revision, patches: [{ from: start, to: end, insert: plain }], selection: selection.anchor <= selection.head ? { anchor, head } : { anchor: head, head: anchor } }
 }
 
+const listItem = /^([ \t]*)(?:([-+*])|(\d{1,9})([.)]))([ \t]+|$)/
+const width = (indent: string) => indent.replace(/\t/g, '    ').length
+
+/**
+ * Tab / Shift+Tab inside list items. Tab nests the selected items under the previous item
+ * (indent = that item's content column, so CommonMark nests ordered children too) and restarts
+ * ordered markers at 1. Shift+Tab moves them back to the parent's marker column and continues
+ * the parent's numbering. Deeper lines that follow (children, continuation text) move along.
+ * Returns null when the selection is not on list items, so Tab keeps its keyboard-navigation
+ * meaning; on list items that cannot move it returns an empty edit so focus stays in the editor.
+ */
+export function indentListItems(revision: number, doc: Text, selection: Selection, tree: Tree, outdent: boolean): EditCommandResult | null {
+  const from = Math.min(selection.anchor, selection.head), to = Math.max(selection.anchor, selection.head)
+  if (from < frontmatterEnd(doc)) return null
+  const selected = lines(doc, from, to)
+  // Quotes, code blocks and tables keep their own Tab meaning (or none).
+  if (selected.some(line => enclosing(tree, line.from, line.to, /^(FencedCode|CodeBlock|Table|Blockquote)$/))) return null
+  const items = selected.map(line => ({ line, match: listItem.exec(line.text) }))
+  if (!items.some(item => item.match)) return null
+  if (items.some(item => !item.match && item.line.text.trim())) return null
+  const first = items.find(item => item.match)!
+  const indent = width(first.match![1])
+  // On list items Tab is always consumed, even when nothing can move, so focus does not jump away.
+  const none = { baseTextRevision: revision, patches: [], selection }
+  if (items.some(item => item.match && width(item.match[1]) < indent)) return none
+  // Walk up: the nearest same-level item is the previous sibling, the first shallower item is the
+  // parent. Deeper items and blank/continuation lines belong to the list; shallower plain text ends it.
+  let previous: RegExpExecArray | null = null, parent: RegExpExecArray | null = null
+  for (let number = first.line.number - 1; number >= 1; number--) {
+    const text = doc.line(number).text
+    const match = listItem.exec(text)
+    const level = width(/^[ \t]*/.exec(text)![0])
+    if (!match) { if (text.trim() && level < indent) break; continue }
+    if (level < indent) { parent = match; break }
+    if (level === indent && !previous) previous = match
+  }
+  const target = outdent ? parent : previous
+  if (!target) return none
+  // Content column of the target item; 1–4 spaces after the marker count, more means an indented code start.
+  const gap = width(target[5])
+  const column = outdent ? width(target[1]) : width(target[1]) + (target[2] ?? target[3] + target[4]).length + (gap >= 1 && gap <= 4 ? gap : 1)
+  const shift = column - indent
+  const patches: TextPatch[] = []
+  let number = outdent && target[3] ? Number(target[3]) + 1 : 1
+  for (const { line, match } of items) {
+    if (!match) continue
+    const own = width(match[1]), next = Math.max(0, own + shift)
+    // One patch per line (indent plus, on the moved level, the renumbered marker) so patches never touch.
+    // Only items on the moved level are renumbered; deeper selected items keep their numbers.
+    const renumber = !!match[3] && own === indent
+    patches.push({ from: line.from, to: line.from + match[1].length + (renumber ? match[3].length : 0), insert: ' '.repeat(next) + (renumber ? String(number++) : '') })
+  }
+  // Children and continuation lines of the last moved item keep their position relative to it.
+  for (let number = selected.at(-1)!.number + 1; number <= doc.lines; number++) {
+    const line = doc.line(number)
+    if (!line.text.trim()) continue
+    const lead = /^[ \t]*/.exec(line.text)![0]
+    if (width(lead) <= indent) break
+    patches.push({ from: line.from, to: line.from + lead.length, insert: ' '.repeat(Math.max(0, width(lead) + shift)) })
+  }
+  return result(revision, patches, selection)
+}
+
 export function toggleFormat(revision: number, doc: Text, selection: Selection, tree: Tree, kind: Format, language = ''): EditCommandResult {
   if (kind === 'bold' || kind === 'italic' || kind === 'strike' || kind === 'inlineCode' || kind === 'link') {
     const status = inlineFormatStatus(doc, selection, tree, kind)

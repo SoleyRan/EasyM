@@ -14,7 +14,7 @@ import { commandDefinitions, validateCommandEdit, type CommandContext, type Comm
 import { WORKSPACE_IMAGE_TYPE, workspaceImageData, type WorkspaceImage } from '../platform/workspace'
 import { nativeClipboardFiles, supportedImageFiles } from '../platform/clipboard'
 import { largeLines } from './large-lines'
-import { formatState, inlineFormatStatus, toggleFormat, type Format, type FormatState } from '../core/formatting'
+import { formatState, indentListItems, inlineFormatStatus, toggleFormat, type Format, type FormatState } from '../core/formatting'
 import { SelectionToolbar, selectionActions, type SelectionAnchor } from './ContentTools'
 import { search, openSearchPanel, closeSearchPanel, findNext, findPrevious } from '@codemirror/search'
 import { createSearchPanel } from './search-panel'
@@ -57,6 +57,15 @@ const tokenStyle = HighlightStyle.define([
 ])
 
 export interface SourceScroll { offset: number; fraction: number; ratio: number }
+/** Returns false outside list items so Tab falls through to focus navigation. */
+function indentList(editor: EditorView, outdent: boolean, composing: boolean): boolean {
+  if (composing) return true
+  if (editor.state.readOnly) return false
+  const result = indentListItems(0, editor.state.doc, editor.state.selection.main, syntaxTree(editor.state), outdent)
+  if (!result) return false
+  if (result.patches.length) editor.dispatch({ changes: result.patches, selection: result.selection, userEvent: 'input.indent', annotations: isolateHistory.of('full'), scrollIntoView: true })
+  return true
+}
 function fencedCode(editor: EditorView): FencedBlock | null {
   let node = syntaxTree(editor.state).resolveInner(editor.state.selection.main.head, -1)
   while (node.name !== 'FencedCode' && node.parent) node = node.parent
@@ -213,7 +222,9 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
             { key: 'Escape', run: (v) => isComposing(v) ? false : closeSearchPanel(v) },
             { key: 'Mod-z', run: (v) => { if (!isComposing(v)) callbacks.current.onCommand('edit.undo'); return true }, shift: (v) => { if (!isComposing(v)) callbacks.current.onCommand('edit.redo'); return true } },
             { key: 'Mod-y', run: (v) => { if (!isComposing(v)) callbacks.current.onCommand('edit.redo'); return true } },
-            { key: 'Mod-s', run: (v) => { if (!isComposing(v)) callbacks.current.onCommand('file.save'); return true } }, ...defaultKeymap, ...historyKeymap,
+            { key: 'Mod-s', run: (v) => { if (!isComposing(v)) callbacks.current.onCommand('file.save'); return true } },
+            // Tab / Shift+Tab nest list items; elsewhere Tab keeps moving focus (keyboard navigation).
+            { key: 'Tab', run: (v) => indentList(v, false, isComposing(v)), shift: (v) => indentList(v, true, isComposing(v)) }, ...defaultKeymap, ...historyKeymap,
           ]),
           keymap.of(commandDefinitions.filter(command => command.shortcut && (command.id.startsWith('format.') || command.id === 'insert.image')).map(command => ({ key: command.shortcut!.replaceAll('+', '-').replace(/([A-Z])$/, letter => letter.toLowerCase()), run: (v: EditorView) => { if (!isComposing(v)) callbacks.current.onCommand(command.id); return true } }))),
           Prec.highest(EditorView.domEventHandlers({

@@ -35,6 +35,20 @@ try {
   await page.getByRole('toolbar').waitFor()
   const selectionChecks = await verifySelection(page, selectTheme)
   await page.getByRole('button', { name: '分屏', exact: true }).click()
+  // Tab/Shift+Tab nest list items so the preview shows a real nested ordered list; outside lists Tab
+  // keeps moving focus for keyboard users.
+  await fillSource(page, '1. a')
+  await editor.press('ControlOrMeta+End'); await editor.press('Enter'); await editor.press('Tab'); await page.keyboard.type('b')
+  assert.equal(await body(), '1. a\n   1. b')
+  await page.locator('.preview ol > li > ol > li', { hasText: 'b' }).waitFor()
+  await editor.press('Enter'); await editor.press('Shift+Tab'); await page.keyboard.type('c')
+  assert.equal(await body(), '1. a\n   1. b\n2. c')
+  await page.waitForFunction(() => document.querySelectorAll('.preview > ol > li').length === 2 && document.querySelectorAll('.preview ol ol > li').length === 1)
+  await editor.press('ControlOrMeta+z'); await editor.press('ControlOrMeta+z')
+  assert.equal(await body(), '1. a\n   1. b\n   2. ')
+  await fillSource(page, 'plain'); await editor.press('ControlOrMeta+End'); await editor.press('Tab')
+  assert.equal(await body(), 'plain')
+  assert.equal(await editor.evaluate(node => node.contains(document.activeElement)), false)
   await fillSource(page, '```javascript\nconst x = 1;\n```\n\n行内 `code`')
   await page.locator('.preview pre code.language-javascript').waitFor()
   await page.locator('.preview .hljs-keyword').waitFor()
@@ -271,7 +285,7 @@ try {
   await page.getByRole('button', { name: '不保存关闭', exact: true }).click()
   await page.waitForFunction((count) => document.querySelectorAll('[role=tab]').length === count, tabsBeforeClose - 1)
   assert.deepEqual(errors, [])
-  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through settings and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Export submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
+  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['Tab/Shift+Tab nest and un-nest list items into a rendered nested ordered list; Tab outside lists keeps focus navigation', 'code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through settings and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Export submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
   report.checks.push(...selectionChecks)
   await writeFile('test-results/writing-verification.json', JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))
