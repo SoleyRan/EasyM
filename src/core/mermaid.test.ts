@@ -36,6 +36,13 @@ describe('Mermaid input and immutable source contract', () => {
     ].join('\n')
     expect(mermaidIssue(styled)).toBeNull()
   })
+  it('permits \\n and <br> label line breaks but no other escapes or tags', () => {
+    expect(mermaidIssue('flowchart TB\n APP[业务应用\\nrclcpp / rclpy / ROS 2 API] --> B["a<br>b<br/>c<BR />d"]')).toBeNull()
+    expect(mermaidIssue('sequenceDiagram\n A->>B: 第一行<br>第二行\\n第三行')).toBeNull()
+    for (const label of ['\\u003cscript', '\\x3cimg', '\\\\', '\\t', '<br><img src=x>', '<<br>img src=x>', '<b>x</b>', '<br onclick=x>', '<brx>', '\\<br>']) {
+      expect(mermaidIssue(`flowchart TB\n A[${label}] --> B`), label).not.toBeNull()
+    }
+  })
   it('does not mistake directive words inside labels or ids for directives', () => {
     expect(mermaidIssue('flowchart LR\n A[style guide] --> B[image upload] --> C[友情 link]\n C -->|click here| D(classDef 说明)\n styles --> linked')).toBeNull()
     expect(mermaidIssue('sequenceDiagram\n Alice->>Bob: click the link, see image')).toBeNull()
