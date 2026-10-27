@@ -118,9 +118,19 @@ try {
   await (await docxDownload).saveAs('test-results/mermaid/diagrams.docx'); await docx.waitFor({ state: 'detached' }); assert.equal(await text(), sample)
   report.checks.push('offline standalone HTML/static images/exact source, light print PDF and explicit DOCX source fallback')
 
+  // \n and <br> in labels are line breaks: each half becomes its own line, nothing literal remains.
+  await fillSource(page, '```mermaid\nflowchart TB\n APP[业务应用\\nROS 2 API] --> B[第一行<br>第二行]\n```'); await waitImages(1)
+  const broken = decodeURIComponent(await svg())
+  const lines = [...broken.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g)].map(match => match[1].trim()).filter(Boolean)
+  for (const part of ['业务应用', '第一行', '第二行']) assert.ok(lines.includes(part), part)
+  assert.doesNotMatch(broken, /\\n|&lt;br|<br/i)
+  report.checks.push('\\n and <br> label line breaks render as separate lines')
+
   // Colour/number styles render; label words that look like directives are plain text.
   const styled = 'flowchart TD\n A[style guide] --> B[image upload]\n B --> C[友情 link]\n style A fill:#bbdefb,color:#0d47a1\n classDef warm fill:#fff3e0,stroke:#e65100,stroke-width:2px\n class B warm\n C:::warm'
+  // The previous step also shows one image, so wait for this diagram's own SVG, not just the count.
   await fillSource(page, '```mermaid\n' + styled + '\n```'); await waitImages(1)
+  await page.waitForFunction(() => decodeURIComponent(document.querySelector('.document-panel:not([hidden]) .preview .markdown-mermaid > img')?.getAttribute('src') ?? '').includes('#bbdefb'))
   const styledSvg = decodeURIComponent(await svg())
   for (const color of ['#bbdefb', '#0d47a1', '#fff3e0', '#e65100']) assert.match(styledSvg, new RegExp(color, 'i'), color)
   // Plain-text labels put each word in its own tspan.
