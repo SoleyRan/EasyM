@@ -1,2 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'"><title>EasyM diagram renderer</title></head><body><script src="/mermaid-runtime.js"></script></body></html>
+<!-- The sandboxed frame has an opaque origin. WebKit only resolves 'self' to the response URL for
+     http(s), so on macOS/Linux (tauri://localhost) 'self' matches nothing and the scheme must be
+     listed explicitly. The same source is in the app CSP header Tauri adds to this page. -->
+<html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' tauri://localhost; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'"><title>EasyM diagram renderer</title></head><body><script src="/mermaid-runtime.js"></script></body></html>

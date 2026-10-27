@@ -7,7 +7,9 @@ window.addEventListener('message', async event => {
   try {
     await new Promise((resolve, reject) => {
       const url = new URL(event.data.engine, location.href)
-      if (url.origin !== location.origin || !url.pathname.endsWith('.js')) throw new Error('engine')
+      // URL.origin is "null" for tauri:// (non-special scheme) and for this sandboxed frame, so
+      // compare scheme and host instead of origins.
+      if (url.protocol !== location.protocol || url.host !== location.host || !url.pathname.endsWith('.js')) throw new Error('engine')
       const script = document.createElement('script'); script.src = url.href; script.onload = () => resolve(); script.onerror = () => reject(new Error('load')); document.head.append(script)
     })
     parent.postMessage({ type: 'easym-mermaid-progress', token, stage: 'layout' }, '*')
