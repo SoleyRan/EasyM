@@ -1,0 +1,186 @@
+{
+  "verifiedAt": "2026-10-28T11:00:43.684Z",
+  "node": "v24.20.0",
+  "scope": "Real engine and WebDAV servers on loopback HTTP; directory-backed host mirrors the native commands. No GUI, TLS or OS credential store.",
+  "targets": {
+    "nextcloud": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "device_a_publishes",
+          "passed": true,
+          "requests": 15
+        },
+        {
+          "id": "fresh_device_restores_bodies_and_images",
+          "passed": true,
+          "downloaded": 2,
+          "files": 4
+        },
+        {
+          "id": "image_metadata_restored",
+          "passed": true
+        },
+        {
+          "id": "wiped_device_rejoins_without_copies",
+          "passed": true,
+          "copies": 0,
+          "linked": 2
+        },
+        {
+          "id": "edit_travels_back",
+          "passed": true
+        },
+        {
+          "id": "concurrent_edits_keep_both",
+          "passed": true,
+          "files": 2
+        },
+        {
+          "id": "different_lines_merge_without_copy",
+          "passed": true,
+          "copies": 0
+        },
+        {
+          "id": "interrupted_apply_retries_without_duplicates",
+          "passed": true
+        },
+        {
+          "id": "deletion_reaches_other_device_as_trash",
+          "passed": true
+        }
+      ],
+      "requests": {
+        "a": 189,
+        "b": 173
+      },
+      "recovery": {
+        "passed": true,
+        "checks": [
+          {
+            "id": "rollback_stops_without_touching_files",
+            "passed": true,
+            "code": "rollback"
+          },
+          {
+            "id": "rollback_rejoin_keeps_both_versions",
+            "passed": true,
+            "files": 2
+          },
+          {
+            "id": "cloned_device_id_stops",
+            "passed": true,
+            "code": "device_conflict"
+          },
+          {
+            "id": "cloned_rejoin_merges_without_copies",
+            "passed": true,
+            "copies": 0
+          },
+          {
+            "id": "missing_object_never_half_applied",
+            "passed": true,
+            "failed": [
+              "missing_object"
+            ]
+          },
+          {
+            "id": "long_offline_device_returns_and_converges",
+            "passed": true,
+            "files": 9
+          }
+        ]
+      }
+    },
+    "apache": {
+      "passed": true,
+      "checks": [
+        {
+          "id": "device_a_publishes",
+          "passed": true,
+          "requests": 15
+        },
+        {
+          "id": "fresh_device_restores_bodies_and_images",
+          "passed": true,
+          "downloaded": 2,
+          "files": 4
+        },
+        {
+          "id": "image_metadata_restored",
+          "passed": true
+        },
+        {
+          "id": "wiped_device_rejoins_without_copies",
+          "passed": true,
+          "copies": 0,
+          "linked": 2
+        },
+        {
+          "id": "edit_travels_back",
+          "passed": true
+        },
+        {
+          "id": "concurrent_edits_keep_both",
+          "passed": true,
+          "files": 2
+        },
+        {
+          "id": "different_lines_merge_without_copy",
+          "passed": true,
+          "copies": 0
+        },
+        {
+          "id": "interrupted_apply_retries_without_duplicates",
+          "passed": true
+        },
+        {
+          "id": "deletion_reaches_other_device_as_trash",
+          "passed": true
+        }
+      ],
+      "requests": {
+        "a": 189,
+        "b": 173
+      },
+      "recovery": {
+        "passed": true,
+        "checks": [
+          {
+            "id": "rollback_stops_without_touching_files",
+            "passed": true,
+            "code": "rollback"
+          },
+          {
+            "id": "rollback_rejoin_keeps_both_versions",
+            "passed": true,
+            "files": 2
+          },
+          {
+            "id": "cloned_device_id_stops",
+            "passed": true,
+            "code": "device_conflict"
+          },
+          {
+            "id": "cloned_rejoin_merges_without_copies",
+            "passed": true,
+            "copies": 0
+          },
+          {
+            "id": "missing_object_never_half_applied",
+            "passed": true,
+            "failed": [
+              "missing_object"
+            ]
+          },
+          {
+            "id": "long_offline_device_returns_and_converges",
+            "passed": true,
+            "files": 9
+          }
+        ]
+      }
+    }
+  },
+  "passed": true
+}

@@ -19,7 +19,7 @@ const fixture = { identity, commit, head, REMOTE, DEVICE, PASSWORD }
 const server = await serveProduction()
 const report = { verifiedAt: new Date().toISOString(), passed: false, checks: [], scope: 'Production UI with deterministic IPC; real servers are covered by verify-sync-e2e.' }
 let browser
-await mkdir('test-results/v2.0/step-3', { recursive: true })
+await mkdir('test-results/v2.0/step-4', { recursive: true })
 /** In-page native mock: a remote object/head store and a local workspace, with the native rules. */
 function installMock(fx) {
   const enc = (s) => [...new TextEncoder().encode(s)], dec = (b) => new TextDecoder().decode(new Uint8Array(b))
@@ -28,7 +28,7 @@ function installMock(fx) {
   window.local = { files: new Map([['a.md', 'local a']]), identity: enc(fx.identity), state: null, trash: [] }
   window.calls = []; window.bound = null
   // Exposed so the test can play the other device (publish a commit) and inspect what was synced.
-  window.remote = remote; window.mockHash = hash; window.mockEnc = enc; window.mockDec = dec
+  window.remote = remote; window.mockHash = hash; window.mockEnc = enc; window.mockDec = dec; window.DEVICE_ID = fx.DEVICE
   // This device's published commit. Defined here because the production CSP blocks eval in the page.
   window.ownCommit = () => {
     const head = window.bound && remote.heads.get(window.bound.deviceId)
@@ -66,6 +66,7 @@ function installMock(fx) {
       return window.bound
     }
     if (command === 'sync_unbind') { window.bound = null; window.local.state = null; return }
+    if (command === 'sync_rejoin') { window.bound = { ...window.bound, deviceId: crypto.randomUUID() }; return window.bound }
     if (command === 'sync_state_read') return window.local.state
     if (command === 'sync_state_write') { window.local.state = args.bytes; return }
     if (command === 'sync_heads') return [...remote.heads].map(([deviceId, h]) => ({ deviceId, bytes: h.bytes, revision: h.revision }))
@@ -216,6 +217,30 @@ try {
   }, [expected, copyPath])
   report.checks.push('the resolved body and the copy deletion are published on the next pass')
 
+  // Step 4C: the other device's head goes back to an older sequence (server restored from a backup).
+  // Sync pauses with an explanation; rejoining under a new device id resumes without touching files.
+  const recover = page.getByRole('region', { name: '恢复同步' })
+  assert.equal(await recover.count(), 0)
+  const oldDevice = await page.evaluate(() => window.bound.deviceId)
+  const filesBeforeRollback = await page.evaluate(() => JSON.stringify([...window.local.files].sort()))
+  await page.evaluate((head) => { window.remote.heads.set(window.DEVICE_ID, { bytes: window.mockEnc(head), revision: '"h1"' }) }, fixture.head)
+  await dialog.getByRole('button', { name: '立即同步', exact: true }).click()
+  await chip.filter({ hasText: '同步暂停' }).waitFor()
+  await dialog.getByText(/服务器上的同步记录比本机记住的旧/).waitFor()
+  await recover.waitFor()
+  assert.equal(await page.evaluate(() => JSON.stringify([...window.local.files].sort())), filesBeforeRollback)
+  report.checks.push('a rolled-back remote pauses sync with an explanation and leaves files untouched')
+
+  await recover.getByRole('button', { name: '以新设备身份重新加入', exact: true }).click()
+  await dialog.getByRole('status').filter({ hasText: '已以新的设备身份重新加入' }).waitFor()
+  await chip.filter({ hasText: '已同步' }).waitFor()
+  await recover.waitFor({ state: 'detached' })
+  const rejoined = await page.evaluate(() => ({ device: window.bound.deviceId, files: JSON.stringify([...window.local.files].sort()), published: !!window.remote.heads.get(window.bound.deviceId) }))
+  assert.notEqual(rejoined.device, oldDevice)
+  assert.equal(rejoined.files, filesBeforeRollback)
+  assert.ok(rejoined.published, 'the new device publishes its own head')
+  report.checks.push('rejoining under a new device id resumes sync, publishes a new head and keeps every file')
+
   const filesBeforeExit = await page.evaluate(() => window.local.files.size)
   page.once('dialog', (d) => d.accept())
   await dialog.getByRole('button', { name: '退出同步', exact: true }).click()
@@ -231,7 +256,7 @@ try {
 } catch (error) { report.error = error.message; process.exitCode = 1 }
 finally {
   await browser?.close(); await server.close()
-  await writeFile('test-results/v2.0/step-3/sync-ui.json', JSON.stringify(report, null, 2) + '\n')
+  await writeFile('test-results/v2.0/step-4/sync-ui.json', JSON.stringify(report, null, 2) + '\n')
 }
 if (report.passed) console.log(`Sync UI: ${report.checks.length} production checks passed`)
 else console.error('Sync UI failed:', report.error)

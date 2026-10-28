@@ -16,6 +16,8 @@ export const probeEndpoint = (endpoint: string, username: string, password: stri
 export const bindWorkspace = (workspace: string, endpoint: string, username: string, password: string) => invoke<SyncBinding>('sync_bind', { id: workspace, endpoint, username, password })
 /** Exit sync: removes binding, credential, state and cache. Workspace and remote are kept. */
 export const unbindWorkspace = (workspace: string) => invoke<void>('sync_unbind', { id: workspace })
+/** Step 4C: the same binding under a new device id (credential and endpoint kept). */
+export const rejoinWorkspace = (workspace: string) => invoke<SyncBinding>('sync_rejoin', { id: workspace })
 
 /**
  * Persisted engine state. `workspaceId`/`deviceId` sit at the top level because the native side
@@ -109,6 +111,11 @@ export function syncError(error: unknown): string {
     invalid_listing: '服务器返回的设备列表不完整或包含未知内容；为避免误判，已停止同步。',
     too_many_devices: '远端设备数量超过 64 台上限，已暂停同步。',
     hash_mismatch: '远端对象内容与摘要不符；已拒绝使用该数据。',
+    rollback: '服务器上的同步记录比本机记住的旧，可能是服务器从备份恢复过。本机文件没有改动。',
+    device_conflict: '另一处安装正在使用本机的设备身份（例如复制了整个配置）。本机文件没有改动。',
+    not_descendant: '服务器上的同步记录与本机不连续。本机文件没有改动。',
+    state_mismatch: '本机同步状态属于另一个设备身份，可能是上次重新加入被中断。本机文件没有改动。',
+    missing_object: '服务器缺少同步数据（可能被删除或恢复不完整）；已停止同步，本机文件没有改动。',
     document_open: '请先关闭冲突副本的标签页再解决冲突。',
     document_dirty: '本文档有未保存的修改；请先保存或放弃后再解决冲突。',
     revision_conflict: '文档在你选择之后又被修改，未做任何改动；请重新打开冲突再选择。',

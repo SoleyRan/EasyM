@@ -24,6 +24,12 @@ export interface SyncDeviceState {
   seen: Record<string, number>
   /** Head write whose reply was lost; persisted before the request, resolved on the next pass. */
   pending?: { sequence: number; commitHash: string }
+  /**
+   * Step 4C: a device that rejoined under a new id builds its first change on this published
+   * commit (what disk last reflected). It must still be reachable from the remote heads; cleared
+   * once the device has published.
+   */
+  base?: string
 }
 
 export const initialDeviceState = (workspaceId: string, deviceId: string): SyncDeviceState => ({ workspaceId, deviceId, sequence: 0, commitHash: null, seen: {} })
@@ -312,7 +318,17 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
     // The change may have been built before a pending write was settled; the head it was built
     // on is then an ancestor of the settled head, and the change is merged like any other tip.
     const parent = commit.parents.join()
-    if (commit.deviceId !== deviceId || commit.workspaceId !== workspaceId || (parent !== (state.commitHash ?? '') && parent !== (current.commitHash ?? ''))) throw new SyncLogError('not_descendant')
+    const rebased = !!state.base && parent === state.base && state.commitHash === null
+    if (commit.deviceId !== deviceId || commit.workspaceId !== workspaceId || (parent !== (state.commitHash ?? '') && parent !== (current.commitHash ?? '') && !rebased)) throw new SyncLogError('not_descendant')
+    if (rebased) {
+      // A rejoined device's base must still be in the published history; otherwise its change
+      // would point at a commit other devices cannot read.
+      let reachable = false
+      for (const { head } of heads) if ((await history.ancestors(head.commitHash)).has(parent)) { reachable = true; break }
+      if (!reachable) throw new SyncLogError('not_descendant')
+    }
+    // Unchanged documents reuse the parent's objects; they were uploaded before it was published.
+    for (const hash of commit.parents) for (const object of commitObjects(await history.get(hash))) existing.add(object)
     candidates.push(await uploadSyncCommit(provider, commit, uploads, existing, signal))
     for (const object of commitObjects(commit)) existing.add(object)
   }
@@ -332,7 +348,7 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
   const result = await provider.publishDeviceHead({ schemaVersion: 1, workspaceId, deviceId, sequence, commitHash: tip }, expected, signal)
   if (result.kind === 'conflict') throw new SyncLogError('device_conflict')
   if (result.kind === 'unknown') throw new SyncLogError('unknown_outcome')
-  state = { ...state, sequence, commitHash: tip, pending: undefined }
+  state = { ...state, sequence, commitHash: tip, pending: undefined, base: undefined }
   await input.persist(state)
   return { state, commitHash: tip, conflicts, published: true }
 }

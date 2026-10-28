@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { decodeFile, type FileSnapshot } from '../core/codec'
-import { SyncEngine, type PassReport, type SyncConflictEntry } from '../core/sync-engine'
+import { rejoinState, SyncEngine, type PassReport, type SyncConflictEntry } from '../core/sync-engine'
 import { SyncController, syncPausedKey, type SyncStatus } from '../platform/sync-controller'
 import { DesktopSyncHost } from '../platform/sync-host'
-import { NativeSyncProvider, resolveSyncConflict, syncBinding, syncError, type SyncBinding } from '../platform/sync-native'
+import { NativeSyncProvider, readSyncState, rejoinWorkspace, resolveSyncConflict, syncBinding, syncError, writeSyncState, type SyncBinding } from '../platform/sync-native'
 import { storedPreference, storePreference } from '../platform/preferences'
 import type { DocumentHandle } from './DocumentEditor'
 
@@ -21,6 +21,8 @@ export interface SyncView {
   loadConflict(entry: OpenConflict): Promise<ConflictVersions>
   /** Writes the chosen body (null keeps this document) and trashes the copy; then syncs again. */
   resolveConflict(entry: OpenConflict, versions: ConflictVersions, bytes: Uint8Array | null): Promise<void>
+  /** Step 4C: continues under a new device id after a rollback or a reused id; files are kept. */
+  rejoin(): Promise<void>
 }
 export type OpenConflict = SyncConflictEntry & { path: string; copy: string }
 export interface ConflictVersions { base: string | null; mine: FileSnapshot & { revision: string }; theirs: FileSnapshot & { revision: string } }
@@ -101,8 +103,27 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
     controller.current?.request()
   }, [])
 
+  const rejoin = useCallback(async () => {
+    if (!workspace || !binding) throw new Error('binding_missing')
+    controller.current?.stop()
+    try {
+      // Read before the id changes: the native side refuses state written for another device id.
+      const previous = await readSyncState(workspace).catch(() => null)
+      const next = await rejoinWorkspace(workspace)
+      const state = await rejoinState(new NativeSyncProvider(workspace, next), previous, next.workspaceId, next.deviceId, AbortSignal.timeout(120_000))
+      await writeSyncState(workspace, state)
+      // A new binding object restarts the controller with the new id.
+      setBinding(next)
+    } catch (error) {
+      // Restart with whatever the native side holds now; a half-done rejoin reports state_mismatch
+      // on the next pass, which offers rejoining again.
+      setRevision((value) => value + 1)
+      throw error
+    }
+  }, [workspace, binding])
+
   return {
-    binding, status, report, loadConflict, resolveConflict,
+    binding, status, report, loadConflict, resolveConflict, rejoin,
     request: useCallback(() => controller.current?.request(), []),
     pause: useCallback(() => controller.current?.pause(), []),
     resume: useCallback(() => controller.current?.resume(), []),

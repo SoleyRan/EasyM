@@ -164,6 +164,18 @@ impl SyncNative {
         if let Err(error) = self.write_registry(&registry) { let _ = forget_password(&binding.binding_id); return Err(error); }
         Ok(binding)
     }
+    /// v2 step 4C: gives the binding a new device id after a rollback or a reused id. The old head
+    /// stays on the server (its commits remain ancestors); the frontend then rewrites the state for
+    /// the new id. Repeating it is harmless: each call just issues another unused id.
+    pub(crate) fn rejoin(&self, id: &str) -> Result<Binding, String> {
+        let _guard = self.lock.lock().map_err(|_| "io_failed")?;
+        let mut registry = self.read_registry()?;
+        let binding = registry.bindings.iter_mut().find(|b| b.binding_id == id).ok_or("binding_missing")?;
+        binding.device_id = uuid::Uuid::new_v4().to_string();
+        let updated = binding.clone();
+        self.write_registry(&registry)?;
+        Ok(updated)
+    }
     /// Removes local binding state and the credential. Remote data and the workspace are untouched.
     pub(crate) fn remove(&self, id: &str) -> Result<(), String> {
         let _guard = self.lock.lock().map_err(|_| "io_failed")?;
@@ -501,6 +513,13 @@ pub async fn sync_unbind(native: State<'_, SyncNative>, workspaces: State<'_, Wo
     native.remove(&bound(&native, &workspaces, &id)?.binding_id)
 }
 
+/// Rejoin as a new device (see `SyncNative::rejoin`). Credential, endpoint and cache are kept.
+#[tauri::command]
+pub async fn sync_rejoin(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String) -> Result<BindingView, String> {
+    let binding = bound(&native, &workspaces, &id)?;
+    Ok(BindingView::from(&native.rejoin(&binding.binding_id)?))
+}
+
 #[tauri::command]
 pub async fn sync_state_read(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String) -> Result<Option<Vec<u8>>, String> {
     native.read_state(&bound(&native, &workspaces, &id)?.binding_id)
@@ -610,6 +629,16 @@ mod tests {
         native.write_state(&binding.binding_id, &state).unwrap();
         assert_eq!(native.read_state(&binding.binding_id).unwrap().unwrap(), state);
         assert!(native.write_state(&binding.binding_id, br#"{"workspaceId":"other","deviceId":"x"}"#).is_err());
+        // Rejoin: a fresh device id; credential and binding id stay, old-id state is refused.
+        let rejoined = native.rejoin(&binding.binding_id).unwrap();
+        assert_ne!(rejoined.device_id, binding.device_id);
+        assert_eq!((rejoined.binding_id.as_str(), rejoined.workspace_id.as_str()), (binding.binding_id.as_str(), binding.workspace_id.as_str()));
+        assert_eq!(native.binding_for(&root).unwrap().unwrap(), rejoined);
+        assert_eq!(load_password(&binding.binding_id).unwrap(), "s3cret-password");
+        assert!(native.write_state(&binding.binding_id, &state).is_err());
+        let fresh = serde_json::to_vec(&serde_json::json!({"workspaceId":W,"deviceId":rejoined.device_id,"sequence":0,"commitHash":null,"seen":{}})).unwrap();
+        native.write_state(&binding.binding_id, &fresh).unwrap();
+        assert_eq!(native.rejoin("00000000-0000-4000-8000-000000000000").unwrap_err(), "binding_missing");
         native.remove(&binding.binding_id).unwrap();
         assert!(native.binding_for(&root).unwrap().is_none());
         assert_eq!(load_password(&binding.binding_id).unwrap_err(), "credential_missing");

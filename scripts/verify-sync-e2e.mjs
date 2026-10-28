@@ -2,7 +2,7 @@
 // Drives the shipping core engine (src/core/sync-engine.ts) with a directory-backed host and the
 // step-1 WebDAV client. Usage: node scripts/verify-sync-e2e.mjs [apache|nextcloud ...]
 import { randomUUID } from 'node:crypto'
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -10,7 +10,7 @@ import { build } from 'vite'
 import { WebDavSyncProvider } from './webdav/webdav-provider.mjs'
 import { enableIdentity, exists, FsHost } from './webdav/fs-host.mjs'
 
-const out = 'test-results/v2.0/step-3'
+const out = 'test-results/v2.0/step-4'
 const env = Object.fromEntries((await readFile('test-results/v2.0/step-1/webdav.env', 'utf8')).split(/\r?\n/).filter(Boolean).map((line) => line.split(/=(.*)/s, 2)))
 const targets = {
   apache: { baseUrl: 'http://127.0.0.1:18081', root: '/dav/', user: env.EASYM_DAV_USER, password: env.EASYM_DAV_PASSWORD },
@@ -135,13 +135,104 @@ async function roundTrip(name, target) {
   return { passed: checks.every((c) => c.passed), checks, requests: { a: a.provider.stats.requests + again.provider.stats.requests, b: b.provider.stats.requests } }
 }
 
+/** Step 4C: what "rejoin as a new device" does (src/editor/useSync.ts), on a directory host. */
+async function rejoin(d) {
+  const previous = await d.host.loadState()
+  d.host.deviceId = randomUUID()
+  await d.host.saveState(await core.rejoinState(d.provider, previous, d.host.workspaceId, d.host.deviceId, signal()))
+}
+const codeOf = (promise) => promise.then(() => null, (error) => error.code ?? error.message)
+const markdownFiles = async (root) => (await readdir(root)).filter((f) => f.endsWith('.md')).sort()
+
+/** v2 step 4C fault matrix: rollback, a cloned device id, a missing object and a long-offline device. */
+async function recovery(name, target) {
+  const checks = [], check = (id, passed, detail = {}) => { checks.push({ id, passed, ...detail }); console.log(`${passed ? 'PASS' : 'FAIL'} ${name} ${id}`) }
+  const roots = []
+  const pair = async () => {
+    const workspaceId = randomUUID(), a = await device(target, workspaceId), b = await device(target, workspaceId)
+    roots.push(a.root, b.root)
+    await enableIdentity(b.root, core, workspaceId, [])
+    return { workspaceId, a, b }
+  }
+  try {
+    // The server is restored to an older head of A: A stops, then rejoins without losing either version.
+    {
+      const { workspaceId, a, b } = await pair()
+      await writeFile(join(a.root, 'n.md'), 'v1\n'); await enableIdentity(a.root, core, workspaceId, ['n.md'])
+      await a.pass(); await b.pass()
+      const saved = await a.provider.readDeviceHead(workspaceId, a.host.deviceId, signal())
+      await writeFile(join(a.root, 'n.md'), 'v2 from A\n'); await a.pass()
+      await a.provider.publishDeviceHead(saved.head, { kind: 'owned' }, signal())
+      const code = await codeOf(a.pass())
+      check('rollback_stops_without_touching_files', code === 'rollback' && (await readFile(join(a.root, 'n.md'), 'utf8')) === 'v2 from A\n', { code })
+      await rejoin(a)
+      await a.pass(); await b.pass(); await a.pass()
+      const texts = async (root) => Promise.all((await markdownFiles(root)).map((f) => readFile(join(root, f), 'utf8')))
+      const aTexts = (await texts(a.root)).sort(), bTexts = (await texts(b.root)).sort()
+      check('rollback_rejoin_keeps_both_versions', JSON.stringify(aTexts) === JSON.stringify(['v1\n', 'v2 from A\n']) && JSON.stringify(aTexts) === JSON.stringify(bTexts), { files: aTexts.length })
+    }
+    // A copied configuration publishes under A's device id first: A stops, rejoins and merges cleanly.
+    {
+      const { workspaceId, a, b } = await pair()
+      await writeFile(join(a.root, 'n.md'), 'one\ntwo\nthree\n'); await enableIdentity(a.root, core, workspaceId, ['n.md'])
+      await a.pass(); await b.pass()
+      const cloneRoot = await mkdtemp(join(tmpdir(), 'easym-e2e-clone-')); roots.push(cloneRoot)
+      await cp(a.root, cloneRoot, { recursive: true })
+      const clone = await device(target, workspaceId, cloneRoot); clone.host.deviceId = a.host.deviceId
+      await writeFile(join(cloneRoot, 'n.md'), 'ONE\ntwo\nthree\n'); await clone.pass()
+      await writeFile(join(a.root, 'n.md'), 'one\ntwo\nTHREE\n')
+      const code = await codeOf(a.pass())
+      check('cloned_device_id_stops', code === 'device_conflict' && (await readFile(join(a.root, 'n.md'), 'utf8')) === 'one\ntwo\nTHREE\n', { code })
+      await rejoin(a)
+      const merged = await a.pass(); await b.pass()
+      const [textA, textB] = await Promise.all([a.root, b.root].map((root) => readFile(join(root, 'n.md'), 'utf8')))
+      check('cloned_rejoin_merges_without_copies', merged.copies.length === 0 && textA === 'ONE\ntwo\nTHREE\n' && textB === textA && (await markdownFiles(a.root)).length === 1, { copies: merged.copies.length })
+    }
+    // An object referenced by the head is missing on the server: nothing half-written, reported, retried.
+    {
+      const { workspaceId, a, b } = await pair()
+      await writeFile(join(a.root, 'gone.md'), 'body that disappears\n'); await enableIdentity(a.root, core, workspaceId, ['gone.md'])
+      await a.pass()
+      const hash = (await core.readSyncCommit(a.provider, workspaceId, (await a.host.loadState()).device.commitHash, signal())).documents[0].text.object
+      await a.provider.send('DELETE', a.provider.path(workspaceId, `objects/sha256/${hash.slice(7)}`))
+      const first = await b.pass(), second = await b.pass()
+      const state = await b.host.loadState()
+      check('missing_object_never_half_applied', first.failed.some((f) => f.error === 'missing_object') && second.failed.length === 1 && !(await exists(join(b.root, 'gone.md'))) && state.applied === null, { failed: first.failed.map((f) => f.error) })
+    }
+    // C goes offline while A and B edit for several rounds, then edits and returns.
+    {
+      const { workspaceId, a, b } = await pair()
+      await writeFile(join(a.root, 'shared.md'), 'title\n\nbody\n\nend\n'); await enableIdentity(a.root, core, workspaceId, ['shared.md'])
+      await a.pass(); await b.pass()
+      const c = await device(target, workspaceId); roots.push(c.root)
+      await enableIdentity(c.root, core, workspaceId, []); await c.pass()
+      for (let round = 0; round < 4; round++) {
+        await writeFile(join(a.root, `a-${round}.md`), `a ${round}\n`); await a.pass()
+        await writeFile(join(b.root, `b-${round}.md`), `b ${round}\n`); await b.pass()
+      }
+      await writeFile(join(c.root, 'shared.md'), 'title\n\nbody\n\nend from C\n')
+      const back = await c.pass(); await a.pass(); await b.pass()
+      const views = await Promise.all([a.root, b.root, c.root].map(async (root) => JSON.stringify(bodies(await tree(root)))))
+      check('long_offline_device_returns_and_converges', new Set(views).size === 1 && back.copies.length === 0 && (await readFile(join(a.root, 'shared.md'), 'utf8')) === 'title\n\nbody\n\nend from C\n' && (await markdownFiles(c.root)).length === 9, { files: (await markdownFiles(c.root)).length })
+    }
+  } finally { for (const root of roots) await rm(root, { recursive: true, force: true }) }
+  return { passed: checks.every((c) => c.passed), checks }
+}
+
 let ok = true
 for (const name of selected) {
   try { report.targets[name] = await roundTrip(name, targets[name]) }
   catch (error) { report.targets[name] = { passed: false, error: error.code ?? error.message }; console.error(`ERROR ${name}`, error.code ?? error.message) }
+  try { report.targets[name].recovery = await recovery(name, targets[name]) }
+  catch (error) { report.targets[name].recovery = { passed: false, error: error.code ?? error.message }; console.error(`ERROR ${name} recovery`, error.code ?? error.message) }
+  report.targets[name].passed &&= report.targets[name].recovery.passed
   ok &&= report.targets[name].passed
 }
-report.passed = ok
+// Each server can be run on its own (the full run can exceed a 10-minute budget); results of servers
+// not selected this time are kept from the previous report so one file covers both.
+const previous = await readFile(`${out}/sync-e2e.json`, 'utf8').then(JSON.parse, () => null)
+for (const [name, result] of Object.entries(previous?.targets ?? {})) if (!selected.includes(name)) report.targets[name] = result
+report.passed = ok && Object.values(report.targets).every((t) => t.passed)
 await writeFile(`${out}/sync-e2e.json`, JSON.stringify(report, null, 2) + '\n')
 console.log(`Report: ${out}/sync-e2e.json  passed=${ok}`)
 if (!ok) process.exitCode = 1

@@ -74,7 +74,7 @@ export interface PassReport {
 }
 
 export class SyncEngineError extends Error {
-  readonly code: 'identity_missing' | 'identity_mismatch' | 'identity_paused'
+  readonly code: 'identity_missing' | 'identity_mismatch' | 'identity_paused' | 'state_mismatch'
   constructor(code: SyncEngineError['code']) { super(code); this.code = code; this.name = 'SyncEngineError' }
 }
 
@@ -113,6 +113,30 @@ function adoptNewDocuments(identity: WorkspaceIdentity, scan: LocalScan, newId: 
     tracked.add(doc.path.normalize('NFC').toLowerCase())
   }
   return added.length ? { ...identity, documents: [...identity.documents, ...added].sort((a, b) => (a.path < b.path ? -1 : 1)) } : null
+}
+
+/** Pause codes that "rejoin as a new device" (step 4C) resolves. */
+export const REJOIN_CODES = new Set(['rollback', 'device_conflict', 'not_descendant', 'state_mismatch'])
+
+/**
+ * v2 step 4C: engine state for a device that rejoins under `deviceId` after a rollback, a reused
+ * device id or a head that no longer descends from this device's. Local files, deferred deletions
+ * and open conflicts are kept. The commit disk last reflected stays the base when the remote heads
+ * still reach it, so later local edits publish as ordinary changes. Otherwise there is no base:
+ * every document then counts as changed on both sides, and any difference from the remote is kept
+ * as a conflict copy instead of overwriting either version.
+ */
+export async function rejoinState(provider: SyncProvider, previous: EngineState | null, workspaceId: string, deviceId: string, signal: AbortSignal): Promise<EngineState> {
+  const device = initialDeviceState(workspaceId, deviceId)
+  const applied = previous?.applied ?? null
+  let base: string | null = null
+  if (applied) {
+    const history = new SyncHistory(provider, workspaceId, signal)
+    for (const { head } of await provider.listDeviceHeads(workspaceId, signal)) {
+      if ((await history.ancestors(head.commitHash)).has(applied)) { base = applied; break }
+    }
+  }
+  return { device: base ? { ...device, base } : device, applied: base, deferred: previous?.deferred ?? [], conflicts: previous?.conflicts ?? [] }
 }
 
 export class SyncEngine {
@@ -253,7 +277,8 @@ export class SyncEngine {
   async pass(signal: AbortSignal): Promise<PassReport> {
     const report: PassReport = { published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [], openConflicts: [] }
     const state: EngineState = (await this.host.loadState()) ?? { device: initialDeviceState(this.host.workspaceId, this.host.deviceId), applied: null, deferred: [] }
-    if (state.device.workspaceId !== this.host.workspaceId || state.device.deviceId !== this.host.deviceId) throw new SyncEngineError('identity_mismatch')
+    // State written for another device id: an interrupted rejoin. Rejoining again repairs it.
+    if (state.device.workspaceId !== this.host.workspaceId || state.device.deviceId !== this.host.deviceId) throw new SyncEngineError('state_mismatch')
     const save = async () => this.host.saveState(state)
 
     // 0. A head write whose reply was lost is settled first; it may have advanced the head.

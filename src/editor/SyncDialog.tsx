@@ -3,6 +3,7 @@ import { ApplicationDialog } from './ApplicationDialogs'
 import { MergePreview } from './MergePreview'
 import type { ConflictVersions, OpenConflict, SyncView } from './useSync'
 import { mergeBytes } from '../platform/merge-transaction'
+import { REJOIN_CODES } from '../core/sync-engine'
 import { identityError, previewIdentity, type IdentityPreview } from '../platform/sync-identity'
 import { probeEndpoint, syncError, unbindWorkspace } from '../platform/sync-native'
 import { pairWorkspace, previewRemote, type Credentials, type RemotePreview } from '../platform/sync-pairing'
@@ -57,6 +58,12 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
       {report.skipped.map((s) => <li key={s.path}>{s.path} 未上传：{s.reason === 'missing_assets' ? '引用的图片缺失' : '文件名无法跨平台保存'}</li>)}
       {report.failed.map((f) => <li key={f.path}>{f.path} 本次未能写入（{syncError(f.error)}），下次同步重试</li>)}
     </ul>}
+    {paused && sync.status?.kind === 'paused' && sync.status.code && REJOIN_CODES.has(sync.status.code) && <section aria-label="恢复同步">
+      <p>继续同步前需要以新的设备身份重新加入。本机文件、回收站和待解决的冲突都会保留；与服务器不一致的文档会另存为冲突副本，不会互相覆盖。</p>
+      <div className="dialog-actions">
+        <button disabled={busy} onClick={() => void task(async () => { await sync.rejoin(); setMessage('已以新的设备身份重新加入，正在同步。') })}>以新设备身份重新加入</button>
+      </div>
+    </section>}
     {report && report.openConflicts.length > 0 && <Conflicts sync={sync} busy={busy} task={task} setMessage={setMessage} />}
     <div className="dialog-actions">
       <button disabled={busy || paused || sync.status?.kind === 'syncing'} onClick={() => sync.request()}>立即同步</button>
