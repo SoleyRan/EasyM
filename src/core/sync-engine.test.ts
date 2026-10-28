@@ -195,6 +195,35 @@ describe('conflicts', () => {
     expect(a.files.size).toBe(2)
   })
 
+  it('concurrent edits of different lines merge into one file on both devices, with images from both', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('notes/n.md', '# 标题\n\n正文\n\n结尾\n'); await ea.pass(signal()); await eb.pass(signal())
+    const imgA = a.addImage('notes', 'a', png(1)), imgB = b.addImage('notes', 'b', png(2))
+    a.edit('notes/n.md', `# 新标题\n\n![甲](${imgA})\n\n正文\n\n结尾\n`); b.edit('notes/n.md', `# 标题\n\n正文\n\n结尾\n\n![乙](${imgB})\n`)
+    await ea.pass(signal())
+    const merged = await eb.pass(signal())
+    await ea.pass(signal())
+    const expected = `# 新标题\n\n![甲](${imgA})\n\n正文\n\n结尾\n\n![乙](${imgB})\n`
+    expect(merged.conflicts).toMatchObject([{ reason: 'merged', path: 'notes/n.md', copy: null }])
+    expect(merged.copies).toEqual([])
+    for (const w of [a, b]) {
+      expect(w.view()).toEqual([`notes/n.md=${expected}`])
+      expect(w.assets.get(`notes/${imgA}`)).toEqual(png(1))
+      expect(w.assets.get(`notes/${imgB}`)).toEqual(png(2))
+      expect(w.metadata.get('notes')?.map((i) => i.displayPath).sort()).toEqual([imgA, imgB].sort())
+    }
+  })
+
+  it('a line merge never overwrites an open tab with unsaved edits; the merged version lands as a copy', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('n.md', 'a\nb\nc'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'A\nb\nc'); await ea.pass(signal())
+    b.edit('n.md', 'a\nb\nC'); b.tabs.set('n.md', true)
+    await eb.pass(signal())
+    expect(b.text('n.md')).toBe('a\nb\nC')
+    expect(b.text('n (同步副本).md')).toBe('A\nb\nC')
+  })
+
   it('a remote edit never overwrites unsaved editor changes; the remote version lands as a copy', async () => {
     const { a, b, ea, eb } = pair()
     a.edit('n.md', 'base'); await ea.pass(signal()); await eb.pass(signal())

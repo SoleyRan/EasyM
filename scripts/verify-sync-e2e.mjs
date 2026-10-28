@@ -107,6 +107,15 @@ async function roundTrip(name, target) {
   const aTexts = (await texts(again.root)).sort(), bTexts = (await texts(b.root)).sort()
   check('concurrent_edits_keep_both', aTexts.includes('from A\n') && aTexts.includes('from B\n') && JSON.stringify(aTexts) === JSON.stringify(bTexts), { files: aTexts.length })
 
+  // Step 4A: concurrent edits of different lines merge into one file on both devices, no copy.
+  await writeFile(join(again.root, 'lines.md'), '# 标题\r\n\r\n正文\r\n\r\n结尾\r\n')
+  await again.pass(); await b.pass()
+  await writeFile(join(again.root, 'lines.md'), '# 标题 A\r\n\r\n正文\r\n\r\n结尾\r\n'); await writeFile(join(b.root, 'lines.md'), '# 标题\r\n\r\n正文\r\n\r\n结尾 B\r\n')
+  await again.pass(); const lineMerge = await b.pass(); await again.pass()
+  const mergedA = await readFile(join(again.root, 'lines.md'), 'utf8'), mergedB = await readFile(join(b.root, 'lines.md'), 'utf8')
+  const lineCopies = (await readdir(b.root)).filter((f) => f.startsWith('lines') && f !== 'lines.md')
+  check('different_lines_merge_without_copy', mergedA === '# 标题 A\r\n\r\n正文\r\n\r\n结尾 B\r\n' && mergedB === mergedA && lineCopies.length === 0 && lineMerge.conflicts.some((c) => c.reason === 'merged'), { copies: lineCopies.length })
+
   // Interrupted local writes on B are completed on retry, never duplicated.
   await writeFile(join(again.root, 'new.md'), 'new on A\n')
   await again.pass()

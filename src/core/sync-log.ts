@@ -1,5 +1,8 @@
-import { commitObjects, isPortableSyncPath, readSyncCommit, syncPathKey, uploadSyncCommit, type SyncCommit, type SyncDocumentEntry, type SyncTombstone, type SyncUpload } from './sync-commit'
+import { commitObjects, isPortableSyncPath, readSyncCommit, SyncCommitError, syncPathKey, uploadSyncCommit, type SyncCommit, type SyncDocumentEntry, type SyncTombstone, type SyncUpload } from './sync-commit'
 import { MAX_SYNC_DEVICES, MERGE_DEVICE_ID, syncHash, type SyncProvider } from './sync-contract'
+import { MAX_SYNC_MERGE_BYTES, mergeSyncMetadata, mergeSyncResources, mergeSyncText } from './sync-merge'
+import { assetPath } from './images'
+import { canonicalJson, managedReferences } from './sync-snapshot'
 
 /**
  * v2 per-device log. Every device writes only `devices/<deviceId>.json`; no file is shared
@@ -45,6 +48,13 @@ export class SyncHistory {
     const commit = await readSyncCommit(this.provider, this.workspaceId, hash, this.signal)
     this.commits.set(hash, commit)
     return commit
+  }
+  /** Reads an object referenced by a commit and checks it against its content address. */
+  async object(hash: string): Promise<Uint8Array> {
+    const bytes = await this.provider.readObject(this.workspaceId, hash, this.signal)
+    if (!bytes) throw new SyncCommitError('missing_object')
+    if ((await syncHash(bytes)) !== hash) throw new SyncCommitError('hash_mismatch')
+    return bytes
   }
   /** All ancestors including `hash` itself. */
   async ancestors(hash: string): Promise<Set<string>> {
@@ -109,7 +119,8 @@ async function baseLookup(history: SyncHistory, bases: string[]): Promise<(id: s
 
 export interface SyncConflict {
   documentId: string
-  reason: 'both_changed' | 'both_renamed' | 'edit_vs_delete' | 'path_collision'
+  /** `merged`: both sides changed different lines and the result combines them (no copy). */
+  reason: 'both_changed' | 'both_renamed' | 'edit_vs_delete' | 'path_collision' | 'merged'
   /** Path of the version kept in place, and of the extra copy when one was created. */
   path: string
   copy: string | null
@@ -121,12 +132,12 @@ export interface SyncConflict {
  * one version in place and the other as a conflict copy that reuses the same immutable objects;
  * edit beats delete; distinct documents landing on one path are renamed.
  */
-export async function mergeSyncCommits(history: SyncHistory, a: string, b: string): Promise<{ commit: SyncCommit; conflicts: SyncConflict[] }> {
+export async function mergeSyncCommits(history: SyncHistory, a: string, b: string): Promise<{ commit: SyncCommit; conflicts: SyncConflict[]; uploads: SyncUpload[] }> {
   const [left, right] = a < b ? [a, b] : [b, a]
   const leftCommit = await history.get(left)
   const l = snapshot(leftCommit), r = snapshot(await history.get(right))
   const base = await baseLookup(history, await mergeBases(history, left, right))
-  const out: Snapshot = new Map(), conflicts: SyncConflict[] = []
+  const out: Snapshot = new Map(), conflicts: SyncConflict[] = [], uploads: SyncUpload[] = []
   for (const id of [...new Set([...l.keys(), ...r.keys()])].sort()) {
     const x = l.get(id), y = r.get(id), o = base(id)
     if (same(x, y) || !y) { out.set(id, x as Slot); continue }
@@ -149,6 +160,9 @@ export async function mergeSyncCommits(history: SyncHistory, a: string, b: strin
     const xc = contentKey(x.entry), yc = contentKey(y.entry), oc = ob ? contentKey(ob) : null
     const merged = xc === yc || yc === oc ? x.entry : xc === oc ? y.entry : null
     if (merged) { out.set(id, { kind: 'doc', entry: { ...merged, path } }); continue }
+    // Both sides changed the content: try a line-level merge against the common version.
+    const lines = ob ? await mergeEntry(history, ob, x.entry, y.entry, uploads) : null
+    if (lines) { out.set(id, { kind: 'doc', entry: { ...lines, documentId: id, path } }); conflicts.push({ documentId: id, reason: 'merged', path, copy: null }); continue }
     const [win, lose] = xc < yc ? [x.entry, y.entry] : [y.entry, x.entry]
     const tag = (await syncHash(new TextEncoder().encode(contentKey(lose)))).slice(7, 15)
     const copy: SyncDocumentEntry = { ...lose, documentId: await derivedId('conflict-copy', id, contentKey(lose)), path: conflictPath(path, tag) }
@@ -163,7 +177,34 @@ export async function mergeSyncCommits(history: SyncHistory, a: string, b: strin
     documents: slots.flatMap((slot) => (slot.kind === 'doc' ? [slot.entry] : [])),
     tombstones: slots.flatMap((slot) => (slot.kind === 'tomb' ? [slot.tomb] : [])),
   }
-  return { commit, conflicts }
+  return { commit, conflicts, uploads }
+}
+
+/**
+ * Line-level merge of one document whose content both sides changed. Deterministic: the result
+ * depends only on the three entries' objects, so every device derives the same merged entry and
+ * the same merge commit. Returns null when the text edits overlap, the images or image metadata
+ * conflict, or a body is too large; the caller then keeps a conflict copy as before.
+ */
+async function mergeEntry(history: SyncHistory, base: SyncDocumentEntry, left: SyncDocumentEntry, right: SyncDocumentEntry, uploads: SyncUpload[]): Promise<Omit<SyncDocumentEntry, 'documentId' | 'path'> | null> {
+  if ([base, left, right].some((entry) => entry.text.bytes > MAX_SYNC_MERGE_BYTES || (entry.imageMetadata?.bytes ?? 0) > MAX_SYNC_MERGE_BYTES)) return null
+  const [o, x, y] = await Promise.all([base, left, right].map((entry) => history.object(entry.text.object)))
+  const body = mergeSyncText(o, x, y)
+  if (!body) return null
+  const references = managedReferences(body)
+  const metadata = async (entry: SyncDocumentEntry) => (entry.imageMetadata ? history.object(entry.imageMetadata.object) : null)
+  const instances = mergeSyncMetadata(await metadata(base), await metadata(left), await metadata(right), new Set(references))
+  if (!instances) return null
+  // Same rule as a local build: the referenced images plus the sources of their edited instances.
+  const needed = new Set(references)
+  for (const instance of instances) if (typeof instance.sourcePath === 'string' && assetPath(instance.sourcePath)) needed.add(instance.sourcePath)
+  const resources = mergeSyncResources(base.resources, left.resources, right.resources, needed)
+  if (!resources) return null
+  const add = async (bytes: Uint8Array) => { const hash = await syncHash(bytes); uploads.push({ hash, bytes }); return { object: hash, bytes: bytes.byteLength } }
+  const text = await add(body)
+  const metadataBytes = instances.length ? new TextEncoder().encode(canonicalJson({ schemaVersion: 1, instances })) : null
+  const imageMetadata = metadataBytes ? await add(metadataBytes) : null
+  return { text, imageMetadata, resources: resources.map((r) => ({ path: r.path, object: r.object, bytes: r.bytes })) }
 }
 
 /** Distinct documents on one (case-folded) path: the lowest documentId keeps it. */
@@ -268,7 +309,7 @@ async function settlePending(provider: SyncProvider, state: SyncDeviceState, inp
 }
 
 /** Drops tips contained in another tip, then folds the rest in sorted order. */
-async function converge(provider: SyncProvider, history: SyncHistory, candidates: string[], existing: ReadonlySet<string>, signal: AbortSignal): Promise<{ tip: string | null; conflicts: SyncConflict[] }> {
+async function converge(provider: SyncProvider, history: SyncHistory, candidates: string[], existing: Set<string>, signal: AbortSignal): Promise<{ tip: string | null; conflicts: SyncConflict[] }> {
   const unique = [...new Set(candidates)].sort()
   const ancestry = new Map<string, Set<string>>()
   for (const hash of unique) ancestry.set(hash, await history.ancestors(hash))
@@ -280,7 +321,9 @@ async function converge(provider: SyncProvider, history: SyncHistory, candidates
     const merged = await mergeSyncCommits(history, tip, next)
     conflicts.push(...merged.conflicts)
     // Byte-identical on every device that merges the same pair, so concurrent merges coincide.
-    tip = await uploadSyncCommit(provider, merged.commit, [], existing, signal)
+    // Line merges add new bodies and metadata; uploading identical bytes twice is a no-op.
+    tip = await uploadSyncCommit(provider, merged.commit, merged.uploads, existing, signal)
+    for (const upload of merged.uploads) existing.add(upload.hash)
   }
   return { tip, conflicts }
 }

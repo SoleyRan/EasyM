@@ -46,6 +46,8 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
     <p role="status" aria-live="polite">{statusText(sync.status)}</p>
     {report && <ul className="identity-list">
       <li>{report.published ? '已上传本机修改' : '本机没有新修改'}{report.downloaded > 0 && `，下载 ${report.downloaded} 个文档`}</li>
+      {[...new Set(report.conflicts.filter((c) => c.reason === 'merged').map((c) => c.path))].map((p) => <li key={`merged:${p}`}>{p} 在两台设备上改了不同的段落，已自动合并双方改动</li>)}
+      {report.conflicts.filter((c) => c.reason === 'both_changed' && c.copy).map((c) => <li key={`copy:${c.copy}`}>{c.path} 在两台设备上改了同一处，另一版本另存为 {c.copy}</li>)}
       {report.copies.map((c) => <li key={c.copy}>{c.path} 在两台设备上都被修改，远端版本另存为 {c.copy}</li>)}
       {report.keptDeletes.map((p) => <li key={p}>{p} 在其他设备被删除，但本机有修改，已保留</li>)}
       {report.restored.map((p) => <li key={p}>{p} 已删除，但其他设备之后修改过，已恢复</li>)}
