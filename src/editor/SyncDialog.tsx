@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApplicationDialog } from './ApplicationDialogs'
-import type { SyncView } from './useSync'
+import { MergePreview } from './MergePreview'
+import type { ConflictVersions, OpenConflict, SyncView } from './useSync'
+import { mergeBytes } from '../platform/merge-transaction'
 import { identityError, previewIdentity, type IdentityPreview } from '../platform/sync-identity'
 import { probeEndpoint, syncError, unbindWorkspace } from '../platform/sync-native'
 import { pairWorkspace, previewRemote, type Credentials, type RemotePreview } from '../platform/sync-pairing'
@@ -55,6 +57,7 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
       {report.skipped.map((s) => <li key={s.path}>{s.path} 未上传：{s.reason === 'missing_assets' ? '引用的图片缺失' : '文件名无法跨平台保存'}</li>)}
       {report.failed.map((f) => <li key={f.path}>{f.path} 本次未能写入（{syncError(f.error)}），下次同步重试</li>)}
     </ul>}
+    {report && report.openConflicts.length > 0 && <Conflicts sync={sync} busy={busy} task={task} setMessage={setMessage} />}
     <div className="dialog-actions">
       <button disabled={busy || paused || sync.status?.kind === 'syncing'} onClick={() => sync.request()}>立即同步</button>
       {paused ? <button disabled={busy} onClick={() => sync.resume()}>继续同步</button> : <button disabled={busy} onClick={() => sync.pause()}>暂停</button>}
@@ -65,6 +68,40 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
     </div>
   </section>
 }
+const SYNC_LABELS = { local: '本文档', disk: '冲突副本', intro: '共同祖先为两台设备分开修改前的版本。逐处选择后应用；本文档原来的正文和冲突副本都会移到回收站，可以随时恢复。' }
+
+/** v2 step 4B: open sync conflicts, resolved line by line or by keeping one whole version. */
+function Conflicts({ sync, busy, task, setMessage }: Omit<PartProps, 'workspace'>) {
+  const conflicts = sync.report!.openConflicts
+  const [selected, setSelected] = useState<OpenConflict | null>(null)
+  const [versions, setVersions] = useState<ConflictVersions | null>(null)
+  // A resolved conflict leaves the list after the next pass; close it if it disappears.
+  useEffect(() => { if (selected && !conflicts.some((c) => c.copyId === selected.copyId)) { setSelected(null); setVersions(null) } }, [conflicts, selected])
+  const open = (entry: OpenConflict) => void task(async () => { setSelected(entry); setVersions(null); setVersions(await sync.loadConflict(entry)) })
+  const apply = (bytes: Uint8Array | null, done: string) => void task(async () => {
+    if (!selected || !versions) return
+    await sync.resolveConflict(selected, versions, bytes)
+    setSelected(null); setVersions(null); setMessage(done)
+  })
+  return <section aria-label="同步冲突">
+    <h3>待解决的冲突（{conflicts.length}）</h3>
+    <ul className="identity-list">
+      {conflicts.map((c) => <li key={c.copyId}>{c.path} 与 {c.copy} <button disabled={busy} aria-pressed={selected?.copyId === c.copyId} onClick={() => open(c)}>解决</button></li>)}
+    </ul>
+    {selected && !versions && <p role="status">正在读取双方版本…</p>}
+    {selected && versions && <div className="sync-conflict">
+      <p>{selected.path} 在两台设备上改了同一处，另一版本保存在 {selected.copy}。{versions.base === null && '找不到共同祖先，只能整篇保留其中一个版本。'}</p>
+      <div className="dialog-actions">
+        <button disabled={busy} onClick={() => apply(null, `已保留 ${selected.path}，冲突副本已移到回收站。`)}>保留本文档</button>
+        <button disabled={busy} onClick={() => apply(versions.theirs.originalBytes, `已改用冲突副本的内容；原来的正文和副本都在回收站。`)}>改用冲突副本</button>
+      </div>
+      {versions.base !== null && <MergePreview base={versions.base} local={versions.mine.text} disk={versions.theirs.text} busy={busy} labels={SYNC_LABELS}
+        formats={{ local: versions.mine, disk: versions.theirs }}
+        onApply={(candidate) => apply(mergeBytes(candidate.text, candidate.format === 'local' ? versions.mine : versions.theirs), `已合并 ${selected.path}；原来的正文和冲突副本都在回收站。`)} />}
+    </div>}
+  </section>
+}
+
 function Pairing({ workspace, sync, busy, task, setMessage }: PartProps) {
   const [credentials, setCredentials] = useState<Credentials>({ endpoint: '', username: '', password: '' })
   const [identity, setIdentity] = useState<IdentityPreview | null>(null)

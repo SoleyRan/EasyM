@@ -363,6 +363,22 @@ pub(crate) fn trash(root: &Path, operation: &str, path: &str, expected: &str) ->
     Ok(json!({ "operationId": operation, "path": path, "documentId": record.document_id, "warning": warning }))
 }
 
+/// Keeps a body that is about to be overwritten as a trash entry, restorable under `path` (a new
+/// name, never the live document's). It carries no documentId, so a restore creates an independent
+/// document and sync ignores the entry until then. The body is written before the record, so an
+/// interrupted snapshot is never listed half-written.
+pub(crate) fn trash_snapshot(root: &Path, operation: &str, path: &str, bytes: &[u8]) -> Result<(), String> {
+    let operation = operation_id(operation)?;
+    let name = split(path).1;
+    portable_name(name)?;
+    if !is_document(name) { return Err("invalid_data".into()); }
+    let folder = directory(root, &format!("{TRASH}/{operation}"))?;
+    if fs::read_dir(&folder).map_err(|_| "io_failed")?.next().is_some() { return Err("invalid_data".into()); }
+    let record = TrashRecord { version: 1, path: path.into(), name: name.into(), document_id: None, deleted_at: now(), revision: transaction::hash(bytes) };
+    atomic_write(&folder.join("document.md"), bytes)?;
+    atomic_write(&folder.join("record.json"), &serde_json::to_vec_pretty(&record).map_err(|_| "invalid_data")?)
+}
+
 pub(crate) fn trash_list(root: &Path) -> Result<Vec<Value>, String> {
     let mut items = Vec::new();
     if !root.join(TRASH).exists() { return Ok(items); }

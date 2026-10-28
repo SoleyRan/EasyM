@@ -28,8 +28,11 @@ export async function readSyncState(workspace: string): Promise<EngineState | nu
   const device = value.device as SyncDeviceState | undefined
   if (!device || typeof device.sequence !== 'number' || (device.commitHash !== null && typeof device.commitHash !== 'string') || typeof device.seen !== 'object'
     || device.workspaceId !== value.workspaceId || device.deviceId !== value.deviceId
-    || (value.applied !== null && typeof value.applied !== 'string') || !Array.isArray(value.deferred)) throw new Error('sync_state_invalid')
-  return { device, applied: value.applied ?? null, deferred: value.deferred }
+    || (value.applied !== null && typeof value.applied !== 'string') || !Array.isArray(value.deferred)
+    || (value.conflicts !== undefined && !Array.isArray(value.conflicts))) throw new Error('sync_state_invalid')
+  // Older state has no conflict list; malformed entries are dropped rather than trusted.
+  const conflicts = (value.conflicts ?? []).filter((c) => c && typeof c.documentId === 'string' && typeof c.copyId === 'string' && (c.kind === 'merge' || c.kind === 'local') && (c.base === null || typeof c.base === 'string'))
+  return { device, applied: value.applied ?? null, deferred: value.deferred, conflicts }
 }
 export const writeSyncState = (workspace: string, state: EngineState) =>
   invoke<void>('sync_state_write', { id: workspace, bytes: Array.from(new TextEncoder().encode(JSON.stringify({ workspaceId: state.device.workspaceId, deviceId: state.device.deviceId, ...state }))) })
@@ -79,6 +82,14 @@ export class NativeSyncProvider implements SyncProvider {
   }
 }
 
+/** v2 step 4B: writes a conflict resolution; both earlier versions go to the in-app trash. */
+export interface ResolveConflictRequest { path: string; expected: string; copy: string; copyExpected: string; bytes: Uint8Array | null; snapshotPath: string }
+export const resolveSyncConflict = (workspace: string, request: ResolveConflictRequest) => invoke<string>('sync_local_resolve', { id: workspace, request: {
+  path: request.path, expected: request.expected, copy: request.copy, copyExpected: request.copyExpected,
+  bytes: request.bytes ? Array.from(request.bytes) : null, snapshotPath: request.snapshotPath,
+  saveOperation: crypto.randomUUID(), snapshotOperation: crypto.randomUUID(), copyOperation: crypto.randomUUID(),
+} })
+
 export function syncError(error: unknown): string {
   const code = error instanceof Error ? (error as { code?: string }).code ?? error.message : String(error)
   const messages: Record<string, string> = {
@@ -98,6 +109,10 @@ export function syncError(error: unknown): string {
     invalid_listing: '服务器返回的设备列表不完整或包含未知内容；为避免误判，已停止同步。',
     too_many_devices: '远端设备数量超过 64 台上限，已暂停同步。',
     hash_mismatch: '远端对象内容与摘要不符；已拒绝使用该数据。',
+    document_open: '请先关闭冲突副本的标签页再解决冲突。',
+    document_dirty: '本文档有未保存的修改；请先保存或放弃后再解决冲突。',
+    revision_conflict: '文档在你选择之后又被修改，未做任何改动；请重新打开冲突再选择。',
+    target_exists: '用于保存解决前版本的文件名已被占用，请稍后重试。',
   }
   if (code.startsWith('server_busy')) return '服务器繁忙或暂时锁定文件；稍后会重试。'
   return messages[code] ?? `同步失败（${code}）。`

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PassReport } from '../core/sync-engine'
 import { SyncController, type SyncStatus } from './sync-controller'
 
-const report = (patch: Partial<PassReport> = {}): PassReport => ({ published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [], ...patch })
+const report = (patch: Partial<PassReport> = {}): PassReport => ({ published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [], openConflicts: [], ...patch })
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 

@@ -25,8 +25,16 @@ function installMock(fx) {
   const enc = (s) => [...new TextEncoder().encode(s)], dec = (b) => new TextDecoder().decode(new Uint8Array(b))
   const hash = async (bytes) => 'sha256:' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes)))].map((b) => b.toString(16).padStart(2, '0')).join('')
   const remote = { heads: new Map([[fx.DEVICE, { bytes: enc(fx.head), revision: '"h1"' }]]), objects: new Map() }
-  window.local = { files: new Map([['a.md', 'local a']]), identity: enc(fx.identity), state: null }
+  window.local = { files: new Map([['a.md', 'local a']]), identity: enc(fx.identity), state: null, trash: [] }
   window.calls = []; window.bound = null
+  // Exposed so the test can play the other device (publish a commit) and inspect what was synced.
+  window.remote = remote; window.mockHash = hash; window.mockEnc = enc; window.mockDec = dec
+  // This device's published commit. Defined here because the production CSP blocks eval in the page.
+  window.ownCommit = () => {
+    const head = window.bound && remote.heads.get(window.bound.deviceId)
+    const hash = head && JSON.parse(dec(head.bytes)).commitHash, bytes = hash && remote.objects.get(hash)
+    return bytes ? { hash, commit: JSON.parse(dec(bytes)) } : null
+  }
   const ready = (async () => { for (const text of [fx.commit, 'remote a']) remote.objects.set(await hash(enc(text)), enc(text)) })()
   let callback = 0, revisions = 1
   window.isTauri = true; window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} }
@@ -72,7 +80,24 @@ function installMock(fx) {
     if (command === 'sync_local_revisions') return { identity: window.local.identity, documents: await Promise.all(docs().map(async (path) => ({ path, revision: await hash(enc(window.local.files.get(path))), bytes: 1, historyId: null }))) }
     if (command === 'sync_local_read') { const text = window.local.files.get(args.path); return { bytes: enc(text), revision: await hash(enc(text)), instances: [] } }
     if (command === 'sync_local_asset') return null
-    if (command === 'sync_local_open' || command === 'workspace_trash_list') return []
+    if (command === 'sync_local_open') return []
+    if (command === 'workspace_trash_list') return window.local.trash.map(({ body, ...entry }) => entry)
+    // Native rules: both revisions must still match; the replaced body and the copy go to the trash.
+    if (command === 'sync_local_resolve') {
+      const r = args.request, current = window.local.files.get(r.path), copy = window.local.files.get(r.copy)
+      if (current === undefined || copy === undefined || (await hash(enc(current))) !== r.expected || (await hash(enc(copy))) !== r.copyExpected) throw 'revision_conflict'
+      const identity = JSON.parse(dec(window.local.identity))
+      const copyId = identity.documents.find((d) => d.path === r.copy)?.documentId ?? null
+      if (r.bytes && dec(r.bytes) !== current) {
+        window.local.trash.push({ operationId: r.snapshotOperation, path: r.snapshotPath, deletedAt: Date.now(), documentId: null, revision: await hash(enc(current)), body: current })
+        window.local.files.set(r.path, dec(r.bytes))
+      }
+      window.local.trash.push({ operationId: r.copyOperation, path: r.copy, deletedAt: Date.now(), documentId: copyId, revision: r.copyExpected, body: copy })
+      window.local.files.delete(r.copy)
+      identity.documents = identity.documents.filter((d) => d.path !== r.copy)
+      window.local.identity = enc(JSON.stringify(identity))
+      return hash(enc(window.local.files.get(r.path)))
+    }
     if (command === 'sync_local_write') {
       const r = args.request, current = window.local.files.get(r.path)
       if (r.expected === null ? current !== undefined : (await hash(enc(current ?? ''))) !== r.expected) throw 'revision_conflict'
@@ -141,12 +166,63 @@ try {
   await chip.filter({ hasText: '已同步' }).waitFor()
   report.checks.push('pause is persisted per binding and resume syncs again')
 
+  // Step 4B: a merge conflict copy is listed, resolved line by line and written back; both earlier
+  // versions stay in the trash, and the result plus the copy's deletion reach the server.
+  const conflicts = page.getByRole('region', { name: '同步冲突' })
+  assert.equal(await conflicts.count(), 0)
+  await page.evaluate(() => { window.local.files.set('n.md', 'one\ntwo\nthree\n') })
+  await dialog.getByRole('button', { name: '立即同步', exact: true }).click()
+  await page.waitForFunction(() => window.ownCommit()?.commit.documents.some((d) => d.path === 'n.md'))
+  await chip.filter({ hasText: '已同步' }).waitFor()
+  // The other device edits the same line and adds one at the end.
+  await page.evaluate(async (device) => {
+    const { hash: parent, commit } = window.ownCommit()
+    const text = window.mockEnc('one\ntwo remote\nthree\nfour remote\n'), object = await window.mockHash(text)
+    window.remote.objects.set(object, text)
+    const next = { ...commit, operationId: crypto.randomUUID(), deviceId: device, parents: [parent], documents: commit.documents.map((d) => (d.path === 'n.md' ? { ...d, text: { object, bytes: text.length } } : d)) }
+    const bytes = window.mockEnc(JSON.stringify(next)), hash = await window.mockHash(bytes)
+    window.remote.objects.set(hash, bytes)
+    window.remote.heads.set(device, { bytes: window.mockEnc(JSON.stringify({ schemaVersion: 1, workspaceId: commit.workspaceId, deviceId: device, sequence: 2, commitHash: hash })), revision: '"other-2"' })
+  }, fixture.DEVICE)
+  await page.evaluate(() => { window.local.files.set('n.md', 'one\ntwo local\nthree\n') })
+  await dialog.getByRole('button', { name: '立即同步', exact: true }).click()
+  await conflicts.getByText(/n\.md 与 n \(冲突 [0-9a-f]{8}\)\.md/).waitFor()
+  const copyPath = await page.evaluate(() => [...window.local.files.keys()].find((p) => /^n \(冲突 [0-9a-f]{8}\)\.md$/.test(p)))
+  const before = await page.evaluate((copy) => ({ mine: window.local.files.get('n.md'), theirs: window.local.files.get(copy) }), copyPath)
+  assert.deepEqual([before.mine, before.theirs].sort(), ['one\ntwo local\nthree\n', 'one\ntwo remote\nthree\nfour remote\n'])
+  report.checks.push('a merge conflict copy from two devices editing one line is listed with both paths')
+
+  await conflicts.getByRole('button', { name: '解决', exact: true }).click()
+  await conflicts.getByRole('button', { name: '采用冲突副本', exact: true }).click()
+  await conflicts.getByRole('checkbox', { name: /确认保存合并结果/ }).check()
+  await conflicts.getByRole('button', { name: '应用合并并保存', exact: true }).click()
+  await dialog.getByRole('status').filter({ hasText: '已合并 n.md' }).waitFor()
+  await conflicts.waitFor({ state: 'detached' })
+  // The copy's line wins the conflict; the other side's added line is kept automatically.
+  const expected = `one\n${before.theirs.split('\n')[1]}\nthree\nfour remote\n`
+  const resolved = await page.evaluate(() => ({ files: Object.fromEntries(window.local.files), trash: window.local.trash.map((t) => ({ path: t.path, body: t.body, documentId: t.documentId })) }))
+  assert.equal(resolved.files['n.md'], expected)
+  assert.equal(resolved.files[copyPath], undefined)
+  const snapshot = resolved.trash.find((t) => /^n \(解决前 \d{8}-\d{6}\)\.md$/.test(t.path)), trashedCopy = resolved.trash.find((t) => t.path === copyPath)
+  assert.ok(snapshot && snapshot.body === before.mine && snapshot.documentId === null, JSON.stringify(resolved.trash))
+  assert.ok(trashedCopy && trashedCopy.body === before.theirs && trashedCopy.documentId)
+  report.checks.push('resolving line by line writes the result and keeps the replaced body and the copy in the trash')
+
+  await page.waitForFunction(([text, copy]) => {
+    const own = window.ownCommit(); if (!own) return false
+    const doc = own.commit.documents.find((d) => d.path === 'n.md')
+    return !!doc && window.mockDec(window.remote.objects.get(doc.text.object)) === text
+      && !own.commit.documents.some((d) => d.path === copy) && own.commit.tombstones.some((t) => t.path === copy)
+  }, [expected, copyPath])
+  report.checks.push('the resolved body and the copy deletion are published on the next pass')
+
+  const filesBeforeExit = await page.evaluate(() => window.local.files.size)
   page.once('dialog', (d) => d.accept())
   await dialog.getByRole('button', { name: '退出同步', exact: true }).click()
   await dialog.getByRole('status').filter({ hasText: '已退出同步' }).waitFor()
   await chip.waitFor({ state: 'detached' })
   assert.equal(await page.evaluate(() => window.bound), null)
-  assert.equal(await page.evaluate(() => window.local.files.size), 2)
+  assert.equal(await page.evaluate(() => window.local.files.size), filesBeforeExit)
   report.checks.push('exit sync removes the binding after confirmation and keeps workspace files')
 
   await dialog.getByRole('button', { name: '完成', exact: true }).click()

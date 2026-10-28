@@ -224,6 +224,39 @@ describe('conflicts', () => {
     expect(b.text('n (同步副本).md')).toBe('A\nb\nC')
   })
 
+  it('a merge conflict copy is listed on both devices with its common version until the copy is trashed', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('n.md', 'base\n'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'from A\n'); b.edit('n.md', 'from B\n')
+    await ea.pass(signal()); await eb.pass(signal())
+    const [ra, rb] = [await ea.pass(signal()), await eb.pass(signal())]
+    for (const report of [ra, rb]) {
+      expect(report.openConflicts).toHaveLength(1)
+      expect(report.openConflicts[0]).toMatchObject({ kind: 'merge', path: 'n.md' })
+      expect(report.openConflicts[0].copy).toMatch(/^n \(冲突 [0-9a-f]{8}\)\.md$/)
+    }
+    expect(dec((await ea.conflictBase(ra.openConflicts[0], signal()))!)).toBe('base\n')
+    expect(dec((await eb.conflictBase(rb.openConflicts[0], signal()))!)).toBe('base\n')
+    // Trashing the copy resolves the conflict here, and the deletion reaches the other device.
+    a.userTrash(ra.openConflicts[0].copy)
+    expect((await ea.pass(signal())).openConflicts).toEqual([])
+    expect((await eb.pass(signal())).openConflicts).toEqual([])
+    expect(b.files.has(rb.openConflicts[0].copy)).toBe(false)
+  })
+
+  it('a local copy written beside unsaved edits is tracked with the version both started from', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('n.md', 'base'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'remote edit'); await ea.pass(signal())
+    b.tabs.set('n.md', true)
+    const report = await eb.pass(signal())
+    expect(report.openConflicts).toEqual([expect.objectContaining({ kind: 'local', path: 'n.md', copy: 'n (同步副本).md' })])
+    expect(dec((await eb.conflictBase(report.openConflicts[0], signal()))!)).toBe('base')
+    // The list survives later passes (persisted state) while both files exist.
+    b.tabs.clear()
+    expect((await eb.pass(signal())).openConflicts.map((c) => c.copy)).toEqual(['n (同步副本).md'])
+  })
+
   it('a remote edit never overwrites unsaved editor changes; the remote version lands as a copy', async () => {
     const { a, b, ea, eb } = pair()
     a.edit('n.md', 'base'); await ea.pass(signal()); await eb.pass(signal())
