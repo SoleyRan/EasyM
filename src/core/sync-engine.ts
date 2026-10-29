@@ -1,7 +1,7 @@
 import { readSyncCommit, type SyncCommit, type SyncDocumentEntry } from './sync-commit'
 import { syncHash, type SyncProvider } from './sync-contract'
 import type { WorkspaceIdentity } from './sync-identity'
-import { initialDeviceState, runSyncPass, settleSyncPending, type SyncConflict, type SyncDeviceState } from './sync-log'
+import { conflictBase, initialDeviceState, mergeConflictCopies, runSyncPass, settleSyncPending, SyncHistory, type SyncConflict, type SyncDeviceState } from './sync-log'
 import { localChange, planApply, type ApplyOp, type LocalDocument } from './sync-snapshot'
 import type { ImageInstance } from './images'
 
@@ -15,12 +15,20 @@ import type { ImageInstance } from './images'
  *  3. Local writes reuse the journaled save with an expected revision; a concurrent edit makes
  *     the write fail and the next pass treats the file as locally changed.
  */
+/**
+ * An unresolved conflict: `documentId` kept its place and `copyId` holds the other version.
+ * `merge` copies come from merge commits (any device); `local` copies were written by this
+ * device's apply beside unsynchronized local edits, with `base` the version both started from.
+ */
+export interface SyncConflictEntry { documentId: string; copyId: string; kind: 'merge' | 'local'; base: string | null }
 export interface EngineState {
   device: SyncDeviceState
   /** Commit the disk last fully reflected; null before the first apply. */
   applied: string | null
   /** Remote deletions of documents open in a tab, applied once the tab closes. */
   deferred: { documentId: string; path: string; revision: string }[]
+  /** Open conflicts; an entry is dropped once its document or copy is gone. Absent in older state. */
+  conflicts?: SyncConflictEntry[]
 }
 export interface LocalScanDocument { path: string; revision: string; historyId: string | null; historyUnreadable?: boolean }
 /** `identityRevision` is the digest of the identity file's raw bytes (opaque write precondition). */
@@ -61,10 +69,12 @@ export interface PassReport {
   failed: { path: string; error: string }[]
   /** Existing local files replaced or moved this pass, so open tabs can reload in place. */
   changed: { from: string; to: string }[]
+  /** Conflicts still waiting for the user, with current local paths. */
+  openConflicts: (SyncConflictEntry & { path: string; copy: string })[]
 }
 
 export class SyncEngineError extends Error {
-  readonly code: 'identity_missing' | 'identity_mismatch' | 'identity_paused'
+  readonly code: 'identity_missing' | 'identity_mismatch' | 'identity_paused' | 'state_mismatch'
   constructor(code: SyncEngineError['code']) { super(code); this.code = code; this.name = 'SyncEngineError' }
 }
 
@@ -105,6 +115,30 @@ function adoptNewDocuments(identity: WorkspaceIdentity, scan: LocalScan, newId: 
   return added.length ? { ...identity, documents: [...identity.documents, ...added].sort((a, b) => (a.path < b.path ? -1 : 1)) } : null
 }
 
+/** Pause codes that "rejoin as a new device" (step 4C) resolves. */
+export const REJOIN_CODES = new Set(['rollback', 'device_conflict', 'not_descendant', 'state_mismatch'])
+
+/**
+ * v2 step 4C: engine state for a device that rejoins under `deviceId` after a rollback, a reused
+ * device id or a head that no longer descends from this device's. Local files, deferred deletions
+ * and open conflicts are kept. The commit disk last reflected stays the base when the remote heads
+ * still reach it, so later local edits publish as ordinary changes. Otherwise there is no base:
+ * every document then counts as changed on both sides, and any difference from the remote is kept
+ * as a conflict copy instead of overwriting either version.
+ */
+export async function rejoinState(provider: SyncProvider, previous: EngineState | null, workspaceId: string, deviceId: string, signal: AbortSignal): Promise<EngineState> {
+  const device = initialDeviceState(workspaceId, deviceId)
+  const applied = previous?.applied ?? null
+  let base: string | null = null
+  if (applied) {
+    const history = new SyncHistory(provider, workspaceId, signal)
+    for (const { head } of await provider.listDeviceHeads(workspaceId, signal)) {
+      if ((await history.ancestors(head.commitHash)).has(applied)) { base = applied; break }
+    }
+  }
+  return { device: base ? { ...device, base } : device, applied: base, deferred: previous?.deferred ?? [], conflicts: previous?.conflicts ?? [] }
+}
+
 export class SyncEngine {
   constructor(private readonly provider: SyncProvider, private readonly host: SyncHost) {}
 
@@ -131,6 +165,16 @@ export class SyncEngine {
       copyId: (documentId, object) => copyIds.get(`${documentId}:${object}`) as string,
     })
     report.copies.push(...plan.conflicts.map((c) => ({ path: c.path, copy: c.copy })))
+    // Every copy stays an open conflict until the user resolves it (step 4B). Local copies keep the
+    // version disk reflected as their common base; merge copies are found again on every device.
+    const conflicts = (state.conflicts ??= [])
+    const remember = (entry: SyncConflictEntry) => { if (!conflicts.some((c) => c.copyId === entry.copyId)) conflicts.push(entry) }
+    const baseObjects = new Map((base?.documents ?? []).map((e) => [e.documentId, e.text.object]))
+    for (const c of plan.conflicts) {
+      const op = plan.ops.find((o) => o.kind === 'write' && o.copy && o.path === c.copy)
+      if (op) remember({ documentId: c.documentId, copyId: op.documentId, kind: 'local', base: baseObjects.get(c.documentId) ?? null })
+    }
+    for (const found of await mergeConflictCopies(target, (id) => !baseObjects.has(id))) remember({ ...found, kind: 'merge', base: null })
     report.keptDeletes.push(...plan.keptDeletes); report.restored.push(...plan.restored)
     for (const item of plan.deferred) if (!state.deferred.some((d) => d.documentId === item.documentId)) state.deferred.push(item)
     report.deferred.push(...state.deferred.map((d) => d.path))
@@ -203,11 +247,38 @@ export class SyncEngine {
     return { bytes, assets, instances }
   }
 
+  /** Drops conflicts whose document or copy is gone and reports the rest with current paths. */
+  private async trackConflicts(state: EngineState, report: PassReport) {
+    if (!state.conflicts?.length) return
+    const scan = await this.host.scan()
+    if (!scan.identity) return
+    const paths = new Map(scan.identity.documents.map((d) => [d.documentId, d.path]))
+    const present = new Set(scan.documents.map((d) => d.path))
+    const live = (id: string) => { const path = paths.get(id); return path !== undefined && present.has(path) }
+    state.conflicts = state.conflicts.filter((c) => live(c.documentId) && live(c.copyId))
+    report.openConflicts = state.conflicts.map((c) => ({ ...c, path: paths.get(c.documentId)!, copy: paths.get(c.copyId)! }))
+  }
+
+  /**
+   * Body of the version both sides of a conflict started from, verified against its hash; null
+   * when the history does not determine one (then only whole-document choices are offered).
+   */
+  async conflictBase(entry: SyncConflictEntry, signal: AbortSignal): Promise<Uint8Array | null> {
+    const history = new SyncHistory(this.provider, this.host.workspaceId, signal)
+    let object = entry.base
+    if (entry.kind === 'merge') {
+      const head = (await this.host.loadState())?.device.commitHash
+      object = head ? await conflictBase(history, head, entry.documentId, entry.copyId) : null
+    }
+    return object ? history.object(object) : null
+  }
+
   /** One full pass. Errors from the network or the log propagate; local write failures are reported. */
   async pass(signal: AbortSignal): Promise<PassReport> {
-    const report: PassReport = { published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [] }
+    const report: PassReport = { published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [], openConflicts: [] }
     const state: EngineState = (await this.host.loadState()) ?? { device: initialDeviceState(this.host.workspaceId, this.host.deviceId), applied: null, deferred: [] }
-    if (state.device.workspaceId !== this.host.workspaceId || state.device.deviceId !== this.host.deviceId) throw new SyncEngineError('identity_mismatch')
+    // State written for another device id: an interrupted rejoin. Rejoining again repairs it.
+    if (state.device.workspaceId !== this.host.workspaceId || state.device.deviceId !== this.host.deviceId) throw new SyncEngineError('state_mismatch')
     const save = async () => this.host.saveState(state)
 
     // 0. A head write whose reply was lost is settled first; it may have advanced the head.
@@ -218,7 +289,7 @@ export class SyncEngine {
       const target = (await this.commit(state.device.commitHash, signal))!
       if (await this.apply(target, await this.commit(state.applied, signal), state, report, signal)) state.applied = state.device.commitHash
       await save()
-      if (state.applied !== state.device.commitHash) { report.commitHash = state.device.commitHash; return report }
+      if (state.applied !== state.device.commitHash) { report.commitHash = state.device.commitHash; await this.trackConflicts(state, report); await save(); return report }
     }
 
     // 2. Deferred remote deletions whose tab has closed, if the file is still unchanged.
@@ -274,6 +345,8 @@ export class SyncEngine {
       if (await this.apply(target, reflected, state, report, signal)) state.applied = result.commitHash
       await save()
     }
+    await this.trackConflicts(state, report)
+    await save()
     return report
   }
 }

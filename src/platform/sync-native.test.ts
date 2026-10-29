@@ -60,7 +60,8 @@ describe('native sync provider adapter', () => {
 
   it('round-trips persisted state and maps errors to actionable messages', async () => {
     const device = { workspaceId, deviceId, sequence: 2, commitHash: `sha256:${'b'.repeat(64)}`, seen: { [other]: 1 } }
-    const state = { device, applied: `sha256:${'b'.repeat(64)}`, deferred: [] }
+    const conflict = { documentId: other, copyId: deviceId, kind: 'local' as const, base: `sha256:${'c'.repeat(64)}` }
+    const state = { device, applied: `sha256:${'b'.repeat(64)}`, deferred: [], conflicts: [conflict] }
     vi.mocked(invoke).mockResolvedValueOnce(undefined)
     await writeSyncState('ws', state)
     const written = (vi.mocked(invoke).mock.lastCall![1] as { bytes: number[] }).bytes
@@ -68,6 +69,12 @@ describe('native sync provider adapter', () => {
     expect([stored.workspaceId, stored.deviceId]).toEqual([workspaceId, deviceId])
     vi.mocked(invoke).mockResolvedValueOnce(written)
     expect(await readSyncState('ws')).toEqual(state)
+    // State written before step 4B has no conflict list; malformed entries are dropped, not trusted.
+    const older = { ...stored }; delete older.conflicts
+    vi.mocked(invoke).mockResolvedValueOnce(Array.from(new TextEncoder().encode(JSON.stringify(older))))
+    expect((await readSyncState('ws'))?.conflicts).toEqual([])
+    vi.mocked(invoke).mockResolvedValueOnce(Array.from(new TextEncoder().encode(JSON.stringify({ ...stored, conflicts: [conflict, { documentId: 1 }, { ...conflict, kind: 'other' }] }))))
+    expect((await readSyncState('ws'))?.conflicts).toEqual([conflict])
     vi.mocked(invoke).mockResolvedValueOnce(Array.from(new TextEncoder().encode(JSON.stringify({ ...stored, deviceId: other }))))
     await expect(readSyncState('ws')).rejects.toThrow('sync_state_invalid')
     vi.mocked(invoke).mockResolvedValueOnce(null)

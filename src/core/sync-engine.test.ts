@@ -3,7 +3,7 @@ import { defaultRecipe, type ImageInstance } from './images'
 import { syncHash } from './sync-contract'
 import { encodeWorkspaceIdentity, type WorkspaceIdentity } from './sync-identity'
 import { MemorySyncProvider } from './sync-memory-provider'
-import { SyncEngine, type EngineState, type LocalScan, type SyncHost } from './sync-engine'
+import { rejoinState, SyncEngine, type EngineState, type LocalScan, type SyncHost } from './sync-engine'
 
 const workspaceId = '1358f0a2-25b8-441b-9d55-379f6ca303dc'
 const enc = (s: string) => new TextEncoder().encode(s)
@@ -25,7 +25,8 @@ class MemoryWorkspace implements SyncHost {
   state: EngineState | null = null
   /** Throws once when the next matching host call happens (crash/interrupt simulation). */
   failOn: { method: string; path?: string } | null = null
-  readonly deviceId = uuid()
+  /** Mutable so a test can rejoin this workspace under a new device id (step 4C). */
+  deviceId = uuid()
   readonly workspaceId = workspaceId
   newId = uuid
 
@@ -195,6 +196,68 @@ describe('conflicts', () => {
     expect(a.files.size).toBe(2)
   })
 
+  it('concurrent edits of different lines merge into one file on both devices, with images from both', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('notes/n.md', '# 标题\n\n正文\n\n结尾\n'); await ea.pass(signal()); await eb.pass(signal())
+    const imgA = a.addImage('notes', 'a', png(1)), imgB = b.addImage('notes', 'b', png(2))
+    a.edit('notes/n.md', `# 新标题\n\n![甲](${imgA})\n\n正文\n\n结尾\n`); b.edit('notes/n.md', `# 标题\n\n正文\n\n结尾\n\n![乙](${imgB})\n`)
+    await ea.pass(signal())
+    const merged = await eb.pass(signal())
+    await ea.pass(signal())
+    const expected = `# 新标题\n\n![甲](${imgA})\n\n正文\n\n结尾\n\n![乙](${imgB})\n`
+    expect(merged.conflicts).toMatchObject([{ reason: 'merged', path: 'notes/n.md', copy: null }])
+    expect(merged.copies).toEqual([])
+    for (const w of [a, b]) {
+      expect(w.view()).toEqual([`notes/n.md=${expected}`])
+      expect(w.assets.get(`notes/${imgA}`)).toEqual(png(1))
+      expect(w.assets.get(`notes/${imgB}`)).toEqual(png(2))
+      expect(w.metadata.get('notes')?.map((i) => i.displayPath).sort()).toEqual([imgA, imgB].sort())
+    }
+  })
+
+  it('a line merge never overwrites an open tab with unsaved edits; the merged version lands as a copy', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('n.md', 'a\nb\nc'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'A\nb\nc'); await ea.pass(signal())
+    b.edit('n.md', 'a\nb\nC'); b.tabs.set('n.md', true)
+    await eb.pass(signal())
+    expect(b.text('n.md')).toBe('a\nb\nC')
+    expect(b.text('n (同步副本).md')).toBe('A\nb\nC')
+  })
+
+  it('a merge conflict copy is listed on both devices with its common version until the copy is trashed', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('n.md', 'base\n'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'from A\n'); b.edit('n.md', 'from B\n')
+    await ea.pass(signal()); await eb.pass(signal())
+    const [ra, rb] = [await ea.pass(signal()), await eb.pass(signal())]
+    for (const report of [ra, rb]) {
+      expect(report.openConflicts).toHaveLength(1)
+      expect(report.openConflicts[0]).toMatchObject({ kind: 'merge', path: 'n.md' })
+      expect(report.openConflicts[0].copy).toMatch(/^n \(冲突 [0-9a-f]{8}\)\.md$/)
+    }
+    expect(dec((await ea.conflictBase(ra.openConflicts[0], signal()))!)).toBe('base\n')
+    expect(dec((await eb.conflictBase(rb.openConflicts[0], signal()))!)).toBe('base\n')
+    // Trashing the copy resolves the conflict here, and the deletion reaches the other device.
+    a.userTrash(ra.openConflicts[0].copy)
+    expect((await ea.pass(signal())).openConflicts).toEqual([])
+    expect((await eb.pass(signal())).openConflicts).toEqual([])
+    expect(b.files.has(rb.openConflicts[0].copy)).toBe(false)
+  })
+
+  it('a local copy written beside unsaved edits is tracked with the version both started from', async () => {
+    const { a, b, ea, eb } = pair()
+    a.edit('n.md', 'base'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'remote edit'); await ea.pass(signal())
+    b.tabs.set('n.md', true)
+    const report = await eb.pass(signal())
+    expect(report.openConflicts).toEqual([expect.objectContaining({ kind: 'local', path: 'n.md', copy: 'n (同步副本).md' })])
+    expect(dec((await eb.conflictBase(report.openConflicts[0], signal()))!)).toBe('base')
+    // The list survives later passes (persisted state) while both files exist.
+    b.tabs.clear()
+    expect((await eb.pass(signal())).openConflicts.map((c) => c.copy)).toEqual(['n (同步副本).md'])
+  })
+
   it('a remote edit never overwrites unsaved editor changes; the remote version lands as a copy', async () => {
     const { a, b, ea, eb } = pair()
     a.edit('n.md', 'base'); await ea.pass(signal()); await eb.pass(signal())
@@ -234,6 +297,71 @@ describe('conflicts', () => {
     a.edit('n.md', 'edited then deleted'); a.userTrash('n.md')
     await ea.pass(signal()); await eb.pass(signal())
     expect(b.text('n.md')).toBeUndefined()
+  })
+})
+
+describe('rejoining after a rollback or a reused device id', () => {
+  const rejoin = async (server: MemorySyncProvider, w: MemoryWorkspace) => {
+    w.deviceId = uuid()
+    w.state = await rejoinState(server, w.state, workspaceId, w.deviceId, signal())
+    return new SyncEngine(server, w)
+  }
+
+  it('after a server rollback the device stops, then rejoins and keeps both versions instead of overwriting', async () => {
+    const { server, a, b, ea, eb } = pair()
+    a.edit('n.md', 'v1'); await ea.pass(signal()); await eb.pass(signal())
+    const backup = new Map([...server.heads].map(([key, value]) => [key, { ...value }]))
+    a.edit('n.md', 'v2 from A'); await ea.pass(signal())
+    // The server is restored from a backup taken before A's last publish.
+    server.heads.clear(); for (const [key, value] of backup) server.heads.set(key, value)
+    await expect(ea.pass(signal())).rejects.toMatchObject({ code: 'rollback' })
+    expect(a.text('n.md')).toBe('v2 from A')
+    const engine = await rejoin(server, a)
+    // A's last commit is gone from every head, so there is no base: nothing may overwrite anything.
+    expect(a.state!.applied).toBeNull()
+    await engine.pass(signal()); await eb.pass(signal()); await engine.pass(signal())
+    const texts = (w: MemoryWorkspace) => w.view().map((line) => line.split('=')[1]).sort()
+    expect(texts(a)).toEqual(['v1', 'v2 from A'])
+    expect(b.view()).toEqual(a.view())
+  })
+
+  it('a cloned installation took over the device id: the original rejoins and its edits merge normally', async () => {
+    const { server, a, b, ea, eb } = pair()
+    a.edit('n.md', 'one\ntwo\nthree\n'); a.edit('m.md', 'm'); await ea.pass(signal()); await eb.pass(signal())
+    // A copy of the whole configuration (same device id and state) publishes first.
+    const clone = new MemoryWorkspace()
+    clone.deviceId = a.deviceId; clone.files = new Map(a.files); clone.identity = structuredClone(a.identity); clone.state = structuredClone(a.state)
+    clone.edit('n.md', 'ONE\ntwo\nthree\n'); await new SyncEngine(server, clone).pass(signal())
+    a.edit('n.md', 'one\ntwo\nTHREE\n')
+    await expect(ea.pass(signal())).rejects.toMatchObject({ code: 'device_conflict' })
+    const engine = await rejoin(server, a)
+    // The commit disk reflected is still in the clone's history, so it stays the base.
+    expect(a.state!.device.base).toBe(a.state!.applied)
+    const report = await engine.pass(signal())
+    expect(report.copies).toEqual([])
+    expect(report.conflicts).toMatchObject([{ reason: 'merged', path: 'n.md' }])
+    expect(a.text('n.md')).toBe('ONE\ntwo\nTHREE\n')
+    await eb.pass(signal())
+    expect(b.view()).toEqual(a.view())
+    // The new device publishes under its own id; the next pass is ordinary.
+    expect(a.state!.device.base).toBeUndefined()
+    expect((await engine.pass(signal())).published).toBe(false)
+  })
+
+  it('rejoining keeps deferred deletions and open conflicts, and an interrupted rejoin is reported', async () => {
+    const { server, a, b, ea, eb } = pair()
+    a.edit('n.md', 'base\n'); await ea.pass(signal()); await eb.pass(signal())
+    a.edit('n.md', 'from A\n'); b.edit('n.md', 'from B\n')
+    await ea.pass(signal()); await eb.pass(signal())
+    const open = (await ea.pass(signal())).openConflicts
+    expect(open).toHaveLength(1)
+    const previous = a.state!
+    // The id changed but the state was not rewritten (crash in between).
+    a.deviceId = uuid()
+    await expect(new SyncEngine(server, a).pass(signal())).rejects.toMatchObject({ code: 'state_mismatch' })
+    a.state = await rejoinState(server, previous, workspaceId, a.deviceId, signal())
+    expect(a.state.conflicts).toEqual(previous.conflicts)
+    expect((await new SyncEngine(server, a).pass(signal())).openConflicts.map((c) => c.copy)).toEqual(open.map((c) => c.copy))
   })
 })
 

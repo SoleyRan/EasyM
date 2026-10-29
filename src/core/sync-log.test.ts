@@ -96,6 +96,38 @@ describe('per-device log convergence', () => {
     expect([...a.docs.values()].some((d) => /^a \(冲突 [0-9a-f]{8}\)\.md$/.test(d.path))).toBe(true)
   })
 
+  it('merges edits of different lines of one document into one version without a copy', async () => {
+    const { list: [a, b] } = await devices(2)
+    a.edit(docId(1), 'a.md', '# 标题\n\n第一段\n\n第二段\n'); await a.sync(); await b.sync()
+    a.edit(docId(1), 'a.md', '# 新标题\n\n第一段\n\n第二段\n'); b.edit(docId(1), 'a.md', '# 标题\n\n第一段\n\n第二段 B\n')
+    await a.sync(); const merged = await b.sync(); await a.sync()
+    expect(merged.conflicts).toEqual([{ documentId: docId(1), reason: 'merged', path: 'a.md', copy: null }])
+    expect(a.view()).toEqual([`${docId(1)} a.md # 新标题\n\n第一段\n\n第二段 B\n`])
+    expect(b.view()).toEqual(a.view())
+    expect(a.state.commitHash).toBe(b.state.commitHash)
+  })
+
+  it('merges a line merge byte-identically on a third device', async () => {
+    const { provider, list: [a, b, c] } = await devices(3)
+    a.edit(docId(1), 'a.md', 'one\ntwo\nthree'); await settle([a, b, c], 1)
+    a.edit(docId(1), 'a.md', 'ONE\ntwo\nthree'); b.edit(docId(1), 'a.md', 'one\ntwo\nTHREE')
+    await a.sync(); await b.sync()
+    const before = provider.objects.size
+    await c.sync()
+    expect(c.state.commitHash).toBe(b.state.commitHash)
+    expect(provider.objects.size).toBe(before)
+    expect(c.texts()).toEqual(['ONE\ntwo\nTHREE'])
+  })
+
+  it('combines a line merge with a rename on one side', async () => {
+    const { list: [a, b] } = await devices(2)
+    a.edit(docId(1), 'old.md', 'a\nb\nc'); await a.sync(); await b.sync()
+    a.edit(docId(1), 'dir/new.md', 'A\nb\nc'); b.edit(docId(1), 'old.md', 'a\nb\nC')
+    await a.sync(); await b.sync(); await a.sync()
+    expect(a.view()).toEqual([`${docId(1)} dir/new.md A\nb\nC`])
+    expect(b.view()).toEqual(a.view())
+  })
+
   it('merges a rename on one device with an edit on the other', async () => {
     const { list: [a, b] } = await devices(2)
     a.edit(docId(1), 'old.md', 'v1'); await a.sync(); await b.sync()

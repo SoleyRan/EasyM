@@ -144,6 +144,13 @@ export class WebDavSyncProvider {
       if (res.status === 201 || res.status === 204) return 'created'
       // Nextcloud answers 423 while another request holds the file lock; retry with backoff.
       if (res.status === 423 && attempt < 8) { await backoff(attempt, signal); continue }
+      // Nextcloud also answers 404 to some racing creates of one path; content addressing makes a
+      // read-back (hash-checked) or a retry safe. Mirrors src-tauri/src/sync_native.rs.
+      if (res.status === 404 && attempt < 8) {
+        const existing = await this.readObject(workspaceId, hash, signal)
+        if (existing && sha(existing) === hash) return 'exists'
+        await backoff(attempt, signal); continue
+      }
       if (res.status !== 412) throw failure(res.status)
       const existing = await this.readObject(workspaceId, hash, signal)
       if (!existing || sha(existing) !== hash) throw new WebDavError('remote_object_corrupt')

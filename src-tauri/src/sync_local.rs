@@ -181,6 +181,61 @@ pub async fn sync_local_trash(workspaces: State<'_, Workspaces>, storage: State<
     }).await.map_err(|_| "io_failed".to_string())?
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ResolveRequest {
+    /// The document that kept its place, and its revision when the user chose.
+    path: String, expected: String,
+    /// The conflict copy, and its revision when the user chose.
+    copy: String, copy_expected: String,
+    /// New body for `path`; None keeps the current body (the copy is simply discarded).
+    bytes: Option<Vec<u8>>,
+    /// Name under which the replaced body is restorable from the trash.
+    snapshot_path: String,
+    save_operation: String, snapshot_operation: String, copy_operation: String,
+}
+
+/// v2 step 4B: resolves a sync conflict. Both earlier versions stay restorable from the in-app
+/// trash: the replaced body as `snapshot_path` (written before the save), the copy as itself.
+/// Images are not moved: the copy lives in the same directory, so anything it references is
+/// already there. Fails without changes when either file changed since the user chose.
+pub(crate) fn resolve(root: &Path, request: ResolveRequest) -> Result<String, String> {
+    if split(&request.path).0 != split(&request.copy).0 || split(&request.path).0 != split(&request.snapshot_path).0 { return Err("invalid_data".into()); }
+    let original = safe_existing(root, &request.path)?; checked_document(&original)?;
+    let copy = safe_existing(root, &request.copy)?; checked_document(&copy)?;
+    if original == copy { return Err("invalid_data".into()); }
+    let current = read_text(&original)?;
+    if transaction::hash(&current) != request.expected || transaction::hash(&read_text(&copy)?) != request.copy_expected { return Err("revision_conflict".into()); }
+    let mut revision = request.expected.clone();
+    if let Some(bytes) = request.bytes.filter(|b| *b != current) {
+        if bytes.len() > MAX_TEXT { return Err("quota_exceeded".into()); }
+        if std::str::from_utf8(&bytes).map_err(|_| "invalid_data")?.contains('\0') { return Err("invalid_data".into()); }
+        if exists_exact(root, &request.snapshot_path)? { return Err("target_exists".into()); }
+        crate::workspace_ops::trash_snapshot(root, &request.snapshot_operation, &request.snapshot_path, &current)?;
+        transaction::save(&original, Some(&request.expected), &bytes, &[], Metadata { schema_version: 1, instances: vec![] }, &request.save_operation)?;
+        revision = transaction::hash(&bytes);
+    }
+    crate::workspace_ops::trash(root, &request.copy_operation, &request.copy, &request.copy_expected)?;
+    Ok(revision)
+}
+fn exists_exact(root: &Path, relative: &str) -> Result<bool, String> {
+    match safe_existing(root, relative) { Ok(_) => Ok(true), Err(e) if e == "resource_missing" => Ok(false), Err(e) => Err(e) }
+}
+
+/// Refuses while the copy is open in a tab, because the copy is trashed (same rule as delete).
+/// The kept document may be open: the frontend refuses when its tab has unsaved edits and reloads
+/// it afterwards, and the revision check catches a write that raced the user's choice.
+#[tauri::command]
+pub async fn sync_local_resolve(workspaces: State<'_, Workspaces>, storage: State<'_, Storage>, id: String, request: ResolveRequest) -> Result<String, String> {
+    let workspaces = workspaces.inner().clone(); let storage = storage.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let sessions = storage.0.lock().map_err(|_| "io_failed")?;
+        let boundary = root(&workspaces, &id)?;
+        if sessions.values().any(|p| safe_existing(&boundary, &request.copy).is_ok_and(|q| q == *p)) { return Err("document_open".into()); }
+        resolve(&boundary, request)
+    }).await.map_err(|_| "io_failed".to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -246,6 +301,69 @@ mod tests {
         ]);
         let open = open_documents(&root, &sessions);
         assert_eq!(open.iter().map(|o| (o.path.as_str(), o.session.as_str())).collect::<Vec<_>>(), vec![("a.md", "s2"), ("notes/中文.md", "s1")]);
+    }
+
+    fn resolve_request(expected: &str, copy_expected: &str, bytes: Option<&[u8]>) -> ResolveRequest {
+        ResolveRequest { path: "notes/a.md".into(), expected: expected.into(), copy: "notes/a (冲突 0123abcd).md".into(), copy_expected: copy_expected.into(), bytes: bytes.map(<[u8]>::to_vec), snapshot_path: "notes/a (解决前).md".into(), save_operation: op(), snapshot_operation: op(), copy_operation: op() }
+    }
+    fn trash_bodies(root: &Path) -> Vec<(String, Vec<u8>)> {
+        let mut items: Vec<_> = crate::workspace_ops::trash_list(root).unwrap().into_iter().map(|item| {
+            let folder = root.join(".easym/trash").join(item["operationId"].as_str().unwrap());
+            (item["path"].as_str().unwrap().to_string(), fs::read(folder.join("document.md")).unwrap())
+        }).collect();
+        items.sort(); items
+    }
+
+    #[test]
+    fn resolving_writes_the_result_and_keeps_both_earlier_versions_in_the_trash() {
+        let (_t, root) = workspace();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::write(root.join("notes/a.md"), "mine").unwrap(); fs::write(root.join("notes/a (冲突 0123abcd).md"), "theirs").unwrap();
+        let (mine, theirs) = (transaction::hash(b"mine"), transaction::hash(b"theirs"));
+        // A stale revision on either side changes nothing.
+        assert_eq!(resolve(&root, resolve_request("sha256:stale", &theirs, Some(b"merged"))).unwrap_err(), "revision_conflict");
+        assert_eq!(resolve(&root, resolve_request(&mine, "sha256:stale", Some(b"merged"))).unwrap_err(), "revision_conflict");
+        assert_eq!(fs::read(root.join("notes/a.md")).unwrap(), b"mine");
+        assert!(trash_bodies(&root).is_empty());
+        assert_eq!(resolve(&root, resolve_request(&mine, &theirs, Some(b"merged"))).unwrap(), transaction::hash(b"merged"));
+        assert_eq!(fs::read(root.join("notes/a.md")).unwrap(), b"merged");
+        assert!(!root.join("notes/a (冲突 0123abcd).md").exists());
+        assert_eq!(trash_bodies(&root), vec![("notes/a (冲突 0123abcd).md".to_string(), b"theirs".to_vec()), ("notes/a (解决前).md".to_string(), b"mine".to_vec())]);
+        // Restoring the snapshot gives an independent document beside the resolved one.
+        let snapshot = crate::workspace_ops::trash_list(&root).unwrap().into_iter().find(|i| i["path"] == "notes/a (解决前).md").unwrap();
+        assert!(snapshot["documentId"].is_null());
+        crate::workspace_ops::restore(&root, snapshot["operationId"].as_str().unwrap()).unwrap();
+        assert_eq!(fs::read(root.join("notes/a (解决前).md")).unwrap(), b"mine");
+    }
+
+    #[test]
+    fn keeping_this_document_only_trashes_the_copy() {
+        let (_t, root) = workspace();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::write(root.join("notes/a.md"), "mine").unwrap(); fs::write(root.join("notes/a (冲突 0123abcd).md"), "theirs").unwrap();
+        let (mine, theirs) = (transaction::hash(b"mine"), transaction::hash(b"theirs"));
+        // Unchanged bytes count as "keep": no snapshot, the body is not rewritten.
+        assert_eq!(resolve(&root, resolve_request(&mine, &theirs, Some(b"mine"))).unwrap(), mine);
+        assert_eq!(fs::read(root.join("notes/a.md")).unwrap(), b"mine");
+        assert_eq!(trash_bodies(&root), vec![("notes/a (冲突 0123abcd).md".to_string(), b"theirs".to_vec())]);
+    }
+
+    #[test]
+    fn resolving_refuses_other_directories_an_existing_snapshot_name_and_invalid_bodies() {
+        let (_t, root) = workspace();
+        fs::create_dir_all(root.join("notes")).unwrap();
+        fs::write(root.join("notes/a.md"), "mine").unwrap(); fs::write(root.join("notes/a (冲突 0123abcd).md"), "theirs").unwrap();
+        let (mine, theirs) = (transaction::hash(b"mine"), transaction::hash(b"theirs"));
+        let mut elsewhere = resolve_request(&mine, &theirs, Some(b"x")); elsewhere.snapshot_path = "a (解决前).md".into();
+        assert_eq!(resolve(&root, elsewhere).unwrap_err(), "invalid_data");
+        let mut same = resolve_request(&mine, &mine, Some(b"x")); same.copy = "notes/a.md".into();
+        assert_eq!(resolve(&root, same).unwrap_err(), "invalid_data");
+        assert_eq!(resolve(&root, resolve_request(&mine, &theirs, Some(&[0xff, 0xfe]))).unwrap_err(), "invalid_data");
+        fs::write(root.join("notes/a (解决前).md"), "older").unwrap();
+        assert_eq!(resolve(&root, resolve_request(&mine, &theirs, Some(b"merged"))).unwrap_err(), "target_exists");
+        assert_eq!(fs::read(root.join("notes/a.md")).unwrap(), b"mine");
+        assert!(root.join("notes/a (冲突 0123abcd).md").exists());
+        assert!(trash_bodies(&root).is_empty());
     }
 
     #[test]

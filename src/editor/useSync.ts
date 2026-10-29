@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import { SyncEngine, type PassReport } from '../core/sync-engine'
+import { decodeFile, type FileSnapshot } from '../core/codec'
+import { rejoinState, SyncEngine, type PassReport, type SyncConflictEntry } from '../core/sync-engine'
 import { SyncController, syncPausedKey, type SyncStatus } from '../platform/sync-controller'
 import { DesktopSyncHost } from '../platform/sync-host'
-import { NativeSyncProvider, syncBinding, syncError, type SyncBinding } from '../platform/sync-native'
+import { NativeSyncProvider, readSyncState, rejoinWorkspace, resolveSyncConflict, syncBinding, syncError, writeSyncState, type SyncBinding } from '../platform/sync-native'
 import { storedPreference, storePreference } from '../platform/preferences'
 import type { DocumentHandle } from './DocumentEditor'
 
@@ -16,6 +17,22 @@ export interface SyncView {
   resume(): void
   /** Re-reads the binding after pairing or exiting sync. */
   refresh(): void
+  /** Both versions of an open conflict and, when the history determines it, their common version. */
+  loadConflict(entry: OpenConflict): Promise<ConflictVersions>
+  /** Writes the chosen body (null keeps this document) and trashes the copy; then syncs again. */
+  resolveConflict(entry: OpenConflict, versions: ConflictVersions, bytes: Uint8Array | null): Promise<void>
+  /** Step 4C: continues under a new device id after a rollback or a reused id; files are kept. */
+  rejoin(): Promise<void>
+}
+export type OpenConflict = SyncConflictEntry & { path: string; copy: string }
+export interface ConflictVersions { base: string | null; mine: FileSnapshot & { revision: string }; theirs: FileSnapshot & { revision: string } }
+
+/** `notes/a.md` → `notes/a (解决前 20261027-2130).md`: a new name for the replaced body in the trash. */
+export function snapshotPath(path: string, now = new Date()): string {
+  const slash = path.lastIndexOf('/'), dir = path.slice(0, slash + 1), name = path.slice(slash + 1)
+  const ext = /\.(?:md|markdown)$/i.exec(name)?.[0] ?? '.md', two = (n: number) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}`
+  return `${dir}${name.slice(0, name.length - ext.length)} (解决前 ${stamp})${ext}`
 }
 
 /** A tab must not be overwritten while it has unsaved edits or an operation in progress. */
@@ -32,6 +49,7 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
   const [report, setReport] = useState<PassReport | null>(null)
   const [revision, setRevision] = useState(0)
   const controller = useRef<SyncController | null>(null)
+  const engineRef = useRef<{ engine: SyncEngine; host: DesktopSyncHost; workspace: string } | null>(null)
   const handlesRef = useRef(handles); handlesRef.current = handles
   const errorRef = useRef(onError); errorRef.current = onError
 
@@ -56,12 +74,56 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
       savePaused: (paused) => { storePreference(syncPausedKey(binding.bindingId), String(paused)) },
     })
     controller.current = instance
+    const current = { engine, host, workspace }
+    engineRef.current = current
     instance.start()
-    return () => { instance.stop(); if (controller.current === instance) controller.current = null }
+    return () => { instance.stop(); if (controller.current === instance) controller.current = null; if (engineRef.current === current) engineRef.current = null }
+  }, [workspace, binding])
+
+  const loadConflict = useCallback(async (entry: OpenConflict): Promise<ConflictVersions> => {
+    const active = engineRef.current
+    if (!active) throw new Error('binding_missing')
+    const read = async (path: string) => { const doc = await active.host.read(path); return { ...decodeFile(doc.bytes), revision: doc.revision } }
+    const [mine, theirs] = [await read(entry.path), await read(entry.copy)]
+    // The common version only enables line-by-line choices; without it whole-document choices remain.
+    const base = await active.engine.conflictBase(entry, AbortSignal.timeout(60_000)).then((bytes) => (bytes ? decodeFile(bytes).text : null)).catch(() => null)
+    return { base, mine, theirs }
+  }, [])
+
+  const resolveConflict = useCallback(async (entry: OpenConflict, versions: ConflictVersions, bytes: Uint8Array | null) => {
+    const active = engineRef.current
+    if (!active) throw new Error('binding_missing')
+    const sessions = await invoke<{ path: string; session: string }[]>('sync_local_open', { id: active.workspace })
+    const session = sessions.find((s) => s.path === entry.path)?.session
+    const tab = session ? handlesRef.current().find((h) => h.summary.fileId === session) : undefined
+    if (tab && blocked(tab)) throw new Error('document_dirty')
+    await resolveSyncConflict(active.workspace, { path: entry.path, expected: versions.mine.revision, copy: entry.copy, copyExpected: versions.theirs.revision, bytes, snapshotPath: snapshotPath(entry.path) })
+    if (tab && bytes) await tab.relocated?.(entry.path).catch(() => undefined)
+    // The next pass publishes the result and the copy's deletion, and drops the entry.
+    controller.current?.request()
+  }, [])
+
+  const rejoin = useCallback(async () => {
+    if (!workspace || !binding) throw new Error('binding_missing')
+    controller.current?.stop()
+    try {
+      // Read before the id changes: the native side refuses state written for another device id.
+      const previous = await readSyncState(workspace).catch(() => null)
+      const next = await rejoinWorkspace(workspace)
+      const state = await rejoinState(new NativeSyncProvider(workspace, next), previous, next.workspaceId, next.deviceId, AbortSignal.timeout(120_000))
+      await writeSyncState(workspace, state)
+      // A new binding object restarts the controller with the new id.
+      setBinding(next)
+    } catch (error) {
+      // Restart with whatever the native side holds now; a half-done rejoin reports state_mismatch
+      // on the next pass, which offers rejoining again.
+      setRevision((value) => value + 1)
+      throw error
+    }
   }, [workspace, binding])
 
   return {
-    binding, status, report,
+    binding, status, report, loadConflict, resolveConflict, rejoin,
     request: useCallback(() => controller.current?.request(), []),
     pause: useCallback(() => controller.current?.pause(), []),
     resume: useCallback(() => controller.current?.resume(), []),

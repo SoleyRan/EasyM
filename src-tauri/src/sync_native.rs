@@ -164,6 +164,18 @@ impl SyncNative {
         if let Err(error) = self.write_registry(&registry) { let _ = forget_password(&binding.binding_id); return Err(error); }
         Ok(binding)
     }
+    /// v2 step 4C: gives the binding a new device id after a rollback or a reused id. The old head
+    /// stays on the server (its commits remain ancestors); the frontend then rewrites the state for
+    /// the new id. Repeating it is harmless: each call just issues another unused id.
+    pub(crate) fn rejoin(&self, id: &str) -> Result<Binding, String> {
+        let _guard = self.lock.lock().map_err(|_| "io_failed")?;
+        let mut registry = self.read_registry()?;
+        let binding = registry.bindings.iter_mut().find(|b| b.binding_id == id).ok_or("binding_missing")?;
+        binding.device_id = uuid::Uuid::new_v4().to_string();
+        let updated = binding.clone();
+        self.write_registry(&registry)?;
+        Ok(updated)
+    }
     /// Removes local binding state and the credential. Remote data and the workspace are untouched.
     pub(crate) fn remove(&self, id: &str) -> Result<(), String> {
         let _guard = self.lock.lock().map_err(|_| "io_failed")?;
@@ -361,6 +373,13 @@ impl Dav {
                 201 | 204 | 200 => return Ok("created"),
                 // Nextcloud: a concurrent upload of the same object holds the file lock.
                 423 if attempt < 7 => { tokio::time::sleep(Duration::from_millis(100 * 2u64.pow(attempt))).await; continue; }
+                // Nextcloud also answers 404 to some racing creates of one path (measured: 7 of 80).
+                // Content addressing makes this safe: if the object is there now its bytes were
+                // just checked against the hash; otherwise retry the create.
+                404 if attempt < 7 => {
+                    if self.read_object(hash).await?.is_some() { return Ok("exists"); }
+                    tokio::time::sleep(Duration::from_millis(100 * 2u64.pow(attempt))).await; continue;
+                }
                 412 => {
                     let existing = self.read_object(hash).await?;
                     return if existing.is_some() { Ok("exists") } else { Err("remote_object_corrupt".into()) };
@@ -494,6 +513,13 @@ pub async fn sync_unbind(native: State<'_, SyncNative>, workspaces: State<'_, Wo
     native.remove(&bound(&native, &workspaces, &id)?.binding_id)
 }
 
+/// Rejoin as a new device (see `SyncNative::rejoin`). Credential, endpoint and cache are kept.
+#[tauri::command]
+pub async fn sync_rejoin(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String) -> Result<BindingView, String> {
+    let binding = bound(&native, &workspaces, &id)?;
+    Ok(BindingView::from(&native.rejoin(&binding.binding_id)?))
+}
+
 #[tauri::command]
 pub async fn sync_state_read(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String) -> Result<Option<Vec<u8>>, String> {
     native.read_state(&bound(&native, &workspaces, &id)?.binding_id)
@@ -603,6 +629,16 @@ mod tests {
         native.write_state(&binding.binding_id, &state).unwrap();
         assert_eq!(native.read_state(&binding.binding_id).unwrap().unwrap(), state);
         assert!(native.write_state(&binding.binding_id, br#"{"workspaceId":"other","deviceId":"x"}"#).is_err());
+        // Rejoin: a fresh device id; credential and binding id stay, old-id state is refused.
+        let rejoined = native.rejoin(&binding.binding_id).unwrap();
+        assert_ne!(rejoined.device_id, binding.device_id);
+        assert_eq!((rejoined.binding_id.as_str(), rejoined.workspace_id.as_str()), (binding.binding_id.as_str(), binding.workspace_id.as_str()));
+        assert_eq!(native.binding_for(&root).unwrap().unwrap(), rejoined);
+        assert_eq!(load_password(&binding.binding_id).unwrap(), "s3cret-password");
+        assert!(native.write_state(&binding.binding_id, &state).is_err());
+        let fresh = serde_json::to_vec(&serde_json::json!({"workspaceId":W,"deviceId":rejoined.device_id,"sequence":0,"commitHash":null,"seen":{}})).unwrap();
+        native.write_state(&binding.binding_id, &fresh).unwrap();
+        assert_eq!(native.rejoin("00000000-0000-4000-8000-000000000000").unwrap_err(), "binding_missing");
         native.remove(&binding.binding_id).unwrap();
         assert!(native.binding_for(&root).unwrap().is_none());
         assert_eq!(load_password(&binding.binding_id).unwrap_err(), "credential_missing");
@@ -646,6 +682,13 @@ mod tests {
                 let bytes = "中文 object".as_bytes().to_vec(); let hash = format!("sha256:{}", sha_hex(&bytes));
                 assert_eq!(dav.create_object(&hash, bytes.clone()).await.unwrap(), "created");
                 assert_eq!(dav.create_object(&hash, bytes.clone()).await.unwrap(), "exists");
+                // Racing creates of one object (several devices uploading the same merged body)
+                // must all end as created/exists; Nextcloud answers some of them 404 or 423.
+                for round in 0..5 {
+                    let racing = format!("racing {round} {}", uuid::Uuid::new_v4()).into_bytes(); let racing_hash = format!("sha256:{}", sha_hex(&racing));
+                    let tasks: Vec<_> = (0..8).map(|_| { let dav = Dav::new(client.clone(), &endpoint, &workspace, user.clone(), password.clone()).unwrap(); let (h, b) = (racing_hash.clone(), racing.clone()); tauri::async_runtime::spawn(async move { dav.create_object(&h, b).await }) }).collect();
+                    for task in tasks { let outcome = task.await.unwrap(); assert!(matches!(outcome, Ok("created" | "exists")), "{endpoint} {outcome:?}"); }
+                }
                 assert_eq!(dav.read_object(&hash).await.unwrap().unwrap(), bytes);
                 assert!(dav.read_object(&format!("sha256:{}", "0".repeat(64))).await.unwrap().is_none());
                 let head = format!(r#"{{"schemaVersion":1,"workspaceId":"{workspace}","deviceId":"{device}","sequence":1,"commitHash":"{hash}"}}"#).into_bytes();
