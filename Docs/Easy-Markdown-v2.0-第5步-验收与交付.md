@@ -157,3 +157,73 @@ Nextcloud，300 个文档（[优化前](verification/v2.0/step-5/scale-nextcloud
 - 进度只在单元测试里验证了计数。浏览器检查的同步太快，看不到中间状态，没有断言“上传 12/40”这类文字真的出现过。
 - 测量都在回环 HTTP 上，没有真实网络延迟；远程服务器上每个请求会更慢，首次上传和新设备恢复的耗时会成倍增加。
 - Nextcloud 2,000 个文档的首次上传和新设备恢复只有估算。
+
+## 5C：Web/PWA 可行性切片
+
+只做验证并给出结论，不实现 Web 版。
+
+### 测了什么
+
+[`verify-web-cors.mjs`](../scripts/verify-web-cors.mjs) 在真实 Chromium 和 WebKit 里，从一个独立来源的页面向两台服务器发出同步需要的全部请求类型：PROPFIND、MKCOL、带 `If-None-Match: *` 的 PUT、GET、带 `If-Match` 的 PUT、DELETE。凭据是正确的。分三种方式：
+
+- 直连：Web 版部署在自己的域名下，直接访问用户的 WebDAV 服务器。这是用户实际会遇到的情况。
+- 加 CORS 头的代理：只给响应加上 CORS 头，其他不变。代表服务器端配置了 CORS。
+- 同源反向代理：Web 版和 WebDAV 在同一个来源下，不需要 CORS。代表自建部署。
+
+同时记录浏览器是否提供 Web 版所需的本地能力。
+
+### 结果
+
+| 服务器 | 浏览器 | 直连 | 加 CORS 头 | 同源反向代理 |
+| --- | --- | --- | --- | --- |
+| Apache 2.4.69 | Chromium、WebKit | 全部被拦截 | 全部成功 | 全部成功 |
+| Nextcloud 31.0.14 | Chromium、WebKit | 全部被拦截 | 全部成功 | 全部成功 |
+
+证据：[web-cors.json](verification/v2.0/step-5/web-cors.json)（SHA256 `53bd8574…5e6b`），不含密码、用户名或服务器路径。
+
+细节：
+
+- 直连被拦截在预检请求：两台服务器都不返回 `Access-Control-Allow-Origin`。浏览器的预检 OPTIONS 不带凭据，而两台服务器都要求认证，用 curl 实测都回 401。所以只在服务器上加 CORS 响应头还不够，还要让未认证的 OPTIONS 通过。Apache 能否靠 mod_headers 加认证例外做到、Nextcloud 能否通过设置或插件开放，本步都没有验证；无论哪种，都要求用户自己改服务器配置。
+- 协议本身在浏览器里可用：CORS 允许后，所有请求类型的结果和原生客户端一致。Apache 刚写入的文件只给弱 ETag（`W/"…"`），带它的 `If-Match` 返回 412，和第 1 步结论相同，核心已经按单写者规则处理；Nextcloud 给强 ETag，`If-Match` 成功。ETag 和 Last-Modified 需要服务器在 `Access-Control-Expose-Headers` 里列出，页面才能读到。
+- 直接打开 Nextcloud 的 WebDAV 地址再在同一页面发请求不算同源部署：那个 401 页面带 `Content-Security-Policy: default-src 'none'`，会拦截页面里的所有请求。同源测试因此用的是反向代理提供的独立页面。
+- 浏览器能力（回环地址算安全上下文；实际部署必须是 HTTPS）：
+
+| 能力 | Chromium | WebKit（Safari） |
+| --- | --- | --- |
+| 选择本地文件夹（File System Access） | 有 | 没有 |
+| 浏览器私有文件系统（OPFS） | 有 | 有 |
+| Service Worker（离线） | 有 | 有 |
+| 持久存储、Web Crypto | 有 | 有 |
+
+### 结论：Web/PWA 延期到 2.x
+
+同步协议和核心代码在浏览器里都能用，卡在部署方式上：
+
+- 最常见的用法，Web 版直连用户自己的 WebDAV 服务器，在两台测试服务器上默认都被浏览器拦截。让它可用需要用户改服务器配置，大多数用户做不到。
+- 由 EasyM 运营一个中转服务能绕过 CORS，但密码和全部文档都要经过第三方，违背 RFC 的隐私边界（凭据只在本机、无第三方）。不采用。
+- 同源部署可用，但只适合自建：Web 版和 WebDAV 放在同一个域名下，或放在同一个反向代理后面。这需要单独的打包、部署文档和 HTTPS 配置。
+- 本地文件：Safari 不能选择本地文件夹，文档只能存在浏览器私有存储里，不再是用户能直接看到的普通 Markdown 文件。这改变了“本地优先、普通文件”的承诺，需要单独设计，例如导入导出。
+
+所以 2.0 不做 Web 版。2.x 重新评估的前提：
+
+- 明确目标用户是自建部署（同源可用），或者有主流 WebDAV 服务默认开放 CORS 的实测证据。
+- 确定 Safari 上的存储方案，以及它对“普通文件”承诺的影响。
+
+移动端按维护者决定延期到 2.x，本步没有做切片。
+
+### 5C 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `verify-web-cors.mjs`（Chromium、WebKit，Apache、Nextcloud） | 12 组组合全部按上表结果复现：直连全部被拦截，加 CORS 头和同源反向代理全部成功 |
+| curl 预检（OPTIONS，不带凭据） | Apache、Nextcloud 都返回 401，没有 CORS 头 |
+
+### 5C 未验证
+
+- 没有测真实部署的 HTTPS 域名，也没有测公网上的 Nextcloud 托管服务、坚果云等常见 WebDAV 服务；结论只覆盖两台测试服务器的默认配置。
+- 没有测 Firefox。
+- 没有验证服务器端开放 CORS 的具体配置方法。
+
+## 第 5 步交接
+
+第 5 步完成：设备管理与同步设置（5A）、大工作区性能、进度、空间与诊断（5B）、Web/PWA 可行性结论（5C，延期）。合并 main 后进入第 6 步：Beta 与发布（升级和回退说明，其中要写明第 4 步及更早构建不认识停用记录；三平台 GUI、输入法、凭据实机验收；长时间离线试用；依赖许可和安装包验证）。
