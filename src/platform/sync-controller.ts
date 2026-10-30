@@ -1,4 +1,5 @@
 import type { PassReport } from '../core/sync-engine'
+import type { SyncProgress } from '../core/sync-log'
 import { classifySyncError, retryDelay, SYNC_INTERVAL } from '../core/sync-schedule'
 
 /**
@@ -9,13 +10,14 @@ import { classifySyncError, retryDelay, SYNC_INTERVAL } from '../core/sync-sched
  */
 export type SyncStatus =
   | { kind: 'idle'; lastSync: number | null; report: PassReport | null }
-  | { kind: 'syncing' }
+  /** Step 5B: `progress` is what the pass is doing now, when the pass reports it. */
+  | { kind: 'syncing'; progress?: SyncProgress }
   | { kind: 'retrying'; code: string; at: number; attempt: number }
   /** `code` null: paused by the user (persisted). Otherwise paused by an error needing action. */
   | { kind: 'paused'; code: string | null }
 
 export interface SyncControllerDeps {
-  pass(signal: AbortSignal): Promise<PassReport>
+  pass(signal: AbortSignal, progress: (event: SyncProgress) => void): Promise<PassReport>
   onStatus(status: SyncStatus): void
   onReport(report: PassReport): void
   /** User pause flag, persisted per binding. */
@@ -107,7 +109,8 @@ export class SyncController {
     this.done = new Promise((resolve) => { finished = resolve })
     this.set({ kind: 'syncing' })
     try {
-      const report = await this.deps.pass(controller.signal)
+      // Progress of a pass that was stopped or paused meanwhile must not overwrite that status.
+      const report = await this.deps.pass(controller.signal, (progress) => { if (this.running === controller && this.current.kind === 'syncing') this.set({ kind: 'syncing', progress }) })
       this.attempt = 0
       this.deps.onReport(report)
       this.set({ kind: 'idle', lastSync: this.now(), report })

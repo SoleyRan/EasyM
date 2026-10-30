@@ -300,6 +300,24 @@ describe('conflicts', () => {
   })
 })
 
+describe('pass progress (step 5B)', () => {
+  it('reports the scan, then upload and download counts that end at their totals', async () => {
+    const { a, ea, eb } = pair()
+    a.edit('one.md', '1'); a.edit('two.md', '2')
+    const up: string[] = []
+    await ea.pass(signal(), (p) => up.push(p.phase === 'scan' ? 'scan' : `${p.phase} ${p.done}/${p.total}`))
+    expect(up[0]).toBe('scan')
+    expect(up.at(-1)).toMatch(/^upload (\d+)\/\1$/)
+    const down: string[] = []
+    await eb.pass(signal(), (p) => down.push(p.phase === 'scan' ? 'scan' : `${p.phase} ${p.done}/${p.total}`))
+    expect(down).toEqual(['scan', 'download 0/2', 'download 1/2', 'download 2/2'])
+    // An idle pass reports only the scan.
+    const idle: string[] = []
+    await eb.pass(signal(), (p) => idle.push(p.phase))
+    expect(idle).toEqual(['scan'])
+  })
+})
+
 describe('rejoining after a rollback or a reused device id', () => {
   const rejoin = async (server: MemorySyncProvider, w: MemoryWorkspace) => {
     w.deviceId = uuid()

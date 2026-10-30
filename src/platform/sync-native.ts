@@ -18,6 +18,9 @@ export const probeEndpoint = (endpoint: string, username: string, password: stri
 export const bindWorkspace = (workspace: string, endpoint: string, username: string, password: string) => invoke<SyncBinding>('sync_bind', { id: workspace, endpoint, username, password })
 /** Exit sync: removes binding, credential, state and cache. Workspace and remote are kept. */
 export const unbindWorkspace = (workspace: string) => invoke<void>('sync_unbind', { id: workspace })
+/** Step 5B: server space as reported (RFC 4331); null fields are unknown, never guessed. */
+export interface SyncQuota { available: number | null; used: number | null }
+export const readQuota = (workspace: string) => invoke<SyncQuota>('sync_quota', { id: workspace })
 /** Step 4C: the same binding under a new device id (credential and endpoint kept). */
 export const rejoinWorkspace = (workspace: string) => invoke<SyncBinding>('sync_rejoin', { id: workspace })
 

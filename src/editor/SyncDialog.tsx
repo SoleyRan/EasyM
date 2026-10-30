@@ -12,7 +12,12 @@ import type { SyncStatus } from '../platform/sync-controller'
 
 export function statusText(status: SyncStatus | null): string {
   if (!status) return '未连接'
-  if (status.kind === 'syncing') return '同步中…'
+  if (status.kind === 'syncing') {
+    const p = status.progress
+    if (!p) return '同步中…'
+    if (p.phase === 'scan') return '同步中：检查本机文件…'
+    return `同步中：${p.phase === 'upload' ? '上传' : '下载'} ${p.done}/${p.total}`
+  }
   if (status.kind === 'retrying') return `连接暂时失败，${Math.max(1, Math.round((status.at - Date.now()) / 1000))} 秒后重试`
   if (status.kind === 'paused') return status.code ? `已暂停：${syncError(status.code)}` : '已暂停'
   return status.lastSync ? `已同步 · ${new Date(status.lastSync).toLocaleTimeString()}` : '等待同步'
@@ -72,6 +77,7 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
     </select></label>
     {sync.interval === null && <p className="panel-note">仅手动同步：保存文档后不会自动上传，请点“立即同步”。</p>}
     <Devices sync={sync} busy={busy} task={task} setMessage={setMessage} />
+    <Support sync={sync} busy={busy} task={task} setMessage={setMessage} />
     <div className="dialog-actions">
       <button disabled={busy || paused || sync.status?.kind === 'syncing'} onClick={() => sync.request()}>立即同步</button>
       {paused ? <button disabled={busy} onClick={() => sync.resume()}>继续同步</button> : <button disabled={busy} onClick={() => sync.pause()}>暂停</button>}
@@ -83,6 +89,40 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
   </section>
 }
 const PLATFORM_NAMES = { windows: 'Windows', macos: 'macOS', linux: 'Linux', other: '其他' } as const
+
+export function formatBytes(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes, unit = 0
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++ }
+  return `${unit ? value.toFixed(1) : value} ${units[unit]}`
+}
+/** Below this much free space the dialog warns before uploads start failing. */
+const LOW_SPACE = 100 * 1024 * 1024
+
+/**
+ * v2 step 5B: server space (only what the server reports) and a redacted diagnostics report.
+ * Both are read on demand; quota is never part of a pass.
+ */
+function Support({ sync, busy, task, setMessage }: Omit<PartProps, 'workspace'>) {
+  const [space, setSpace] = useState<{ available: number | null; used: number | null } | null>(null)
+  const [report, setReport] = useState('')
+  return <section aria-label="空间与诊断">
+    <h3>空间与诊断</h3>
+    {space && <p role="status">{space.used === null && space.available === null ? '服务器没有报告空间使用情况。'
+      : [space.used !== null && `已用 ${formatBytes(space.used)}`, space.available !== null && `剩余 ${formatBytes(space.available)}`].filter(Boolean).join('，') + (space.available === null ? '（服务器未报告剩余空间）' : '')}</p>}
+    {space?.available != null && space.available < LOW_SPACE && <p role="alert">服务器剩余空间不足 {formatBytes(LOW_SPACE)}，上传可能失败；本机编辑不受影响。</p>}
+    {report && <label>诊断信息（只含错误码、数量和简短 ID，不含文档、地址或密码）<textarea readOnly aria-label="诊断信息" value={report} /></label>}
+    <div className="dialog-actions">
+      <button disabled={busy} onClick={() => void task(async () => setSpace(await sync.quota()))}>查看服务器空间</button>
+      <button disabled={busy} onClick={() => void task(async () => {
+        const text = await sync.diagnostics()
+        setReport(text)
+        const copied = await navigator.clipboard?.writeText(text).then(() => true, () => false)
+        setMessage(copied ? '已复制诊断信息。' : '诊断信息已显示，可手动复制。')
+      })}>复制诊断信息</button>
+    </div>
+  </section>
+}
 
 /**
  * v2 step 5A: devices on the server. The list is loaded on demand (one request per device), so

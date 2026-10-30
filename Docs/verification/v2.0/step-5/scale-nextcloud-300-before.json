@@ -1,0 +1,51 @@
+{
+  "measuredAt": "2026-10-30T09:29:00.499Z",
+  "node": "v24.20.0",
+  "target": "nextcloud",
+  "documents": 300,
+  "scope": "Loopback HTTP, real engine, directory host, native-like object cache. Not a GUI or native-command measurement.",
+  "phases": {
+    "first_publish": {
+      "ms": 34283,
+      "requests": 303,
+      "scans": 1,
+      "scanMs": 596,
+      "reads": 300
+    },
+    "idle_pass": {
+      "ms": 629,
+      "requests": 2,
+      "scans": 1,
+      "scanMs": 258,
+      "reads": 0
+    },
+    "fresh_restore": {
+      "ms": 70715,
+      "requests": 304,
+      "scans": 1,
+      "scanMs": 1,
+      "reads": 0
+    },
+    "idle_pass_restored": {
+      "ms": 1492,
+      "requests": 3,
+      "scans": 1,
+      "scanMs": 525,
+      "reads": 0
+    },
+    "one_edit_publish": {
+      "ms": 2531,
+      "requests": 6,
+      "scans": 1,
+      "scanMs": 448,
+      "reads": 1
+    },
+    "one_edit_receive": {
+      "ms": 2435,
+      "requests": 6,
+      "scans": 1,
+      "scanMs": 473,
+      "reads": 0
+    }
+  }
+}

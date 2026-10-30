@@ -281,11 +281,15 @@ function resolvePathCollisions(out: Snapshot, conflicts: SyncConflict[]) {
     conflicts.push({ documentId: entry.documentId, reason: 'path_collision', path: entry.path, copy: path })
   }
 }
+/** Step 5B: what a pass is doing, for the sync status. Counts are objects or documents. */
+export type SyncProgress = { phase: 'scan' } | { phase: 'upload' | 'download'; done: number; total: number }
+
 export interface SyncPassInput {
   /** A new local commit whose only parent is `state.commitHash` (none on the first publish). */
   change?: { commit: SyncCommit; uploads: SyncUpload[] }
   /** Persists local state; called before the head request so a crash or lost reply is recoverable. */
   persist: (state: SyncDeviceState) => Promise<void>
+  progress?: (event: SyncProgress) => void
 }
 export interface SyncPassResult {
   state: SyncDeviceState
@@ -341,7 +345,7 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
     }
     // Unchanged documents reuse the parent's objects; they were uploaded before it was published.
     for (const hash of commit.parents) for (const object of commitObjects(await history.get(hash))) existing.add(object)
-    candidates.push(await uploadSyncCommit(provider, commit, uploads, existing, signal))
+    candidates.push(await uploadSyncCommit(provider, commit, uploads, existing, signal, (done, total) => input.progress?.({ phase: 'upload', done, total })))
     for (const object of commitObjects(commit)) existing.add(object)
   }
   const { tip, conflicts } = await converge(provider, history, candidates, existing, signal)

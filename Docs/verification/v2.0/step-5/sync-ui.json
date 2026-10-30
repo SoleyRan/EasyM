@@ -1,5 +1,5 @@
 {
-  "verifiedAt": "2026-10-30T02:14:29.480Z",
+  "verifiedAt": "2026-10-30T10:01:57.311Z",
   "passed": true,
   "checks": [
     "wrong credentials are reported and nothing is bound",
@@ -17,6 +17,8 @@
     "sync frequency (including manual only) is saved per binding",
     "the device list shows this device and others; renaming publishes the new name",
     "deactivating another device retires it on the next pass and keeps every file",
+    "server space shows used/available as reported, unknown values as unknown, and warns when low",
+    "the diagnostics report contains codes, counts and short ids only; no endpoint, user, password or document names",
     "exit sync removes the binding after confirmation and keeps workspace files"
   ],
   "scope": "Production UI with deterministic IPC; real servers are covered by verify-sync-e2e.",

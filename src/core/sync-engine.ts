@@ -1,7 +1,7 @@
-import { readSyncCommit, type SyncCommit, type SyncDocumentEntry } from './sync-commit'
+import { encodeSyncCommit, readSyncCommit, type SyncCommit, type SyncDocumentEntry } from './sync-commit'
 import { syncHash, type SyncProvider } from './sync-contract'
 import type { WorkspaceIdentity } from './sync-identity'
-import { conflictBase, initialDeviceState, mergeConflictCopies, runSyncPass, settleSyncPending, SyncHistory, type SyncConflict, type SyncDeviceState } from './sync-log'
+import { conflictBase, initialDeviceState, mergeConflictCopies, runSyncPass, settleSyncPending, SyncHistory, type SyncConflict, type SyncDeviceState, type SyncProgress } from './sync-log'
 import { localChange, planApply, type ApplyOp, type LocalDocument } from './sync-snapshot'
 import type { ImageInstance } from './images'
 
@@ -149,6 +149,8 @@ export async function rejoinState(provider: SyncProvider, previous: EngineState 
 }
 
 export class SyncEngine {
+  /** Step 5B: progress of the pass in flight, for the sync status; set per pass. */
+  private progress?: (event: SyncProgress) => void
   constructor(private readonly provider: SyncProvider, private readonly host: SyncHost) {}
 
   private async commit(hash: string | null, signal: AbortSignal): Promise<SyncCommit | null> {
@@ -159,8 +161,11 @@ export class SyncEngine {
    * Lands `target` on disk relative to `base`. Returns false when anything failed, so the caller
    * keeps the previous `applied` commit and retries next pass.
    */
-  private async apply(target: SyncCommit, base: SyncCommit | null, state: EngineState, report: PassReport, signal: AbortSignal): Promise<boolean> {
-    const scan = await this.host.scan()
+  private async apply(target: SyncCommit, base: SyncCommit | null, state: EngineState, report: PassReport, signal: AbortSignal, prescanned?: LocalScan): Promise<boolean> {
+    // Step 5B: a pass may hand over the scan its local change was built from. Every write, move and
+    // trash below is conditional on the revision seen here, so a file edited since then makes that
+    // operation fail (reported, retried next pass) instead of being overwritten.
+    const scan = prescanned ?? await this.host.scan()
     const identity = scan.identity
     if (!identity) throw new SyncEngineError('identity_missing')
     const { open, dirty } = await this.host.open()
@@ -206,7 +211,25 @@ export class SyncEngine {
     let lateRegistered = !creates.some(waits)
 
     let ok = true
-    for (const op of plan.ops) {
+    // Step 5B: download progress counts the documents this apply writes.
+    const writes = plan.ops.filter((op) => op.kind === 'write').length
+    let written = 0
+    if (writes) this.progress?.({ phase: 'download', done: 0, total: writes })
+    // Step 5B: a fresh device downloaded one document at a time (~230 ms each on Nextcloud). The
+    // next write's objects are fetched while the current one is written: at most two documents in
+    // memory, writes still strictly in plan order. Objects are immutable and verified, so fetching
+    // early cannot see a partial state; a failed fetch fails only that document, as before.
+    const ops = plan.ops
+    const fetched = new Map<number, ReturnType<SyncEngine['materialize']>>()
+    const fetch = (index: number) => {
+      const op = ops[index]
+      if (op?.kind !== 'write' || fetched.has(index)) return
+      const pending = this.materialize(op.entry, signal)
+      pending.catch(() => undefined) // awaited (and reported) when its write comes up
+      fetched.set(index, pending)
+    }
+    const nextWrite = (after: number) => { for (let i = after + 1; i < ops.length; i++) if (ops[i].kind === 'write') return i; return -1 }
+    for (const [index, op] of ops.entries()) {
       signal.throwIfAborted()
       if (!lateRegistered && op.kind === 'write') {
         // Every trash and move ran first (planApply orders them), so the paths are free now.
@@ -224,8 +247,14 @@ export class SyncEngine {
           await this.host.move({ operationId, from: op.from, to: op.to, expected: op.expected, references: op.references })
           report.changed.push({ from: op.from, to: op.to })
         } else {
-          const { bytes, assets, instances } = await this.materialize(op.entry, signal)
+          fetch(index)
+          const following = nextWrite(index)
+          if (following >= 0) fetch(following)
+          const materialized = fetched.get(index)!
+          fetched.delete(index)
+          const { bytes, assets, instances } = await materialized
           await this.host.write({ operationId, path: op.path, expected: op.expected, bytes, assets, instances })
+          this.progress?.({ phase: 'download', done: ++written, total: writes })
           if (op.expected === null) report.downloaded++
           else report.changed.push({ from: op.path, to: op.path })
         }
@@ -283,7 +312,9 @@ export class SyncEngine {
   }
 
   /** One full pass. Errors from the network or the log propagate; local write failures are reported. */
-  async pass(signal: AbortSignal): Promise<PassReport> {
+  async pass(signal: AbortSignal, progress?: (event: SyncProgress) => void): Promise<PassReport> {
+    this.progress = progress
+    progress?.({ phase: 'scan' })
     const report: PassReport = { published: false, commitHash: null, downloaded: 0, conflicts: [], copies: [], keptDeletes: [], restored: [], deferred: [], skipped: [], failed: [], changed: [], openConflicts: [] }
     const state: EngineState = (await this.host.loadState()) ?? { device: initialDeviceState(this.host.workspaceId, this.host.deviceId), applied: null, deferred: [] }
     // State written for another device id: an interrupted rejoin. Rejoining again repairs it.
@@ -301,20 +332,26 @@ export class SyncEngine {
       if (state.applied !== state.device.commitHash) { report.commitHash = state.device.commitHash; await this.trackConflicts(state, report); await save(); return report }
     }
 
-    // 2. Deferred remote deletions whose tab has closed, if the file is still unchanged.
-    const { open } = await this.host.open()
+    // One scan serves steps 2–5 (step 5B: scanning reads and hashes every document, which dominated
+    // pass time in large workspaces). It is repeated only when this pass itself changed the disk.
     let scan = await this.host.scan()
-    for (const item of [...state.deferred]) {
-      if (open.has(item.path)) continue
-      const current = scan.documents.find((d) => d.path === item.path)
-      try { if (current?.revision === item.revision) await this.host.trash({ operationId: this.host.newId(), path: item.path, expected: item.revision }) }
-      catch (error) { report.failed.push({ path: item.path, error: errorCode(error) }); continue }
-      state.deferred = state.deferred.filter((d) => d !== item)
+
+    // 2. Deferred remote deletions whose tab has closed, if the file is still unchanged.
+    if (state.deferred.length) {
+      const { open } = await this.host.open()
+      let trashed = false
+      for (const item of [...state.deferred]) {
+        if (open.has(item.path)) continue
+        const current = scan.documents.find((d) => d.path === item.path)
+        try { if (current?.revision === item.revision) { await this.host.trash({ operationId: this.host.newId(), path: item.path, expected: item.revision }); trashed = true } }
+        catch (error) { report.failed.push({ path: item.path, error: errorCode(error) }); continue }
+        state.deferred = state.deferred.filter((d) => d !== item)
+      }
+      await save()
+      if (trashed) scan = await this.host.scan()
     }
-    await save()
 
     // 3. Unambiguous new documents get an identity.
-    scan = await this.host.scan()
     if (!scan.identity) throw new SyncEngineError('identity_missing')
     if (scan.identity.workspaceId !== this.host.workspaceId) throw new SyncEngineError('identity_mismatch')
     const adopted = adoptNewDocuments(scan.identity, scan, () => this.host.newId())
@@ -343,15 +380,21 @@ export class SyncEngine {
     report.skipped.push(...change.skipped)
 
     // 5. Publish and converge, then land the result.
-    const result = await runSyncPass(this.provider, state.device, { change: change.commit ? { commit: change.commit, uploads: change.uploads } : undefined, persist: async (device) => { state.device = device; await save() } }, signal)
+    const result = await runSyncPass(this.provider, state.device, { change: change.commit ? { commit: change.commit, uploads: change.uploads } : undefined, persist: async (device) => { state.device = device; await save() }, progress: this.progress }, signal)
     state.device = result.state
     report.published = result.published; report.commitHash = result.commitHash; report.conflicts.push(...result.conflicts)
     await save()
     if (result.commitHash && result.commitHash !== state.applied) {
-      const target = (await this.commit(result.commitHash, signal))!
-      // The local commit (if any) is what disk reflects now; otherwise the applied snapshot.
-      const reflected = change.commit ?? base
-      if (await this.apply(target, reflected, state, report, signal)) state.applied = result.commitHash
+      // Only this device's own commit was published: disk already reflects it, nothing to apply.
+      const own = change.commit ? await syncHash(encodeSyncCommit(change.commit)) : null
+      if (result.commitHash === own) state.applied = result.commitHash
+      else {
+        const target = (await this.commit(result.commitHash, signal))!
+        // The local commit (if any) is what disk reflects now; otherwise the applied snapshot.
+        // Either way it was built from `scan`, so the apply plans against the same view of disk.
+        const reflected = change.commit ?? base
+        if (await this.apply(target, reflected, state, report, signal, scan)) state.applied = result.commitHash
+      }
       await save()
     }
     await this.trackConflicts(state, report)

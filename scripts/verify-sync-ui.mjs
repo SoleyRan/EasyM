@@ -72,6 +72,8 @@ function installMock(fx) {
     if (command === 'sync_heads') return [...remote.heads].map(([deviceId, h]) => ({ deviceId, bytes: h.bytes, revision: h.revision, modified: 'Tue, 28 Oct 2026 08:30:00 GMT' }))
     // Step 5A: retirement records and device info, with the native rules (create-only record,
     // conditional head delete, own-device info only).
+    // Step 5B: like Nextcloud, used space only; the test can set `remote.quota` to other answers.
+    if (command === 'sync_quota') return remote.quota ?? { available: null, used: 460 }
     if (command === 'sync_retired') return [...remote.retired.keys()].sort()
     if (command === 'sync_retire') {
       if (args.device === window.bound.deviceId) throw 'permission_denied'
@@ -294,6 +296,32 @@ try {
   await devicesRegion.getByText(`未命名设备 ${fixture.DEVICE.slice(0, 8)}`).waitFor({ state: 'detached' })
   assert.equal(await page.evaluate(() => JSON.stringify([...window.local.files].sort())), filesBeforeRollback)
   report.checks.push('deactivating another device retires it on the next pass and keeps every file')
+
+  // Step 5B: server space shows only what the server reports, and warns when it runs low.
+  const support = dialog.getByRole('region', { name: '空间与诊断' })
+  await support.getByRole('button', { name: '查看服务器空间', exact: true }).click()
+  await support.getByRole('status').filter({ hasText: '已用 460 B（服务器未报告剩余空间）' }).waitFor()
+  assert.equal(await support.getByRole('alert').count(), 0)
+  await page.evaluate(() => { window.remote.quota = { available: 50 * 1024 * 1024, used: 2 * 1024 * 1024 * 1024 } })
+  await support.getByRole('button', { name: '查看服务器空间', exact: true }).click()
+  await support.getByRole('status').filter({ hasText: '已用 2.0 GB，剩余 50.0 MB' }).waitFor()
+  await support.getByRole('alert').filter({ hasText: '上传可能失败' }).waitFor()
+  await page.evaluate(() => { window.remote.quota = { available: null, used: null } })
+  await support.getByRole('button', { name: '查看服务器空间', exact: true }).click()
+  await support.getByText('服务器没有报告空间使用情况。').waitFor()
+  report.checks.push('server space shows used/available as reported, unknown values as unknown, and warns when low')
+
+  // The diagnostics report has codes, counts and short ids, never the endpoint, user or password.
+  await support.getByRole('button', { name: '复制诊断信息', exact: true }).click()
+  const diagnostics = support.getByLabel('诊断信息')
+  await diagnostics.waitFor()
+  const text = await diagnostics.inputValue()
+  const value = JSON.parse(text)
+  assert.equal(value.schema, 'easym-sync-diagnostics/1')
+  assert.equal(value.connection.endpoint, 'https')
+  assert.equal(value.devices, 1)
+  for (const secret of ['dav.example.test', fixture.PASSWORD, '"u"', 'a.md', 'n.md', fixture.REMOTE]) assert.ok(!text.includes(secret), secret)
+  report.checks.push('the diagnostics report contains codes, counts and short ids only; no endpoint, user, password or document names')
 
   const filesBeforeExit = await page.evaluate(() => window.local.files.size)
   page.once('dialog', (d) => d.accept())

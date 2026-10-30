@@ -31,13 +31,37 @@ pub(crate) fn revisions(root: &Path) -> Result<LocalScan, String> {
     if !scan.unreadable().is_empty() { return Err("scan_incomplete".into()); }
     if let Some(error) = scan.identity_error() { return Err(error.to_string()); }
     let mut documents = Vec::new();
+    let mut checked = std::collections::HashMap::new();
     for (path, history_id, history_unreadable) in scan.entries() {
-        let file = safe_existing(root, &path)?;
-        checked_document(&file)?;
+        let file = scanned_file(root, &mut checked, &path)?;
         let bytes = read_text(&file)?;
         documents.push(Revision { revision: transaction::hash(&bytes), bytes: bytes.len() as u64, path, history_id, history_unreadable });
     }
     Ok(LocalScan { identity: scan.identity_bytes(), documents })
+}
+
+/// Step 5B: `safe_existing` + `checked_document` per file canonicalized every path component of
+/// every document (seconds for 2,000 files on Windows). Each directory is now checked once per
+/// scan, and each file with one metadata call: a regular file, not a symlink or reparse point,
+/// inside a checked directory — the same guarantee as before.
+fn scanned_file(root: &Path, checked: &mut std::collections::HashMap<String, std::path::PathBuf>, path: &str) -> Result<std::path::PathBuf, String> {
+    let (directory, name) = split(path);
+    if name.is_empty() || name == "." || name == ".." || name.contains('\\') { return Err("invalid_data".into()); }
+    let parent = match checked.get(directory) {
+        Some(parent) => parent.clone(),
+        None => {
+            let parent = if directory.is_empty() { root.to_path_buf() } else { safe_existing(root, directory)? };
+            checked_document(&parent)?;
+            checked.insert(directory.to_string(), parent.clone());
+            parent
+        }
+    };
+    let file = parent.join(name);
+    let info = fs::symlink_metadata(&file).map_err(|_| "resource_missing")?;
+    if info.file_type().is_symlink() || !info.is_file() { return Err("permission_denied".into()); }
+    #[cfg(windows)]
+    { use std::os::windows::fs::MetadataExt; if info.file_attributes() & 0x400 != 0 { return Err("permission_denied".into()); } }
+    Ok(file)
 }
 
 fn split(relative: &str) -> (&str, &str) { relative.rsplit_once('/').unwrap_or(("", relative)) }
@@ -364,6 +388,51 @@ mod tests {
         assert_eq!(fs::read(root.join("notes/a.md")).unwrap(), b"mine");
         assert!(root.join("notes/a (冲突 0123abcd).md").exists());
         assert!(trash_bodies(&root).is_empty());
+    }
+
+    #[test]
+    fn scanned_files_keep_the_path_checks_with_one_check_per_directory() {
+        let (_t, root) = workspace();
+        fs::create_dir_all(root.join("notes/sub")).unwrap();
+        fs::write(root.join("notes/a.md"), "A").unwrap(); fs::write(root.join("notes/b.md"), "B").unwrap();
+        let mut checked = std::collections::HashMap::new();
+        assert_eq!(scanned_file(&root, &mut checked, "notes/a.md").unwrap(), root.join("notes/a.md"));
+        assert_eq!(scanned_file(&root, &mut checked, "notes/b.md").unwrap(), root.join("notes/b.md"));
+        assert_eq!(checked.len(), 1, "the directory is checked once");
+        for path in ["notes/..", "notes/.", "notes/", "notes/x\\y.md", "../a.md"] { assert!(scanned_file(&root, &mut checked, path).is_err(), "{path}"); }
+        assert!(scanned_file(&root, &mut checked, "notes/sub").is_err(), "a directory is not a document");
+        assert_eq!(scanned_file(&root, &mut checked, "notes/missing.md").unwrap_err(), "resource_missing");
+        #[cfg(unix)]
+        {
+            let outside = tempfile::tempdir().unwrap();
+            fs::write(outside.path().join("secret.md"), "S").unwrap();
+            std::os::unix::fs::symlink(outside.path().join("secret.md"), root.join("notes/link.md")).unwrap();
+            assert_eq!(scanned_file(&root, &mut checked, "notes/link.md").unwrap_err(), "permission_denied");
+            std::os::unix::fs::symlink(outside.path(), root.join("linked")).unwrap();
+            assert!(scanned_file(&root, &mut std::collections::HashMap::new(), "linked/secret.md").is_err());
+        }
+    }
+
+    /// Step 5B measurement (run with --ignored --nocapture): native scan cost of a large workspace.
+    #[test]
+    #[ignore]
+    fn measure_scan_of_a_large_workspace() {
+        let (_t, root) = workspace();
+        let body = format!("# 文档\n\n{}\n", "正文内容 ".repeat(80));
+        for i in 0..2000 {
+            let dir = root.join(format!("目录-{:02}", i % 20));
+            if i < 20 { fs::create_dir_all(&dir).unwrap(); }
+            fs::write(dir.join(format!("文档-{i:05}.md")), &body).unwrap();
+        }
+        // Identity file listing every document, as an enabled sync workspace has.
+        let documents: Vec<_> = (0..2000).map(|i| serde_json::json!({"documentId": uuid::Uuid::new_v4().to_string(), "path": format!("目录-{:02}/文档-{i:05}.md", i % 20)})).collect();
+        fs::create_dir_all(root.join(".easym/sync")).unwrap();
+        fs::write(root.join(".easym/sync/workspace.json"), serde_json::to_vec(&serde_json::json!({"schemaVersion":1,"workspaceId":uuid::Uuid::new_v4().to_string(),"documents":documents})).unwrap()).unwrap();
+        let _ = revisions(&root).unwrap();
+        let mut times = vec![];
+        for _ in 0..5 { let start = std::time::Instant::now(); let scan = revisions(&root).unwrap(); times.push(start.elapsed().as_millis()); assert_eq!(scan.documents.len(), 2000); }
+        times.sort();
+        println!("native scan of 2000 documents: median {} ms, min {} ms, max {} ms", times[2], times[0], times[4]);
     }
 
     #[test]

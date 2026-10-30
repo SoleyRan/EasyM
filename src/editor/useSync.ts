@@ -5,8 +5,9 @@ import { rejoinState, RETIRE_OLD_CODES, SyncEngine, type PassReport, type SyncCo
 import { defaultDeviceName, detectPlatform, encodeSyncDeviceInfo, listSyncDevices, normalizeDeviceName, queueRetirement, type SyncDeviceView } from '../core/sync-devices'
 import { SyncController, syncPausedKey, type SyncStatus } from '../platform/sync-controller'
 import { DesktopSyncHost } from '../platform/sync-host'
-import { NativeSyncProvider, readSyncState, rejoinWorkspace, resolveSyncConflict, syncBinding, syncError, writeSyncState, type SyncBinding } from '../platform/sync-native'
-import { storedPreference, storePreference } from '../platform/preferences'
+import { NativeSyncProvider, readQuota, readSyncState, rejoinWorkspace, resolveSyncConflict, syncBinding, syncError, writeSyncState, type SyncBinding, type SyncQuota } from '../platform/sync-native'
+import { appVersion, storedPreference, storePreference } from '../platform/preferences'
+import { syncDiagnostics, tally } from '../core/sync-diagnostics'
 import type { DocumentHandle } from './DocumentEditor'
 
 export interface SyncView {
@@ -34,6 +35,10 @@ export interface SyncView {
   rename(name: string): Promise<void>
   /** Queues another device for deactivation; it completes on the next pass once its content is merged. */
   deactivate(deviceId: string): Promise<void>
+  /** Step 5B: server space as the server reports it; read on demand. */
+  quota(): Promise<SyncQuota>
+  /** Step 5B: a redacted report (codes, counts, short ids) for a support request. */
+  diagnostics(): Promise<string>
 }
 export const SYNC_INTERVALS = [60_000, 300_000, 900_000] as const
 const intervalKey = (bindingId: string) => `easym-sync-interval:${bindingId}`
@@ -92,9 +97,9 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
     const engine = new SyncEngine(new NativeSyncProvider(workspace, binding), host)
     const provider = new NativeSyncProvider(workspace, binding)
     const instance = new SyncController({
-      pass: async (signal) => {
+      pass: async (signal, progress) => {
         host.movedSessions = []
-        const result = await engine.pass(signal)
+        const result = await engine.pass(signal, progress)
         // Device info is written once per device id (after connecting or rejoining); a failure
         // is retried on the next pass. It is informational and never blocks syncing.
         if (storedPreference(infoKey(binding.bindingId)) !== binding.deviceId) {
@@ -185,6 +190,27 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
     })
   }, [workspace, binding])
 
+  const quota = useCallback(async () => {
+    if (!workspace || !binding) throw new Error('binding_missing')
+    return readQuota(workspace)
+  }, [workspace, binding])
+
+  const diagnostics = useCallback(async () => {
+    if (!workspace || !binding) throw new Error('binding_missing')
+    // Each part is optional: a diagnostics report must still be produced when the server is down.
+    const state = await readSyncState(workspace).catch(() => null)
+    const space = await readQuota(workspace).catch(() => null)
+    const count = await new NativeSyncProvider(workspace, binding).listDeviceHeads(binding.workspaceId, AbortSignal.timeout(30_000)).then((h) => h.length, () => null)
+    return syncDiagnostics({
+      appVersion, platform: detectPlatform(navigator.userAgent),
+      status: status ? { kind: status.kind, code: status.kind === 'paused' || status.kind === 'retrying' ? status.code : null, attempt: status.kind === 'retrying' ? status.attempt : undefined } : { kind: 'none' },
+      endpoint: binding.endpoint, interval: storedInterval(binding.bindingId),
+      state: state && { sequence: state.device.sequence, commitHash: state.device.commitHash, applied: state.applied, pending: !!state.device.pending, seenDevices: Object.keys(state.device.seen).length, deferred: state.deferred.length, conflicts: state.conflicts?.length ?? 0, retiring: state.device.retire?.length ?? 0, rebased: !!state.device.base },
+      report: report && { published: report.published, downloaded: report.downloaded, conflicts: tally(report.conflicts.map((c) => c.reason)), copies: report.copies.length, keptDeletes: report.keptDeletes.length, restored: report.restored.length, deferred: report.deferred.length, skipped: tally(report.skipped.map((s) => s.reason)), failed: tally(report.failed.map((f) => f.error)), openConflicts: report.openConflicts.length },
+      quota: space, devices: count, workspaceId: binding.workspaceId, deviceId: binding.deviceId, generatedAt: new Date(),
+    })
+  }, [workspace, binding, status, report])
+
   const setInterval = useCallback((value: number | null) => {
     if (!binding) return
     storePreference(intervalKey(binding.bindingId), value === null ? 'manual' : String(value))
@@ -193,7 +219,7 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
   }, [binding])
 
   return {
-    binding, status, report, loadConflict, resolveConflict, rejoin, devices, rename, deactivate, interval, setInterval,
+    binding, status, report, loadConflict, resolveConflict, rejoin, devices, rename, deactivate, interval, setInterval, quota, diagnostics,
     notify: useCallback(() => controller.current?.notify(), []),
     request: useCallback(() => controller.current?.request(), []),
     pause: useCallback(() => controller.current?.pause(), []),

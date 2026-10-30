@@ -1,15 +1,15 @@
 {
-  "verifiedAt": "2026-10-29T12:27:38.292Z",
+  "verifiedAt": "2026-10-30T10:04:44.871Z",
   "node": "v24.20.0",
   "scope": "Real engine and WebDAV servers on loopback HTTP; directory-backed host mirrors the native commands. No GUI, TLS or OS credential store.",
   "targets": {
-    "apache": {
+    "nextcloud": {
       "passed": true,
       "checks": [
         {
           "id": "device_a_publishes",
           "passed": true,
-          "requests": 15
+          "requests": 14
         },
         {
           "id": "fresh_device_restores_bodies_and_images",
@@ -51,7 +51,7 @@
         }
       ],
       "requests": {
-        "a": 189,
+        "a": 183,
         "b": 173
       },
       "recovery": {
@@ -112,13 +112,13 @@
         ]
       }
     },
-    "nextcloud": {
+    "apache": {
       "passed": true,
       "checks": [
         {
           "id": "device_a_publishes",
           "passed": true,
-          "requests": 15
+          "requests": 14
         },
         {
           "id": "fresh_device_restores_bodies_and_images",
@@ -160,7 +160,7 @@
         }
       ],
       "requests": {
-        "a": 189,
+        "a": 183,
         "b": 173
       },
       "recovery": {

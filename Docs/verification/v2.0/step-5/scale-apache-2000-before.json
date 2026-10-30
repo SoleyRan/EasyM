@@ -1,0 +1,51 @@
+{
+  "measuredAt": "2026-10-30T04:04:18.973Z",
+  "node": "v24.20.0",
+  "target": "apache",
+  "documents": 2000,
+  "scope": "Loopback HTTP, real engine, directory host, native-like object cache. Not a GUI or native-command measurement.",
+  "phases": {
+    "first_publish": {
+      "ms": 17079,
+      "requests": 2003,
+      "scans": 3,
+      "scanMs": 7451,
+      "reads": 2000
+    },
+    "idle_pass": {
+      "ms": 5054,
+      "requests": 2,
+      "scans": 2,
+      "scanMs": 4879,
+      "reads": 0
+    },
+    "fresh_restore": {
+      "ms": 13697,
+      "requests": 2004,
+      "scans": 3,
+      "scanMs": 6,
+      "reads": 0
+    },
+    "idle_pass_restored": {
+      "ms": 4911,
+      "requests": 3,
+      "scans": 2,
+      "scanMs": 4725,
+      "reads": 0
+    },
+    "one_edit_publish": {
+      "ms": 7202,
+      "requests": 6,
+      "scans": 3,
+      "scanMs": 6616,
+      "reads": 1
+    },
+    "one_edit_receive": {
+      "ms": 7651,
+      "requests": 6,
+      "scans": 3,
+      "scanMs": 7019,
+      "reads": 0
+    }
+  }
+}
