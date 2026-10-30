@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { invoke } from '@tauri-apps/api/core'
 import { decodeFile, type FileSnapshot } from '../core/codec'
-import { rejoinState, SyncEngine, type PassReport, type SyncConflictEntry } from '../core/sync-engine'
+import { rejoinState, RETIRE_OLD_CODES, SyncEngine, type PassReport, type SyncConflictEntry } from '../core/sync-engine'
+import { defaultDeviceName, detectPlatform, encodeSyncDeviceInfo, listSyncDevices, normalizeDeviceName, queueRetirement, type SyncDeviceView } from '../core/sync-devices'
 import { SyncController, syncPausedKey, type SyncStatus } from '../platform/sync-controller'
 import { DesktopSyncHost } from '../platform/sync-host'
 import { NativeSyncProvider, readSyncState, rejoinWorkspace, resolveSyncConflict, syncBinding, syncError, writeSyncState, type SyncBinding } from '../platform/sync-native'
@@ -23,6 +24,27 @@ export interface SyncView {
   resolveConflict(entry: OpenConflict, versions: ConflictVersions, bytes: Uint8Array | null): Promise<void>
   /** Step 4C: continues under a new device id after a rollback or a reused id; files are kept. */
   rejoin(): Promise<void>
+  /** Step 5A: a document was saved; syncs soon unless sync is manual only. */
+  notify(): void
+  /** Step 5A: ms between automatic passes, or null for manual only. */
+  interval: number | null
+  setInterval(value: number | null): void
+  /** Step 5A: every device on the server with its name and last sync time. */
+  devices(): Promise<SyncDeviceView[]>
+  rename(name: string): Promise<void>
+  /** Queues another device for deactivation; it completes on the next pass once its content is merged. */
+  deactivate(deviceId: string): Promise<void>
+}
+export const SYNC_INTERVALS = [60_000, 300_000, 900_000] as const
+const intervalKey = (bindingId: string) => `easym-sync-interval:${bindingId}`
+const nameKey = (bindingId: string) => `easym-sync-device-name:${bindingId}`
+/** Device id whose info was last published for this binding, so it is written once per id. */
+const infoKey = (bindingId: string) => `easym-sync-device-info:${bindingId}`
+function storedInterval(bindingId: string): number | null {
+  const value = storedPreference(intervalKey(bindingId))
+  if (value === 'manual') return null
+  const ms = Number(value)
+  return (SYNC_INTERVALS as readonly number[]).includes(ms) ? ms : SYNC_INTERVALS[0]
 }
 export type OpenConflict = SyncConflictEntry & { path: string; copy: string }
 export interface ConflictVersions { base: string | null; mine: FileSnapshot & { revision: string }; theirs: FileSnapshot & { revision: string } }
@@ -48,6 +70,8 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
   const [status, setStatus] = useState<SyncStatus | null>(null)
   const [report, setReport] = useState<PassReport | null>(null)
   const [revision, setRevision] = useState(0)
+  const [interval, setIntervalState] = useState<number | null>(SYNC_INTERVALS[0])
+  useEffect(() => { if (binding) setIntervalState(storedInterval(binding.bindingId)) }, [binding])
   const controller = useRef<SyncController | null>(null)
   const engineRef = useRef<{ engine: SyncEngine; host: DesktopSyncHost; workspace: string } | null>(null)
   const handlesRef = useRef(handles); handlesRef.current = handles
@@ -66,12 +90,23 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
     const dirtySessions = () => new Set(handlesRef.current().filter(blocked).map((h) => h.summary.fileId).filter((id): id is string => !!id))
     const host = new DesktopSyncHost(workspace, binding, dirtySessions)
     const engine = new SyncEngine(new NativeSyncProvider(workspace, binding), host)
+    const provider = new NativeSyncProvider(workspace, binding)
     const instance = new SyncController({
-      pass: async (signal) => { host.movedSessions = []; return engine.pass(signal) },
+      pass: async (signal) => {
+        host.movedSessions = []
+        const result = await engine.pass(signal)
+        // Device info is written once per device id (after connecting or rejoining); a failure
+        // is retried on the next pass. It is informational and never blocks syncing.
+        if (storedPreference(infoKey(binding.bindingId)) !== binding.deviceId) {
+          await publishInfo(provider, binding).then(() => storePreference(infoKey(binding.bindingId), binding.deviceId)).catch(() => undefined)
+        }
+        return result
+      },
       onStatus: setStatus,
       onReport: (next) => { setReport(next); void reloadChanged(workspace, next, host.movedSessions, handlesRef.current()) },
       loadPaused: () => storedPreference(syncPausedKey(binding.bindingId)) === 'true',
       savePaused: (paused) => { storePreference(syncPausedKey(binding.bindingId), String(paused)) },
+      interval: () => storedInterval(binding.bindingId),
     })
     controller.current = instance
     const current = { engine, host, workspace }
@@ -109,8 +144,11 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
     try {
       // Read before the id changes: the native side refuses state written for another device id.
       const previous = await readSyncState(workspace).catch(() => null)
+      // Step 5A: after a rollback the old id is retired automatically once the new one published;
+      // after a reused id it belongs to another installation and is left alone.
+      const code = status?.kind === 'paused' ? status.code : null
       const next = await rejoinWorkspace(workspace)
-      const state = await rejoinState(new NativeSyncProvider(workspace, next), previous, next.workspaceId, next.deviceId, AbortSignal.timeout(120_000))
+      const state = await rejoinState(new NativeSyncProvider(workspace, next), previous, next.workspaceId, next.deviceId, AbortSignal.timeout(120_000), !!code && RETIRE_OLD_CODES.has(code))
       await writeSyncState(workspace, state)
       // A new binding object restarts the controller with the new id.
       setBinding(next)
@@ -120,15 +158,56 @@ export function useSync(workspace: string | null, enabled: boolean, handles: () 
       setRevision((value) => value + 1)
       throw error
     }
+  }, [workspace, binding, status])
+
+  const devices = useCallback(async () => {
+    if (!workspace || !binding) throw new Error('binding_missing')
+    const state = await readSyncState(workspace).catch(() => null)
+    return listSyncDevices(new NativeSyncProvider(workspace, binding), binding.workspaceId, binding.deviceId, state?.device.retire ?? [], AbortSignal.timeout(60_000))
   }, [workspace, binding])
 
+  const rename = useCallback(async (name: string) => {
+    if (!workspace || !binding) throw new Error('binding_missing')
+    const value = normalizeDeviceName(name)
+    storePreference(nameKey(binding.bindingId), value)
+    await publishInfo(new NativeSyncProvider(workspace, binding), binding)
+    storePreference(infoKey(binding.bindingId), binding.deviceId)
+  }, [workspace, binding])
+
+  const deactivate = useCallback(async (deviceId: string) => {
+    if (!workspace || !binding || !controller.current) throw new Error('binding_missing')
+    // Edits the persisted state while no pass runs, so a running pass cannot overwrite the queue.
+    await controller.current.exclusive(async () => {
+      const state = await readSyncState(workspace)
+      if (!state) throw new Error('sync_state_invalid')
+      const retire = queueRetirement(state.device.retire, deviceId, binding.deviceId)
+      await writeSyncState(workspace, { ...state, device: { ...state.device, retire } })
+    })
+  }, [workspace, binding])
+
+  const setInterval = useCallback((value: number | null) => {
+    if (!binding) return
+    storePreference(intervalKey(binding.bindingId), value === null ? 'manual' : String(value))
+    setIntervalState(value)
+    controller.current?.reschedule()
+  }, [binding])
+
   return {
-    binding, status, report, loadConflict, resolveConflict, rejoin,
+    binding, status, report, loadConflict, resolveConflict, rejoin, devices, rename, deactivate, interval, setInterval,
+    notify: useCallback(() => controller.current?.notify(), []),
     request: useCallback(() => controller.current?.request(), []),
     pause: useCallback(() => controller.current?.pause(), []),
     resume: useCallback(() => controller.current?.resume(), []),
     refresh: useCallback(() => setRevision((value) => value + 1), []),
   }
+}
+
+/** Writes this device's name and platform; the name is kept locally so a rejoin keeps it. */
+async function publishInfo(provider: NativeSyncProvider, binding: SyncBinding) {
+  const platform = detectPlatform(navigator.userAgent)
+  const name = storedPreference(nameKey(binding.bindingId)) ?? defaultDeviceName(platform)
+  const bytes = encodeSyncDeviceInfo({ schemaVersion: 1, workspaceId: binding.workspaceId, deviceId: binding.deviceId, name, platform })
+  await provider.publishDeviceInfo(binding.workspaceId, binding.deviceId, bytes, AbortSignal.timeout(60_000))
 }
 
 /**

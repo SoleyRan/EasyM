@@ -116,7 +116,13 @@ function adoptNewDocuments(identity: WorkspaceIdentity, scan: LocalScan, newId: 
 }
 
 /** Pause codes that "rejoin as a new device" (step 4C) resolves. */
-export const REJOIN_CODES = new Set(['rollback', 'device_conflict', 'not_descendant', 'state_mismatch'])
+export const REJOIN_CODES = new Set(['rollback', 'device_conflict', 'not_descendant', 'state_mismatch', 'device_retired'])
+/**
+ * Step 5A: pause codes after which the previous device id is retired automatically once the new
+ * id has published. Not after `device_conflict` (another installation uses that id) or
+ * `state_mismatch` (an interrupted rejoin whose cause is unknown); those can be deactivated by hand.
+ */
+export const RETIRE_OLD_CODES = new Set(['rollback', 'not_descendant', 'device_retired'])
 
 /**
  * v2 step 4C: engine state for a device that rejoins under `deviceId` after a rollback, a reused
@@ -126,8 +132,11 @@ export const REJOIN_CODES = new Set(['rollback', 'device_conflict', 'not_descend
  * every document then counts as changed on both sides, and any difference from the remote is kept
  * as a conflict copy instead of overwriting either version.
  */
-export async function rejoinState(provider: SyncProvider, previous: EngineState | null, workspaceId: string, deviceId: string, signal: AbortSignal): Promise<EngineState> {
-  const device = initialDeviceState(workspaceId, deviceId)
+export async function rejoinState(provider: SyncProvider, previous: EngineState | null, workspaceId: string, deviceId: string, signal: AbortSignal, retireOld = false): Promise<EngineState> {
+  const old = previous?.device.deviceId
+  // Queued deactivations survive a rejoin; the old id joins them when its cause allows it.
+  const retire = [...new Set([...(previous?.device.retire ?? []), ...(retireOld && old && old !== deviceId ? [old] : [])])].filter((id) => id !== deviceId)
+  const device = { ...initialDeviceState(workspaceId, deviceId), ...(retire.length ? { retire } : {}) }
   const applied = previous?.applied ?? null
   let base: string | null = null
   if (applied) {

@@ -218,7 +218,8 @@ impl SyncNative {
 /// `easym-sync/v1/<workspaceId>/` collection; every request URL must stay under it.
 pub(crate) struct Dav { client: reqwest::Client, base: Url, user: String, password: String }
 
-pub(crate) struct DavResponse { pub status: StatusCode, pub etag: Option<String>, pub body: Vec<u8> }
+/// `modified` is the raw Last-Modified header (server clock), passed through for the device list.
+pub(crate) struct DavResponse { pub status: StatusCode, pub etag: Option<String>, pub modified: Option<String>, pub body: Vec<u8> }
 
 fn failure(status: StatusCode) -> String {
     match status.as_u16() {
@@ -265,13 +266,14 @@ impl Dav {
         if let Some(body) = body { request = request.body(body); }
         let mut response = request.send().await.map_err(transport)?;
         let status = response.status(); let etag = strong(response.headers());
+        let modified = response.headers().get(reqwest::header::LAST_MODIFIED).and_then(|v| v.to_str().ok()).filter(|v| v.len() <= 64).map(str::to_string);
         if response.content_length().is_some_and(|n| n as usize > max) { return Err("response_too_large".into()); }
         let mut body = Vec::new();
         while let Some(chunk) = response.chunk().await.map_err(transport)? {
             if body.len() + chunk.len() > max { return Err("response_too_large".into()); }
             body.extend_from_slice(&chunk);
         }
-        Ok(DavResponse { status, etag, body })
+        Ok(DavResponse { status, etag, modified, body })
     }
     /// Creates the namespace from the endpoint down. 405 means it already exists.
     pub(crate) async fn prepare(&self) -> Result<(), String> {
@@ -352,6 +354,54 @@ impl Dav {
             401 | 403 | 413 | 507 => Err(failure(response.status)),
             _ => Ok(("unknown".into(), None)),
         }
+    }
+    /// Collections added in step 5A are created on first use (bindings made earlier lack them).
+    async fn ensure_collection(&self, relative: &str) -> Result<(), String> {
+        let response = self.send(Method::from_bytes(b"MKCOL").map_err(|_| "invalid_data")?, self.url(relative)?, &[], None, 64 * 1024).await?;
+        if matches!(response.status.as_u16(), 201 | 405) { Ok(()) } else { Err(failure(response.status)) }
+    }
+    /// Device ids with a retirement record; an unexpected name is an error, never skipped.
+    pub(crate) async fn list_retired(&self) -> Result<Vec<String>, String> {
+        let mut ids = vec![];
+        for name in self.children("retired/").await?.unwrap_or_default() {
+            if name.starts_with(".~") || name.starts_with("._") || name.starts_with(".#") { continue; }
+            let id = name.strip_suffix(".json").ok_or("invalid_listing")?;
+            uuid(id).map_err(|_| "invalid_listing")?;
+            ids.push(id.to_string());
+        }
+        if ids.len() > 4096 { return Err("invalid_listing".into()); }
+        ids.sort(); ids.dedup(); Ok(ids)
+    }
+    /// Step 5A: writes the create-only retirement record (an existing one is kept), then deletes the
+    /// head only if it still has `revision` (unconditionally when the server gave no strong ETag).
+    pub(crate) async fn retire(&self, device: &str, record: Vec<u8>, revision: Option<&str>) -> Result<(), String> {
+        uuid(device)?;
+        if record.len() > MAX_HEAD { return Err("quota_exceeded".into()); }
+        self.ensure_collection("retired/").await?;
+        let created = self.send(Method::PUT, self.url(&format!("retired/{device}.json"))?, &[("Content-Type", "application/json".into()), ("If-None-Match", "*".into())], Some(record), 64 * 1024).await?;
+        if !matches!(created.status.as_u16(), 200 | 201 | 204 | 412) { return Err(failure(created.status)); }
+        let headers: Vec<(&str, String)> = revision.map(|etag| vec![("If-Match", etag.to_string())]).unwrap_or_default();
+        let deleted = self.send(Method::DELETE, self.url(&format!("devices/{device}.json"))?, &headers, None, 64 * 1024).await?;
+        match deleted.status.as_u16() {
+            200 | 204 | 404 => Ok(()),
+            412 => Err("device_changed".into()),
+            _ => Err(failure(deleted.status)),
+        }
+    }
+    pub(crate) async fn read_info(&self, device: &str) -> Result<Option<Vec<u8>>, String> {
+        uuid(device)?;
+        let response = self.send(Method::GET, self.url(&format!("device-info/{device}.json"))?, &[], None, MAX_HEAD).await?;
+        if response.status == StatusCode::NOT_FOUND { return Ok(None); }
+        if response.status != StatusCode::OK { return Err(failure(response.status)); }
+        Ok(Some(response.body))
+    }
+    /// Single writer: only the binding's own device writes its info, unconditionally.
+    pub(crate) async fn publish_info(&self, device: &str, bytes: Vec<u8>) -> Result<(), String> {
+        uuid(device)?;
+        if bytes.len() > MAX_HEAD { return Err("quota_exceeded".into()); }
+        self.ensure_collection("device-info/").await?;
+        let response = self.send(Method::PUT, self.url(&format!("device-info/{device}.json"))?, &[("Content-Type", "application/json".into())], Some(bytes), 64 * 1024).await?;
+        if matches!(response.status.as_u16(), 200 | 201 | 204) { Ok(()) } else { Err(failure(response.status)) }
     }
     pub(crate) async fn read_object(&self, hash: &str) -> Result<Option<Vec<u8>>, String> {
         let hex = object_hex(hash)?;
@@ -447,7 +497,7 @@ impl From<&Binding> for BindingView {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct HeadBytes { device_id: String, bytes: Vec<u8>, revision: Option<String> }
+pub struct HeadBytes { device_id: String, bytes: Vec<u8>, revision: Option<String>, modified: Option<String> }
 #[derive(Serialize)]
 pub struct Published { kind: String, revision: Option<String> }
 
@@ -537,14 +587,14 @@ pub async fn sync_heads(native: State<'_, SyncNative>, workspaces: State<'_, Wor
     for device in dav.list_devices().await? {
         // Listed but unreadable: an inconsistent listing, never silently skipped.
         let head = dav.read_head(&device).await?.ok_or("invalid_listing")?;
-        heads.push(HeadBytes { device_id: device, bytes: head.body, revision: head.etag });
+        heads.push(HeadBytes { device_id: device, bytes: head.body, revision: head.etag, modified: head.modified });
     }
     Ok(heads)
 }
 #[tauri::command]
 pub async fn sync_head(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String, device: String) -> Result<Option<HeadBytes>, String> {
     let binding = bound(&native, &workspaces, &id)?;
-    Ok(dav(&native, &binding)?.read_head(&device).await?.map(|head| HeadBytes { device_id: device, bytes: head.body, revision: head.etag }))
+    Ok(dav(&native, &binding)?.read_head(&device).await?.map(|head| HeadBytes { device_id: device, bytes: head.body, revision: head.etag, modified: head.modified }))
 }
 /// Writes only this binding's own device head. `expected`: None = create, "" = owned, else If-Match.
 #[tauri::command]
@@ -563,6 +613,36 @@ pub async fn sync_object(native: State<'_, SyncNative>, workspaces: State<'_, Wo
     let bytes = dav(&native, &binding)?.read_object(&hash).await?;
     if let Some(bytes) = &bytes { native.cache(&binding.binding_id, &hash, bytes)?; }
     Ok(bytes)
+}
+/// Step 5A: ids with a retirement record.
+#[tauri::command]
+pub async fn sync_retired(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String) -> Result<Vec<String>, String> {
+    let binding = bound(&native, &workspaces, &id)?;
+    dav(&native, &binding)?.list_retired().await
+}
+/// Step 5A: retires another device. `bytes` is its head as last read (the record); the core only
+/// asks once this device's published head contains it. A device never retires its own current id.
+#[tauri::command]
+pub async fn sync_retire(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String, device: String, bytes: Vec<u8>, revision: Option<String>) -> Result<(), String> {
+    let binding = bound(&native, &workspaces, &id)?;
+    uuid(&device)?;
+    if device == binding.device_id { return Err("permission_denied".into()); }
+    let value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| "invalid_data")?;
+    if value["deviceId"] != device.as_str() || value["workspaceId"] != binding.workspace_id.as_str() || !value["sequence"].is_u64() || !value["commitHash"].is_string() { return Err("invalid_data".into()); }
+    dav(&native, &binding)?.retire(&device, bytes, revision.as_deref()).await
+}
+#[tauri::command]
+pub async fn sync_device_info(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String, device: String) -> Result<Option<Vec<u8>>, String> {
+    let binding = bound(&native, &workspaces, &id)?;
+    dav(&native, &binding)?.read_info(&device).await
+}
+/// Writes only this binding's own device info.
+#[tauri::command]
+pub async fn sync_publish_info(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String, bytes: Vec<u8>) -> Result<(), String> {
+    let binding = bound(&native, &workspaces, &id)?;
+    let value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| "invalid_data")?;
+    if value["deviceId"] != binding.device_id.as_str() || value["workspaceId"] != binding.workspace_id.as_str() { return Err("permission_denied".into()); }
+    dav(&native, &binding)?.publish_info(&binding.device_id, bytes).await
 }
 #[tauri::command]
 pub async fn sync_put_object(native: State<'_, SyncNative>, workspaces: State<'_, Workspaces>, id: String, hash: String, bytes: Vec<u8>) -> Result<String, String> {
@@ -697,6 +777,31 @@ mod tests {
                 assert_eq!(dav.list_devices().await.unwrap(), vec![device.clone()]);
                 assert_eq!(dav.read_head(&device).await.unwrap().unwrap().body, head);
                 assert_eq!(dav.publish_head(&device, head.clone(), Some("")).await.unwrap().0, "committed");
+                // Step 5A: the server's Last-Modified is passed through for the device list.
+                assert!(dav.read_head(&device).await.unwrap().unwrap().modified.is_some(), "{endpoint}");
+                // Device info: absent, then written by its owner and read back (collection made on first use).
+                assert!(dav.read_info(&device).await.unwrap().is_none());
+                let info = format!(r#"{{"schemaVersion":1,"workspaceId":"{workspace}","deviceId":"{device}","name":"测试","platform":"linux"}}"#).into_bytes();
+                dav.publish_info(&device, info.clone()).await.unwrap();
+                dav.publish_info(&device, info.clone()).await.unwrap();
+                assert_eq!(dav.read_info(&device).await.unwrap().unwrap(), info);
+                // Retirement: a stale revision keeps the head but leaves the record; the right one deletes it.
+                assert!(dav.list_retired().await.unwrap().is_empty());
+                let current = dav.read_head(&device).await.unwrap().unwrap();
+                if current.etag.is_some() {
+                    assert_eq!(dav.retire(&device, head.clone(), Some("\"stale\"")).await.unwrap_err(), "device_changed", "{endpoint}");
+                    assert!(dav.read_head(&device).await.unwrap().is_some());
+                    assert_eq!(dav.list_retired().await.unwrap(), vec![device.clone()]);
+                }
+                let current = dav.read_head(&device).await.unwrap().unwrap();
+                dav.retire(&device, head.clone(), current.etag.as_deref()).await.unwrap();
+                assert!(dav.read_head(&device).await.unwrap().is_none());
+                assert!(dav.list_devices().await.unwrap().is_empty());
+                assert_eq!(dav.list_retired().await.unwrap(), vec![device.clone()]);
+                // Retiring again is harmless: the record is kept and the head is already gone.
+                dav.retire(&device, b"{}".to_vec(), None).await.unwrap();
+                let record = dav.send(Method::GET, dav.url(&format!("retired/{device}.json")).unwrap(), &[], None, MAX_HEAD).await.unwrap();
+                assert_eq!(record.body, head, "{endpoint}");
             });
         }
     }

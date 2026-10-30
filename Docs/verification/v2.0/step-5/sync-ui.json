@@ -1,0 +1,24 @@
+{
+  "verifiedAt": "2026-10-30T02:14:29.480Z",
+  "passed": true,
+  "checks": [
+    "wrong credentials are reported and nothing is bound",
+    "join preview counts downloads, uploads and same-named documents without writing",
+    "connecting joins the remote workspace; the local file stays and the remote one arrives beside it",
+    "status chip and last-pass report reflect the completed sync",
+    "the password only crosses IPC for probe and bind; never stored by the webview",
+    "pause is persisted per binding and resume syncs again",
+    "a merge conflict copy from two devices editing one line is listed with both paths",
+    "resolving line by line writes the result and keeps the replaced body and the copy in the trash",
+    "the resolved body and the copy deletion are published on the next pass",
+    "a rolled-back remote pauses sync with an explanation and leaves files untouched",
+    "rejoining under a new device id resumes sync, publishes a new head and keeps every file",
+    "after a rollback rejoin the old device id is retired automatically",
+    "sync frequency (including manual only) is saved per binding",
+    "the device list shows this device and others; renaming publishes the new name",
+    "deactivating another device retires it on the next pass and keeps every file",
+    "exit sync removes the binding after confirmation and keeps workspace files"
+  ],
+  "scope": "Production UI with deterministic IPC; real servers are covered by verify-sync-e2e.",
+  "browser": "156.0.8078.4"
+}

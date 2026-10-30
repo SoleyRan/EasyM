@@ -21,6 +21,8 @@ export interface SyncControllerDeps {
   /** User pause flag, persisted per binding. */
   loadPaused(): boolean
   savePaused(paused: boolean): void
+  /** Step 5A: ms between automatic passes, or null for manual only. Read at every scheduling. */
+  interval?(): number | null
   now?(): number
 }
 export class SyncController {
@@ -30,6 +32,9 @@ export class SyncController {
   private again = false
   private attempt = 0
   private stopped = true
+  /** Tasks holding the controller (`exclusive`); no pass starts while any is running. */
+  private held = 0
+  private done: Promise<void> = Promise.resolve()
 
   constructor(private readonly deps: SyncControllerDeps) {}
   get status(): SyncStatus { return this.current }
@@ -46,12 +51,38 @@ export class SyncController {
     clearTimeout(this.timer); this.timer = undefined
     this.running?.abort()
   }
-  /** Runs a pass now (manual "sync now", a saved document); coalesces with a running pass. */
+  /** Runs a pass now ("sync now"); coalesces with a running pass. */
   request() {
     if (this.stopped || this.current.kind === 'paused') return
-    if (this.running) { this.again = true; return }
+    if (this.running || this.held) { this.again = true; return }
     clearTimeout(this.timer); this.timer = undefined
     void this.run()
+  }
+  /** A document was saved: sync soon, unless the user chose manual sync only. */
+  notify() {
+    if (this.interval() === null) return
+    this.request()
+  }
+  /** The interval setting changed: reschedule the next automatic pass. */
+  reschedule() {
+    if (this.stopped || this.running || this.current.kind !== 'idle') return
+    clearTimeout(this.timer); this.timer = undefined
+    const interval = this.interval()
+    if (interval !== null) this.schedule(interval)
+  }
+  /**
+   * Runs `task` while no pass runs: waits for a running pass to finish (it is not aborted), holds
+   * new passes during the task, then runs one pass. For changes to the persisted sync state.
+   */
+  async exclusive<T>(task: () => Promise<T>): Promise<T> {
+    this.held++
+    try {
+      await this.done
+      return await task()
+    } finally {
+      this.held--
+      if (!this.held) { this.again = false; this.request() }
+    }
   }
   pause() {
     this.deps.savePaused(true)
@@ -67,9 +98,13 @@ export class SyncController {
     if (!this.stopped) void this.run()
   }
 
+  private interval(): number | null { return this.deps.interval ? this.deps.interval() : SYNC_INTERVAL }
+
   private async run() {
-    if (this.stopped || this.running) return
+    if (this.stopped || this.running || this.held) return
     const controller = new AbortController(); this.running = controller
+    let finished!: () => void
+    this.done = new Promise((resolve) => { finished = resolve })
     this.set({ kind: 'syncing' })
     try {
       const report = await this.deps.pass(controller.signal)
@@ -77,7 +112,8 @@ export class SyncController {
       this.deps.onReport(report)
       this.set({ kind: 'idle', lastSync: this.now(), report })
       // Failed operations are retried on the next regular pass with fresh revisions.
-      this.schedule(SYNC_INTERVAL)
+      const interval = this.interval()
+      if (interval !== null) this.schedule(interval)
     } catch (error) {
       if (controller.signal.aborted) {
         // Aborted by pause/stop: keep the status they set; paused stays paused.
@@ -92,8 +128,9 @@ export class SyncController {
       this.schedule(delay)
     } finally {
       this.running = null
-      if (this.again && !this.stopped && this.current.kind !== 'paused') { this.again = false; clearTimeout(this.timer); this.timer = undefined; void this.run() }
-      this.again = false
+      finished()
+      if (this.again && !this.stopped && !this.held && this.current.kind !== 'paused') { this.again = false; clearTimeout(this.timer); this.timer = undefined; void this.run() }
+      if (!this.held) this.again = false
     }
   }
   private schedule(delay: number) {

@@ -16,8 +16,14 @@ describe('native sync provider adapter', () => {
   it('parses device heads through the core trust boundary', async () => {
     vi.mocked(invoke).mockResolvedValueOnce([{ deviceId: other, bytes: Array.from(encodeSyncDeviceHead(head(other, 3))), revision: '"e"' }])
     const provider = new NativeSyncProvider('ws', binding)
-    expect(await provider.listDeviceHeads(workspaceId, signal())).toEqual([{ head: head(other, 3), revision: '"e"' }])
+    expect(await provider.listDeviceHeads(workspaceId, signal())).toEqual([{ head: head(other, 3), revision: '"e"', modified: null }])
     expect(invoke).toHaveBeenCalledWith('sync_heads', { id: 'ws' })
+    // Step 5A: the server's Last-Modified becomes the device list's last sync time; junk is ignored.
+    vi.mocked(invoke).mockResolvedValueOnce([
+      { deviceId: other, bytes: Array.from(encodeSyncDeviceHead(head(other, 3))), revision: '"e"', modified: 'Tue, 28 Oct 2026 08:30:00 GMT' },
+      { deviceId, bytes: Array.from(encodeSyncDeviceHead(head(deviceId))), revision: null, modified: 'not a date' },
+    ])
+    expect((await provider.listDeviceHeads(workspaceId, signal())).map((h) => h.modified)).toEqual([Date.UTC(2026, 9, 28, 8, 30), null])
     // A head stored under another device's name is rejected, not trusted.
     vi.mocked(invoke).mockResolvedValueOnce([{ deviceId, bytes: Array.from(encodeSyncDeviceHead(head(other))), revision: null }])
     await expect(provider.listDeviceHeads(workspaceId, signal())).rejects.toThrow('device_mismatch')

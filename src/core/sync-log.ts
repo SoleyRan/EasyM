@@ -1,5 +1,5 @@
 import { commitObjects, isPortableSyncPath, readSyncCommit, SyncCommitError, syncPathKey, uploadSyncCommit, type SyncCommit, type SyncDocumentEntry, type SyncTombstone, type SyncUpload } from './sync-commit'
-import { MAX_SYNC_DEVICES, MERGE_DEVICE_ID, syncHash, type SyncProvider } from './sync-contract'
+import { MAX_SYNC_DEVICES, MERGE_DEVICE_ID, syncHash, type SyncProvider, type VersionedDeviceHead } from './sync-contract'
 import { MAX_SYNC_MERGE_BYTES, mergeSyncMetadata, mergeSyncResources, mergeSyncText } from './sync-merge'
 import { assetPath } from './images'
 import { canonicalJson, managedReferences } from './sync-snapshot'
@@ -30,12 +30,18 @@ export interface SyncDeviceState {
    * once the device has published.
    */
   base?: string
+  /**
+   * Step 5A: device ids to retire (deactivated by the user, or this device's id before rejoining).
+   * A device is retired only once this device's published head contains its last head, so nothing
+   * it published is dropped; an id leaves the list when retired or already gone.
+   */
+  retire?: string[]
 }
 
 export const initialDeviceState = (workspaceId: string, deviceId: string): SyncDeviceState => ({ workspaceId, deviceId, sequence: 0, commitHash: null, seen: {} })
 
 export class SyncLogError extends Error {
-  readonly code: 'device_conflict' | 'rollback' | 'too_many_devices' | 'history_budget' | 'unknown_outcome' | 'not_descendant'
+  readonly code: 'device_conflict' | 'rollback' | 'too_many_devices' | 'history_budget' | 'unknown_outcome' | 'not_descendant' | 'device_retired'
   constructor(code: SyncLogError['code']) {
     super(code)
     this.code = code
@@ -301,12 +307,18 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
 
   const heads = await provider.listDeviceHeads(workspaceId, signal)
   if (heads.length > MAX_SYNC_DEVICES) throw new SyncLogError('too_many_devices')
+  // Retirement records are only read when a head is missing, so ordinary passes cost nothing extra.
+  let retired: Set<string> | null = null
+  const isRetired = async (id: string) => (retired ??= new Set(await provider.listRetiredDevices(workspaceId, signal))).has(id)
   const own = heads.find((h) => h.head.deviceId === deviceId)
+  if (!own && state.sequence !== 0 && (await isRetired(deviceId))) throw new SyncLogError('device_retired')
   if (own ? own.head.sequence !== state.sequence || own.head.commitHash !== state.commitHash : state.sequence !== 0) {
     throw new SyncLogError(own && own.head.sequence < state.sequence ? 'rollback' : 'device_conflict')
   }
   for (const [seen, sequence] of Object.entries(state.seen)) {
     const head = heads.find((h) => h.head.deviceId === seen)
+    // A retired device's head disappears on purpose; anything it published is already merged.
+    if (!head && (await isRetired(seen))) { delete state.seen[seen]; continue }
     if (!head || head.head.sequence < sequence) throw new SyncLogError('rollback')
   }
 
@@ -336,6 +348,7 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
   for (const { head } of heads) if (head.deviceId !== deviceId) state.seen[head.deviceId] = head.sequence
 
   if (tip === null || tip === state.commitHash) {
+    state = await retirePending(provider, history, state, heads, signal)
     await input.persist(state)
     return { state, commitHash: tip, conflicts, published: false }
   }
@@ -350,7 +363,33 @@ export async function runSyncPass(provider: SyncProvider, current: SyncDeviceSta
   if (result.kind === 'unknown') throw new SyncLogError('unknown_outcome')
   state = { ...state, sequence, commitHash: tip, pending: undefined, base: undefined }
   await input.persist(state)
+  if (state.retire?.length) { state = await retirePending(provider, history, state, heads, signal); await input.persist(state) }
   return { state, commitHash: tip, conflicts, published: true }
+}
+
+/**
+ * Step 5A: retires the ids in `state.retire` whose last listed head is contained in this device's
+ * published head. A head the listing no longer shows is already gone; one that changed since the
+ * listing stays queued for the next pass, which merges its new content first.
+ */
+async function retirePending(provider: SyncProvider, history: SyncHistory, state: SyncDeviceState, heads: VersionedDeviceHead[], signal: AbortSignal): Promise<SyncDeviceState> {
+  if (!state.retire?.length || !state.commitHash) return state
+  const published = await history.ancestors(state.commitHash)
+  const remaining: string[] = []
+  for (const id of state.retire) {
+    if (id === state.deviceId) continue
+    const listed = heads.find((h) => h.head.deviceId === id)
+    if (!listed) { delete state.seen[id]; continue }
+    if (!published.has(listed.head.commitHash)) { remaining.push(id); continue }
+    try {
+      await provider.retireDevice(listed.head, listed.revision, signal)
+      delete state.seen[id]
+    } catch (error) {
+      if ((error as { code?: string }).code === 'device_changed') { remaining.push(id); continue }
+      throw error
+    }
+  }
+  return { ...state, retire: remaining.length ? remaining : undefined }
 }
 
 /**
@@ -368,6 +407,7 @@ async function settlePending(provider: SyncProvider, state: SyncDeviceState, inp
   let next: SyncDeviceState
   if (remote && remote.head.sequence === pending.sequence && remote.head.commitHash === pending.commitHash) next = { ...state, sequence: pending.sequence, commitHash: pending.commitHash, pending: undefined }
   else if (remote ? remote.head.sequence === state.sequence && remote.head.commitHash === state.commitHash : state.sequence === 0) next = { ...state, pending: undefined }
+  else if (!remote && (await provider.listRetiredDevices(state.workspaceId, signal)).includes(state.deviceId)) throw new SyncLogError('device_retired')
   else throw new SyncLogError('device_conflict')
   await input.persist(next)
   return next

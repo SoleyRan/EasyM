@@ -111,8 +111,9 @@ function Application() {
     const dirty = new Set(Object.entries(summaries).filter(([, s]) => s.dirty).map(([id]) => id))
     const saved = [...wasDirty.current].some((id) => !dirty.has(id) && summaries[id])
     wasDirty.current = dirty
-    if (saved) sync.request()
-  }, [summaries, sync.request])
+    // Step 5A: manual-only sync ignores saves; "立即同步" still works.
+    if (saved) sync.notify()
+  }, [summaries, sync.notify])
   const [quickEntry, setQuickEntry] = useState<{ kind: 'commands' | 'open'; context: CommandContext } | null>(null)
   const quickEntryRef = useRef(quickEntry); quickEntryRef.current = quickEntry
   const quickGeneration = useRef(0), quickOpening = useRef(false)

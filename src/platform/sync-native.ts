@@ -1,11 +1,13 @@
 import { invoke } from '@tauri-apps/api/core'
-import { encodeSyncDeviceHead, parseSyncDeviceHead, syncHash, type ExpectedSyncHead, type PublishSyncHeadResult, type SyncDeviceHead, type SyncProvider, type VersionedDeviceHead } from '../core/sync-contract'
+import { encodeSyncDeviceHead, isSyncId, parseSyncDeviceHead, syncHash, type ExpectedSyncHead, type PublishSyncHeadResult, type SyncDeviceHead, type SyncProvider, type VersionedDeviceHead } from '../core/sync-contract'
 import type { SyncDeviceState } from '../core/sync-log'
 import type { EngineState } from '../core/sync-engine'
 
 /** What the webview knows about a binding: no password and no local path. */
 export interface SyncBinding { bindingId: string; workspaceId: string; deviceId: string; endpoint: string; username: string; createdAt: number }
-interface HeadBytes { deviceId: string; bytes: number[]; revision: string | null }
+interface HeadBytes { deviceId: string; bytes: number[]; revision: string | null; modified?: string | null }
+/** Last-Modified (HTTP date, server clock) as ms; null when absent or unparsable. */
+const modifiedAt = (value: string | null | undefined) => { const ms = value ? Date.parse(value) : NaN; return Number.isFinite(ms) ? ms : null }
 
 const bytes = (value: number[] | Uint8Array) => value instanceof Uint8Array ? value : new Uint8Array(value)
 
@@ -34,7 +36,10 @@ export async function readSyncState(workspace: string): Promise<EngineState | nu
     || (value.conflicts !== undefined && !Array.isArray(value.conflicts))) throw new Error('sync_state_invalid')
   // Older state has no conflict list; malformed entries are dropped rather than trusted.
   const conflicts = (value.conflicts ?? []).filter((c) => c && typeof c.documentId === 'string' && typeof c.copyId === 'string' && (c.kind === 'merge' || c.kind === 'local') && (c.base === null || typeof c.base === 'string'))
-  return { device, applied: value.applied ?? null, deferred: value.deferred, conflicts }
+  // Step 5A: only well-formed, foreign device ids may be queued for deactivation.
+  const retire = Array.isArray(device.retire) ? device.retire.filter((id) => isSyncId(id) && id !== device.deviceId) : []
+  const { retire: _ignored, ...rest } = device
+  return { device: retire.length ? { ...rest, retire } : rest, applied: value.applied ?? null, deferred: value.deferred, conflicts }
 }
 export const writeSyncState = (workspace: string, state: EngineState) =>
   invoke<void>('sync_state_write', { id: workspace, bytes: Array.from(new TextEncoder().encode(JSON.stringify({ workspaceId: state.device.workspaceId, deviceId: state.device.deviceId, ...state }))) })
@@ -52,7 +57,7 @@ export class NativeSyncProvider implements SyncProvider {
   async listDeviceHeads(workspaceId: string, signal: AbortSignal): Promise<VersionedDeviceHead[]> {
     this.check(workspaceId, signal)
     const heads = await invoke<HeadBytes[]>('sync_heads', { id: this.workspace })
-    return heads.map((head) => ({ head: parseSyncDeviceHead(bytes(head.bytes), workspaceId, head.deviceId), revision: head.revision }))
+    return heads.map((head) => ({ head: parseSyncDeviceHead(bytes(head.bytes), workspaceId, head.deviceId), revision: head.revision, modified: modifiedAt(head.modified) }))
   }
   async readDeviceHead(workspaceId: string, deviceId: string, signal: AbortSignal): Promise<VersionedDeviceHead | null> {
     this.check(workspaceId, signal)
@@ -81,6 +86,27 @@ export class NativeSyncProvider implements SyncProvider {
     this.check(workspaceId, signal)
     const result = await invoke<string>('sync_put_object', { id: this.workspace, hash, bytes: Array.from(value) })
     return result === 'exists' ? 'exists' : 'created'
+  }
+  async listRetiredDevices(workspaceId: string, signal: AbortSignal): Promise<string[]> {
+    this.check(workspaceId, signal)
+    const ids = await invoke<string[]>('sync_retired', { id: this.workspace })
+    if (!ids.every(isSyncId)) throw new Error('invalid_listing')
+    return ids
+  }
+  async retireDevice(head: SyncDeviceHead, revision: string | null, signal: AbortSignal): Promise<void> {
+    this.check(head.workspaceId, signal)
+    // Re-encoded by the core, so only a valid head of this workspace is ever written as a record.
+    await invoke('sync_retire', { id: this.workspace, device: head.deviceId, bytes: Array.from(encodeSyncDeviceHead(head)), revision })
+  }
+  async readDeviceInfo(workspaceId: string, deviceId: string, signal: AbortSignal): Promise<Uint8Array | null> {
+    this.check(workspaceId, signal)
+    const raw = await invoke<number[] | null>('sync_device_info', { id: this.workspace, device: deviceId })
+    return raw ? bytes(raw) : null
+  }
+  async publishDeviceInfo(workspaceId: string, deviceId: string, value: Uint8Array, signal: AbortSignal): Promise<void> {
+    this.check(workspaceId, signal)
+    if (deviceId !== this.binding.deviceId) throw new Error('permission_denied')
+    await invoke('sync_publish_info', { id: this.workspace, bytes: Array.from(value) })
   }
 }
 
@@ -115,6 +141,9 @@ export function syncError(error: unknown): string {
     device_conflict: '另一处安装正在使用本机的设备身份（例如复制了整个配置）。本机文件没有改动。',
     not_descendant: '服务器上的同步记录与本机不连续。本机文件没有改动。',
     state_mismatch: '本机同步状态属于另一个设备身份，可能是上次重新加入被中断。本机文件没有改动。',
+    device_retired: '本机已在其他设备上被停用。本机文件没有改动；重新加入后会以新设备身份继续同步。',
+    device_self: '不能停用本机；请在其他设备上操作，或退出同步。',
+    invalid_device_name: '设备名称需为 1–64 个字符，不能包含控制字符。',
     missing_object: '服务器缺少同步数据（可能被删除或恢复不完整）；已停止同步，本机文件没有改动。',
     document_open: '请先关闭冲突副本的标签页再解决冲突。',
     document_dirty: '本文档有未保存的修改；请先保存或放弃后再解决冲突。',

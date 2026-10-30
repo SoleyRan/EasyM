@@ -112,7 +112,52 @@ export class WebDavSyncProvider {
     const res = await this.send('GET', this.path(workspaceId, `devices/${deviceId}.json`), { signal, maxBytes: MAX_HEAD })
     if (res.status === 404) return null
     if (res.status !== 200) throw failure(res.status)
-    return { head: this.parseDeviceHead(res.body, workspaceId, deviceId), revision: strong(res.headers.etag) }
+    const modified = Date.parse(res.headers['last-modified'] ?? '')
+    return { head: this.parseDeviceHead(res.body, workspaceId, deviceId), revision: strong(res.headers.etag), modified: Number.isFinite(modified) ? modified : null }
+  }
+
+  // Step 5A: retirement records and device info. Mirrors src-tauri/src/sync_native.rs.
+  async ensureCollection(workspaceId, rest, signal) {
+    const res = await this.send('MKCOL', this.path(workspaceId, rest), { signal })
+    if (![201, 405].includes(res.status)) throw failure(res.status)
+  }
+  async listRetiredDevices(workspaceId, signal) {
+    const base = this.path(workspaceId, 'retired/')
+    const res = await this.send('PROPFIND', base, { signal, body: PROPFIND, headers: { Depth: '1', 'Content-Type': 'application/xml' }, maxBytes: 1024 * 1024 })
+    if (res.status === 404) return []
+    if (res.status !== 207) throw failure(res.status)
+    const xml = new TextDecoder('utf-8', { fatal: true }).decode(res.body)
+    const self = decodeURIComponent(new URL(base, this.target.baseUrl).pathname), ids = []
+    for (const m of xml.matchAll(/<(?:[A-Za-z]+:)?href>([^<]*)<\/(?:[A-Za-z]+:)?href>/g)) {
+      const href = decodeURIComponent(new URL(m[1].replace(/&amp;/g, '&'), this.target.baseUrl).pathname)
+      if (href === self || href === self.slice(0, -1)) continue
+      if (!href.startsWith(self)) throw new WebDavError('invalid_listing')
+      const name = href.slice(self.length)
+      if (/^\.(?:~|_|#)/.test(name)) continue
+      const match = /^([0-9a-f-]{36})\.json$/.exec(name)
+      if (!match || !UUID.test(match[1])) throw new WebDavError('invalid_listing')
+      ids.push(match[1])
+    }
+    return [...new Set(ids)].sort()
+  }
+  async retireDevice(head, revision, signal) {
+    await this.ensureCollection(head.workspaceId, 'retired/', signal)
+    const created = await this.send('PUT', this.path(head.workspaceId, `retired/${head.deviceId}.json`), { signal, body: this.encodeDeviceHead(head), headers: { 'Content-Type': 'application/json', 'If-None-Match': '*' } })
+    if (![200, 201, 204, 412].includes(created.status)) throw failure(created.status)
+    const deleted = await this.send('DELETE', this.path(head.workspaceId, `devices/${head.deviceId}.json`), { signal, headers: revision ? { 'If-Match': revision } : {} })
+    if (deleted.status === 412) throw new WebDavError('device_changed')
+    if (![200, 204, 404].includes(deleted.status)) throw failure(deleted.status)
+  }
+  async readDeviceInfo(workspaceId, deviceId, signal) {
+    const res = await this.send('GET', this.path(workspaceId, `device-info/${deviceId}.json`), { signal, maxBytes: MAX_HEAD })
+    if (res.status === 404) return null
+    if (res.status !== 200) throw failure(res.status)
+    return res.body
+  }
+  async publishDeviceInfo(workspaceId, deviceId, bytes, signal) {
+    await this.ensureCollection(workspaceId, 'device-info/', signal)
+    const res = await this.send('PUT', this.path(workspaceId, `device-info/${deviceId}.json`), { signal, body: bytes, headers: { 'Content-Type': 'application/json' } })
+    if (![200, 201, 204].includes(res.status)) throw failure(res.status)
   }
 
   async publishDeviceHead(head, expected, signal) {

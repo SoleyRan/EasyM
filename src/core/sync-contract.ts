@@ -24,6 +24,8 @@ export interface SyncDeviceHead {
 export interface VersionedDeviceHead {
   head: SyncDeviceHead
   revision: string | null
+  /** Step 5A: when the server last stored the head (its clock, ms), for the device list only. */
+  modified?: number | null
 }
 
 /**
@@ -53,6 +55,18 @@ export interface SyncProvider {
   readObject(workspaceId: string, hash: string, signal: AbortSignal): Promise<Uint8Array | null>
   /** Create-only; existing bytes must be checked, never silently overwritten. */
   createObject(workspaceId: string, hash: string, bytes: Uint8Array, signal: AbortSignal): Promise<'created' | 'exists'>
+  /** Step 5A: ids with a retirement record (`retired/`); a missing collection is an empty list. */
+  listRetiredDevices(workspaceId: string, signal: AbortSignal): Promise<string[]>
+  /**
+   * Step 5A: creates `retired/<deviceId>.json` holding `head` (an existing record is kept), then
+   * deletes the device head only if it still has `revision`. Throws `device_changed` when the head
+   * changed since it was read; the record then stays and deleting the head is retried later.
+   */
+  retireDevice(head: SyncDeviceHead, revision: string | null, signal: AbortSignal): Promise<void>
+  /** Step 5A: raw `device-info/<deviceId>.json`, or null when absent. */
+  readDeviceInfo(workspaceId: string, deviceId: string, signal: AbortSignal): Promise<Uint8Array | null>
+  /** Step 5A: writes the caller's own device info (single writer, unconditional). */
+  publishDeviceInfo(workspaceId: string, deviceId: string, bytes: Uint8Array, signal: AbortSignal): Promise<void>
 }
 
 export class SyncContractError extends Error {

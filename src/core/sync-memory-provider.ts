@@ -63,4 +63,34 @@ export class MemorySyncProvider implements SyncProvider {
     this.objects.set(key, bytes.slice())
     return 'created'
   }
+
+  readonly retired = new Map<string, Uint8Array>()
+  readonly deviceInfo = new Map<string, Uint8Array>()
+
+  async listRetiredDevices(workspaceId: string, signal: AbortSignal): Promise<string[]> {
+    signal.throwIfAborted(); this.requests.push('listRetiredDevices')
+    const prefix = `${workspaceId}/retired/`
+    return [...this.retired.keys()].filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length)).sort()
+  }
+
+  async retireDevice(head: SyncDeviceHead, revision: string | null, signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted(); this.requests.push('retireDevice')
+    const record = this.key(head.workspaceId, `retired/${head.deviceId}`)
+    // Create-only: an existing record (an earlier, interrupted retirement) is kept as it is.
+    if (!this.retired.has(record)) this.retired.set(record, encodeSyncDeviceHead(head))
+    const key = this.key(head.workspaceId, `devices/${head.deviceId}`), current = this.heads.get(key)
+    if (!current) return
+    if (revision !== null && current.revision !== revision) throw Object.assign(new Error('device_changed'), { code: 'device_changed' })
+    this.heads.delete(key)
+  }
+
+  async readDeviceInfo(workspaceId: string, deviceId: string, signal: AbortSignal): Promise<Uint8Array | null> {
+    signal.throwIfAborted(); this.requests.push('readDeviceInfo')
+    return this.deviceInfo.get(this.key(workspaceId, `device-info/${deviceId}`))?.slice() ?? null
+  }
+
+  async publishDeviceInfo(workspaceId: string, deviceId: string, bytes: Uint8Array, signal: AbortSignal): Promise<void> {
+    signal.throwIfAborted(); this.requests.push('publishDeviceInfo')
+    this.deviceInfo.set(this.key(workspaceId, `device-info/${deviceId}`), bytes.slice())
+  }
 }

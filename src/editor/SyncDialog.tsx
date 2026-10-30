@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ApplicationDialog } from './ApplicationDialogs'
 import { MergePreview } from './MergePreview'
-import type { ConflictVersions, OpenConflict, SyncView } from './useSync'
+import { SYNC_INTERVALS, type ConflictVersions, type OpenConflict, type SyncView } from './useSync'
+import type { SyncDeviceView } from '../core/sync-devices'
 import { mergeBytes } from '../platform/merge-transaction'
 import { REJOIN_CODES } from '../core/sync-engine'
 import { identityError, previewIdentity, type IdentityPreview } from '../platform/sync-identity'
@@ -65,6 +66,12 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
       </div>
     </section>}
     {report && report.openConflicts.length > 0 && <Conflicts sync={sync} busy={busy} task={task} setMessage={setMessage} />}
+    <label>同步频率 <select aria-label="同步频率" disabled={busy} value={sync.interval === null ? 'manual' : String(sync.interval)} onChange={(e) => sync.setInterval(e.target.value === 'manual' ? null : Number(e.target.value))}>
+      {SYNC_INTERVALS.map((ms) => <option key={ms} value={String(ms)}>每 {ms / 60_000} 分钟</option>)}
+      <option value="manual">仅手动同步</option>
+    </select></label>
+    {sync.interval === null && <p className="panel-note">仅手动同步：保存文档后不会自动上传，请点“立即同步”。</p>}
+    <Devices sync={sync} busy={busy} task={task} setMessage={setMessage} />
     <div className="dialog-actions">
       <button disabled={busy || paused || sync.status?.kind === 'syncing'} onClick={() => sync.request()}>立即同步</button>
       {paused ? <button disabled={busy} onClick={() => sync.resume()}>继续同步</button> : <button disabled={busy} onClick={() => sync.pause()}>暂停</button>}
@@ -75,6 +82,41 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
     </div>
   </section>
 }
+const PLATFORM_NAMES = { windows: 'Windows', macos: 'macOS', linux: 'Linux', other: '其他' } as const
+
+/**
+ * v2 step 5A: devices on the server. The list is loaded on demand (one request per device), so
+ * ordinary passes cost nothing extra. Deactivating another device completes on the next pass,
+ * once everything it published has been merged here; it then has to rejoin to sync again.
+ */
+function Devices({ sync, busy, task, setMessage }: Omit<PartProps, 'workspace'>) {
+  const [list, setList] = useState<SyncDeviceView[] | null>(null)
+  const [name, setName] = useState('')
+  const load = () => void task(async () => { const next = await sync.devices(); setList(next); setName(next.find((d) => d.self)?.name ?? '') })
+  return <section aria-label="同步设备">
+    <h3>设备</h3>
+    {!list ? <div className="dialog-actions"><button disabled={busy} onClick={load}>查看设备</button></div> : <>
+      <ul className="identity-list">
+        {list.map((d) => <li key={d.deviceId}>
+          {d.name ?? `未命名设备 ${d.deviceId.slice(0, 8)}`}{d.self && '（本机）'}
+          {d.platform && ` · ${PLATFORM_NAMES[d.platform]}`}
+          {` · ${d.lastSync ? `上次同步 ${new Date(d.lastSync).toLocaleString()}` : '上次同步时间未知'}`}
+          {d.retiring && ' · 等待停用（下次同步完成）'}
+          {!d.self && !d.retiring && <button disabled={busy} onClick={() => {
+            if (!window.confirm(`停用“${d.name ?? d.deviceId.slice(0, 8)}”？它已上传的内容会保留；该设备之后需要重新加入才能继续同步，本地文件不受影响。`)) return
+            void task(async () => { await sync.deactivate(d.deviceId); setList(await sync.devices()); setMessage('已安排停用，下次同步时完成。') })
+          }}>停用</button>}
+        </li>)}
+      </ul>
+      <label>本机名称 <input aria-label="本机名称" maxLength={64} value={name} disabled={busy} onChange={(e) => setName(e.target.value)} /></label>
+      <div className="dialog-actions">
+        <button disabled={busy || !name.trim()} onClick={() => void task(async () => { await sync.rename(name); setList(await sync.devices()); setMessage('已更新本机名称。') })}>保存名称</button>
+        <button disabled={busy} onClick={load}>刷新</button>
+      </div>
+    </>}
+  </section>
+}
+
 const SYNC_LABELS = { local: '本文档', disk: '冲突副本', intro: '共同祖先为两台设备分开修改前的版本。逐处选择后应用；本文档原来的正文和冲突副本都会移到回收站，可以随时恢复。' }
 
 /** v2 step 4B: open sync conflicts, resolved line by line or by keeping one whole version. */
