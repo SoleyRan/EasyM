@@ -10,7 +10,7 @@ import { build } from 'vite'
 import { WebDavSyncProvider } from './webdav/webdav-provider.mjs'
 import { enableIdentity, exists, FsHost } from './webdav/fs-host.mjs'
 
-const out = 'test-results/v2.0/step-4'
+const out = 'test-results/v2.0/step-5'
 const env = Object.fromEntries((await readFile('test-results/v2.0/step-1/webdav.env', 'utf8')).split(/\r?\n/).filter(Boolean).map((line) => line.split(/=(.*)/s, 2)))
 const targets = {
   apache: { baseUrl: 'http://127.0.0.1:18081', root: '/dav/', user: env.EASYM_DAV_USER, password: env.EASYM_DAV_PASSWORD },
@@ -136,10 +136,17 @@ async function roundTrip(name, target) {
 }
 
 /** Step 4C: what "rejoin as a new device" does (src/editor/useSync.ts), on a directory host. */
-async function rejoin(d) {
+async function rejoin(d, retireOld = false) {
   const previous = await d.host.loadState()
+  const old = d.host.deviceId
   d.host.deviceId = randomUUID()
-  await d.host.saveState(await core.rejoinState(d.provider, previous, d.host.workspaceId, d.host.deviceId, signal()))
+  await d.host.saveState(await core.rejoinState(d.provider, previous, d.host.workspaceId, d.host.deviceId, signal(), retireOld))
+  return old
+}
+/** Step 5A: what "停用" does (src/editor/useSync.ts deactivate): queue the id in the persisted state. */
+async function queueDeactivation(d, deviceId) {
+  const state = await d.host.loadState()
+  await d.host.saveState({ ...state, device: { ...state.device, retire: core.queueRetirement(state.device.retire, deviceId, d.host.deviceId) } })
 }
 const codeOf = (promise) => promise.then(() => null, (error) => error.code ?? error.message)
 const markdownFiles = async (root) => (await readdir(root)).filter((f) => f.endsWith('.md')).sort()
@@ -165,11 +172,15 @@ async function recovery(name, target) {
       await a.provider.publishDeviceHead(saved.head, { kind: 'owned' }, signal())
       const code = await codeOf(a.pass())
       check('rollback_stops_without_touching_files', code === 'rollback' && (await readFile(join(a.root, 'n.md'), 'utf8')) === 'v2 from A\n', { code })
-      await rejoin(a)
+      // After a rollback the UI retires the old id automatically (step 5A).
+      const oldId = await rejoin(a, true)
       await a.pass(); await b.pass(); await a.pass()
       const texts = async (root) => Promise.all((await markdownFiles(root)).map((f) => readFile(join(root, f), 'utf8')))
       const aTexts = (await texts(a.root)).sort(), bTexts = (await texts(b.root)).sort()
       check('rollback_rejoin_keeps_both_versions', JSON.stringify(aTexts) === JSON.stringify(['v1\n', 'v2 from A\n']) && JSON.stringify(aTexts) === JSON.stringify(bTexts), { files: aTexts.length })
+      const heads = (await a.provider.listDeviceHeads(workspaceId, signal())).map((h) => h.head.deviceId)
+      const retired = await a.provider.listRetiredDevices(workspaceId, signal())
+      check('rollback_rejoin_retires_old_id', !heads.includes(oldId) && retired.includes(oldId) && heads.length === 2, { heads: heads.length })
     }
     // A copied configuration publishes under A's device id first: A stops, rejoins and merges cleanly.
     {
@@ -198,6 +209,30 @@ async function recovery(name, target) {
       const first = await b.pass(), second = await b.pass()
       const state = await b.host.loadState()
       check('missing_object_never_half_applied', first.failed.some((f) => f.error === 'missing_object') && second.failed.length === 1 && !(await exists(join(b.root, 'gone.md'))) && state.applied === null, { failed: first.failed.map((f) => f.error) })
+    }
+    // Step 5A: B deactivates C. C's last edit is kept, A (which remembered C) sees no rollback,
+    // C stops with device_retired and rejoins as a new device without losing files.
+    {
+      const { workspaceId, a, b } = await pair()
+      await writeFile(join(a.root, 'n.md'), 'v1\n'); await enableIdentity(a.root, core, workspaceId, ['n.md'])
+      await a.pass(); await b.pass()
+      const c = await device(target, workspaceId); roots.push(c.root)
+      await enableIdentity(c.root, core, workspaceId, []); await c.pass(); await a.pass()
+      await a.provider.publishDeviceInfo(workspaceId, a.host.deviceId, core.encodeSyncDeviceInfo({ schemaVersion: 1, workspaceId, deviceId: a.host.deviceId, name: '设备 A', platform: 'linux' }), signal())
+      await writeFile(join(c.root, 'from-c.md'), 'last edit on C\n'); await c.pass(); await b.pass()
+      const cId = c.host.deviceId
+      await queueDeactivation(b, cId)
+      const listed = await core.listSyncDevices(b.provider, workspaceId, b.host.deviceId, [cId], signal())
+      check('device_list_shows_names_and_pending_deactivation', listed.length === 3 && listed[0].self && listed.some((d) => d.deviceId === a.host.deviceId && d.name === '设备 A') && listed.some((d) => d.deviceId === cId && d.retiring) && listed.every((d) => d.lastSync !== null), { devices: listed.length })
+      await b.pass()
+      const heads = (await b.provider.listDeviceHeads(workspaceId, signal())).map((h) => h.head.deviceId)
+      const aCode = await codeOf(a.pass())
+      check('deactivated_device_retired_without_rollback_elsewhere', !heads.includes(cId) && (await b.provider.listRetiredDevices(workspaceId, signal())).includes(cId) && aCode === null && (await readFile(join(a.root, 'from-c.md'), 'utf8')) === 'last edit on C\n', { code: aCode })
+      const cCode = await codeOf(c.pass())
+      const before = JSON.stringify(bodies(await tree(c.root)))
+      await rejoin(c, true); await c.pass(); await a.pass(); await b.pass(); await c.pass()
+      const views = await Promise.all([a.root, b.root, c.root].map(async (root) => JSON.stringify(bodies(await tree(root)))))
+      check('retired_device_stops_then_rejoins_keeping_files', cCode === 'device_retired' && before === views[2] && new Set(views).size === 1, { code: cCode })
     }
     // C goes offline while A and B edit for several rounds, then edits and returns.
     {

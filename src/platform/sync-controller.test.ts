@@ -6,12 +6,13 @@ const report = (patch: Partial<PassReport> = {}): PassReport => ({ published: fa
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
 
-function setup(pass: (signal: AbortSignal) => Promise<PassReport>, paused = false) {
+function setup(pass: (signal: AbortSignal) => Promise<PassReport>, paused = false, interval?: { value: number | null }) {
   const statuses: SyncStatus[] = [], reports: PassReport[] = [], pausedWrites: boolean[] = []
   let stored = paused
   const controller = new SyncController({
     pass, onStatus: (s) => statuses.push(s), onReport: (r) => reports.push(r),
     loadPaused: () => stored, savePaused: (value) => { stored = value; pausedWrites.push(value) }, now: () => 1000,
+    ...(interval ? { interval: () => interval.value } : {}),
   })
   return { controller, statuses, reports, pausedWrites }
 }
@@ -95,5 +96,65 @@ describe('sync controller', () => {
     expect(signals[0].aborted).toBe(true)
     await vi.advanceTimersByTimeAsync(600_000)
     expect(pass).toHaveBeenCalledTimes(1)
+  })
+
+  it('follows the interval setting and reschedules when it changes', async () => {
+    const interval = { value: 300_000 as number | null }
+    const pass = vi.fn(async () => report())
+    const { controller } = setup(pass, false, interval)
+    controller.start(); await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(299_000)
+    expect(pass).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(pass).toHaveBeenCalledTimes(2)
+    interval.value = 60_000; controller.reschedule()
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(pass).toHaveBeenCalledTimes(3)
+    controller.stop()
+  })
+
+  it('manual only: no automatic passes and saves do not sync, but "sync now" still does', async () => {
+    const interval = { value: 60_000 as number | null }
+    const pass = vi.fn(async () => report())
+    const { controller } = setup(pass, false, interval)
+    controller.start(); await vi.advanceTimersByTimeAsync(0)
+    interval.value = null; controller.reschedule()
+    await vi.advanceTimersByTimeAsync(3_600_000)
+    expect(pass).toHaveBeenCalledTimes(1)
+    controller.notify(); await vi.advanceTimersByTimeAsync(0)
+    expect(pass).toHaveBeenCalledTimes(1)
+    controller.request(); await vi.advanceTimersByTimeAsync(0)
+    expect(pass).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(3_600_000)
+    expect(pass).toHaveBeenCalledTimes(2)
+    controller.stop()
+  })
+
+  it('exclusive waits for a running pass, holds new ones during the task, then runs one pass', async () => {
+    const order: string[] = []
+    let release!: () => void
+    const pass = vi.fn(async () => {
+      order.push('pass start')
+      if (pass.mock.calls.length === 1) await new Promise<void>((resolve) => { release = resolve })
+      order.push('pass end')
+      return report()
+    })
+    const { controller } = setup(pass)
+    controller.start(); await vi.advanceTimersByTimeAsync(0)
+    const task = controller.exclusive(async () => {
+      order.push('task')
+      controller.request(); controller.notify()
+      await vi.advanceTimersByTimeAsync(0)
+      return 'done'
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(order).toEqual(['pass start'])
+    release()
+    expect(await task).toBe('done')
+    await vi.advanceTimersByTimeAsync(0)
+    // The running pass finished first; requests during the task produced exactly one pass after it.
+    expect(order).toEqual(['pass start', 'pass end', 'task', 'pass start', 'pass end'])
+    expect(pass).toHaveBeenCalledTimes(2)
+    controller.stop()
   })
 })

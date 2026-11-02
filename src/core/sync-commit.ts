@@ -188,7 +188,7 @@ export function commitObjects(commit: SyncCommit): Set<string> {
  * `existing` (already on the remote, normally the parent's objects), so no published head can
  * reference a missing object. The head is advanced separately (see sync-log.ts).
  */
-export async function uploadSyncCommit(provider: SyncProvider, commit: SyncCommit, uploads: SyncUpload[], existing: ReadonlySet<string>, signal: AbortSignal): Promise<string> {
+export async function uploadSyncCommit(provider: SyncProvider, commit: SyncCommit, uploads: SyncUpload[], existing: ReadonlySet<string>, signal: AbortSignal, onUpload?: (done: number, total: number) => void): Promise<string> {
   const bytes = encodeSyncCommit(commit)
   const pending = new Map<string, Uint8Array>()
   for (const upload of uploads) {
@@ -197,10 +197,14 @@ export async function uploadSyncCommit(provider: SyncProvider, commit: SyncCommi
   }
   for (const hash of commitObjects(commit)) if (!pending.has(hash) && !existing.has(hash)) fail('missing_object')
   const queue = [...pending]
+  // Step 5B: progress for the sync status; reported after each stored object.
+  const total = queue.length
+  let done = 0
   const worker = async () => {
     for (let item = queue.shift(); item; item = queue.shift()) {
       signal.throwIfAborted()
       await provider.createObject(commit.workspaceId, item[0], item[1], signal)
+      onUpload?.(++done, total)
     }
   }
   await Promise.all(Array.from({ length: Math.min(MAX_SYNC_PARALLEL_TRANSFERS, queue.length) }, worker))

@@ -1,0 +1,525 @@
+{
+  "verifiedAt": "2026-10-30T10:59:30.423Z",
+  "pageOrigin": "http://127.0.0.1:63812",
+  "scope": "Loopback HTTP; real Chromium and WebKit; the proxy only adds CORS headers.",
+  "results": {
+    "apache/chromium/direct": [
+      {
+        "name": "propfind",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "mkcol",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "put_create",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "get",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "put_if_match",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "delete_file",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "delete_collection",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      }
+    ],
+    "apache/chromium/cors-proxy": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "W/\"7-65f0cb0db8d0e\"",
+        "modified": "Fri, 30 Oct 2026 10:59:31 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 412,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "apache/chromium/same-origin": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "W/\"7-65f0cb0dee876\"",
+        "modified": "Fri, 30 Oct 2026 10:59:31 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 412,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "apache/webkit/direct": [
+      {
+        "name": "propfind",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "mkcol",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "put_create",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "get",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "put_if_match",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "delete_file",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "delete_collection",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      }
+    ],
+    "apache/webkit/cors-proxy": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "W/\"7-65f0cb0e8bc32\"",
+        "modified": "Fri, 30 Oct 2026 10:59:32 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 412,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "apache/webkit/same-origin": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "W/\"7-65f0cb0ec36dd\"",
+        "modified": "Fri, 30 Oct 2026 10:59:32 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 412,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "nextcloud/chromium/direct": [
+      {
+        "name": "propfind",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "mkcol",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "put_create",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "get",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "put_if_match",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "delete_file",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      },
+      {
+        "name": "delete_collection",
+        "status": "blocked",
+        "error": "TypeError: Failed to fetch"
+      }
+    ],
+    "nextcloud/chromium/cors-proxy": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": "\"1705bf682f795c96204e59fa847f98f1\"",
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "\"1705bf682f795c96204e59fa847f98f1\"",
+        "modified": "Fri, 30 Oct 2026 10:59:34 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 204,
+        "etag": "\"1705bf682f795c96204e59fa847f98f1\"",
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "nextcloud/chromium/same-origin": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": "\"831ea16710648c65ceed0e25ced9bb14\"",
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "\"831ea16710648c65ceed0e25ced9bb14\"",
+        "modified": "Fri, 30 Oct 2026 10:59:36 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 204,
+        "etag": "\"3cd8753053a4105d7c5ea14b69a502a4\"",
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "nextcloud/webkit/direct": [
+      {
+        "name": "propfind",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "mkcol",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "put_create",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "get",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "put_if_match",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "delete_file",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      },
+      {
+        "name": "delete_collection",
+        "status": "blocked",
+        "error": "TypeError: Load failed"
+      }
+    ],
+    "nextcloud/webkit/cors-proxy": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": "\"be40d732368673d496b8d3152667ea46\"",
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "\"be40d732368673d496b8d3152667ea46\"",
+        "modified": "Fri, 30 Oct 2026 10:59:39 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 204,
+        "etag": "\"be40d732368673d496b8d3152667ea46\"",
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ],
+    "nextcloud/webkit/same-origin": [
+      {
+        "name": "propfind",
+        "status": 207,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "mkcol",
+        "status": 201,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "put_create",
+        "status": 201,
+        "etag": "\"374b5a5b185f868c16900be85994ed88\"",
+        "modified": null
+      },
+      {
+        "name": "get",
+        "status": 200,
+        "etag": "\"374b5a5b185f868c16900be85994ed88\"",
+        "modified": "Fri, 30 Oct 2026 10:59:41 GMT"
+      },
+      {
+        "name": "put_if_match",
+        "status": 204,
+        "etag": "\"374b5a5b185f868c16900be85994ed88\"",
+        "modified": null
+      },
+      {
+        "name": "delete_file",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      },
+      {
+        "name": "delete_collection",
+        "status": 204,
+        "etag": null,
+        "modified": null
+      }
+    ]
+  },
+  "capabilities": {
+    "chromium": {
+      "secureContext": true,
+      "directoryPicker": true,
+      "originPrivateFileSystem": true,
+      "serviceWorker": true,
+      "persistentStorage": true,
+      "subtleCrypto": true
+    },
+    "webkit": {
+      "secureContext": true,
+      "directoryPicker": false,
+      "originPrivateFileSystem": true,
+      "serviceWorker": true,
+      "persistentStorage": true,
+      "subtleCrypto": true
+    }
+  }
+}

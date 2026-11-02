@@ -272,3 +272,59 @@ describe('per-device log faults', () => {
     await expect(b.sync()).rejects.toThrow('missing_object')
   })
 })
+
+describe('device retirement (step 5A)', () => {
+  const key = (d: Device) => `${workspaceId}/devices/${d.state.deviceId}`
+
+  it('retires another device only after merging its last head; others do not see a rollback', async () => {
+    const { provider, list: [a, b, c] } = await devices(3)
+    a.edit(docId(1), 'a.md', 'from A'); await a.sync()
+    c.edit(docId(2), 'c.md', 'from C'); await c.sync()
+    await b.sync()
+    expect(b.state.seen[c.state.deviceId]).toBeGreaterThan(0)
+    a.state = { ...a.state, retire: [c.state.deviceId] }
+    await a.sync()
+    expect(provider.heads.has(key(c))).toBe(false)
+    expect(provider.retired.has(`${workspaceId}/retired/${c.state.deviceId}`)).toBe(true)
+    expect(a.state.retire).toBeUndefined()
+    expect(a.texts()).toEqual(['from A', 'from C'])
+    // B remembered C; its head disappearing on purpose is not a rollback.
+    await b.sync()
+    expect(b.state.seen[c.state.deviceId]).toBeUndefined()
+    expect(b.view()).toEqual(a.view())
+    // The retired device itself stops instead of republishing.
+    await expect(c.sync()).rejects.toThrow('device_retired')
+  })
+
+  it('keeps a retirement queued when the head is not yet merged or changed since it was listed', async () => {
+    const { provider, list: [a, c] } = await devices(2)
+    a.edit(docId(1), 'a.md', 'from A'); await a.sync()
+    c.edit(docId(2), 'c.md', 'from C'); await c.sync()
+    a.state = { ...a.state, retire: [c.state.deviceId] }
+    // The head changes between A's listing and the delete: the conditional delete must refuse.
+    const retire = provider.retireDevice.bind(provider)
+    provider.retireDevice = async (head, revision, signal) => {
+      const current = provider.heads.get(key(c))!
+      provider.heads.set(key(c), { ...current, revision: '"changed"' })
+      provider.retireDevice = retire
+      return retire(head, revision, signal)
+    }
+    await a.sync()
+    expect(a.state.retire).toEqual([c.state.deviceId])
+    expect(provider.heads.has(key(c))).toBe(true)
+    // Next pass: the head is listed again (already merged), so the retirement completes.
+    await a.sync()
+    expect(provider.heads.has(key(c))).toBe(false)
+    expect(a.state.retire).toBeUndefined()
+    expect(a.texts()).toEqual(['from A', 'from C'])
+  })
+
+  it('a device can never queue itself, and an unknown id is simply dropped', async () => {
+    const { list: [a] } = await devices(1)
+    a.edit(docId(1), 'a.md', 'v1'); await a.sync()
+    a.state = { ...a.state, retire: [a.state.deviceId, uuid('dead0000', 1)] }
+    await a.sync()
+    expect(a.state.retire).toBeUndefined()
+    await expect(a.sync()).resolves.toBeTruthy()
+  })
+})

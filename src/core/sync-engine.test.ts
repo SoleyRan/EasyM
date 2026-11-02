@@ -300,6 +300,24 @@ describe('conflicts', () => {
   })
 })
 
+describe('pass progress (step 5B)', () => {
+  it('reports the scan, then upload and download counts that end at their totals', async () => {
+    const { a, ea, eb } = pair()
+    a.edit('one.md', '1'); a.edit('two.md', '2')
+    const up: string[] = []
+    await ea.pass(signal(), (p) => up.push(p.phase === 'scan' ? 'scan' : `${p.phase} ${p.done}/${p.total}`))
+    expect(up[0]).toBe('scan')
+    expect(up.at(-1)).toMatch(/^upload (\d+)\/\1$/)
+    const down: string[] = []
+    await eb.pass(signal(), (p) => down.push(p.phase === 'scan' ? 'scan' : `${p.phase} ${p.done}/${p.total}`))
+    expect(down).toEqual(['scan', 'download 0/2', 'download 1/2', 'download 2/2'])
+    // An idle pass reports only the scan.
+    const idle: string[] = []
+    await eb.pass(signal(), (p) => idle.push(p.phase))
+    expect(idle).toEqual(['scan'])
+  })
+})
+
 describe('rejoining after a rollback or a reused device id', () => {
   const rejoin = async (server: MemorySyncProvider, w: MemoryWorkspace) => {
     w.deviceId = uuid()
@@ -362,6 +380,38 @@ describe('rejoining after a rollback or a reused device id', () => {
     a.state = await rejoinState(server, previous, workspaceId, a.deviceId, signal())
     expect(a.state.conflicts).toEqual(previous.conflicts)
     expect((await new SyncEngine(server, a).pass(signal())).openConflicts.map((c) => c.copy)).toEqual(open.map((c) => c.copy))
+  })
+
+  it('after a rollback the old device id is retired once the new id has published (step 5A)', async () => {
+    const { server, a, b, ea, eb } = pair()
+    a.edit('n.md', 'v1'); await ea.pass(signal()); await eb.pass(signal())
+    const backup = new Map([...server.heads].map(([key, value]) => [key, { ...value }]))
+    a.edit('n.md', 'v2 from A'); await ea.pass(signal())
+    server.heads.clear(); for (const [key, value] of backup) server.heads.set(key, value)
+    await expect(ea.pass(signal())).rejects.toMatchObject({ code: 'rollback' })
+    const oldId = a.deviceId
+    a.deviceId = uuid()
+    a.state = await rejoinState(server, a.state, workspaceId, a.deviceId, signal(), true)
+    expect(a.state.device.retire).toEqual([oldId])
+    await new SyncEngine(server, a).pass(signal())
+    // The old head was contained in the new one, so it is gone and recorded as retired.
+    expect(server.heads.has(`${workspaceId}/devices/${oldId}`)).toBe(false)
+    expect(server.retired.has(`${workspaceId}/retired/${oldId}`)).toBe(true)
+    expect(a.state!.device.retire).toBeUndefined()
+    // B remembered the old id; its disappearance is not a rollback, and both devices converge.
+    await eb.pass(signal()); await new SyncEngine(server, a).pass(signal())
+    expect(b.view()).toEqual(a.view())
+    expect(b.state!.device.seen[oldId]).toBeUndefined()
+  })
+
+  it('rejoining after a reused id does not retire the old id, and keeps queued deactivations', async () => {
+    const { server, a } = pair()
+    a.edit('n.md', 'v1'); await new SyncEngine(server, a).pass(signal())
+    const queued = uuid()
+    const previous = { ...a.state!, device: { ...a.state!.device, retire: [queued] } }
+    a.deviceId = uuid()
+    const next = await rejoinState(server, previous, workspaceId, a.deviceId, signal(), false)
+    expect(next.device.retire).toEqual([queued])
   })
 })
 

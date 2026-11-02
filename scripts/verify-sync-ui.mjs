@@ -19,12 +19,12 @@ const fixture = { identity, commit, head, REMOTE, DEVICE, PASSWORD }
 const server = await serveProduction()
 const report = { verifiedAt: new Date().toISOString(), passed: false, checks: [], scope: 'Production UI with deterministic IPC; real servers are covered by verify-sync-e2e.' }
 let browser
-await mkdir('test-results/v2.0/step-4', { recursive: true })
+await mkdir('test-results/v2.0/step-5', { recursive: true })
 /** In-page native mock: a remote object/head store and a local workspace, with the native rules. */
 function installMock(fx) {
   const enc = (s) => [...new TextEncoder().encode(s)], dec = (b) => new TextDecoder().decode(new Uint8Array(b))
   const hash = async (bytes) => 'sha256:' + [...new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes)))].map((b) => b.toString(16).padStart(2, '0')).join('')
-  const remote = { heads: new Map([[fx.DEVICE, { bytes: enc(fx.head), revision: '"h1"' }]]), objects: new Map() }
+  const remote = { heads: new Map([[fx.DEVICE, { bytes: enc(fx.head), revision: '"h1"' }]]), objects: new Map(), retired: new Map(), info: new Map() }
   window.local = { files: new Map([['a.md', 'local a']]), identity: enc(fx.identity), state: null, trash: [] }
   window.calls = []; window.bound = null
   // Exposed so the test can play the other device (publish a commit) and inspect what was synced.
@@ -69,7 +69,24 @@ function installMock(fx) {
     if (command === 'sync_rejoin') { window.bound = { ...window.bound, deviceId: crypto.randomUUID() }; return window.bound }
     if (command === 'sync_state_read') return window.local.state
     if (command === 'sync_state_write') { window.local.state = args.bytes; return }
-    if (command === 'sync_heads') return [...remote.heads].map(([deviceId, h]) => ({ deviceId, bytes: h.bytes, revision: h.revision }))
+    if (command === 'sync_heads') return [...remote.heads].map(([deviceId, h]) => ({ deviceId, bytes: h.bytes, revision: h.revision, modified: 'Tue, 28 Oct 2026 08:30:00 GMT' }))
+    // Step 5A: retirement records and device info, with the native rules (create-only record,
+    // conditional head delete, own-device info only).
+    // Step 5B: like Nextcloud, used space only; the test can set `remote.quota` to other answers.
+    if (command === 'sync_quota') return remote.quota ?? { available: null, used: 460 }
+    if (command === 'sync_retired') return [...remote.retired.keys()].sort()
+    if (command === 'sync_retire') {
+      if (args.device === window.bound.deviceId) throw 'permission_denied'
+      if (!remote.retired.has(args.device)) remote.retired.set(args.device, args.bytes)
+      const current = remote.heads.get(args.device)
+      if (current && args.revision && current.revision !== args.revision) throw 'device_changed'
+      remote.heads.delete(args.device); return
+    }
+    if (command === 'sync_device_info') return remote.info.get(args.device) ?? null
+    if (command === 'sync_publish_info') {
+      if (JSON.parse(dec(args.bytes)).deviceId !== window.bound.deviceId) throw 'permission_denied'
+      remote.info.set(window.bound.deviceId, args.bytes); return
+    }
     if (command === 'sync_head') { const h = remote.heads.get(args.device); return h ? { deviceId: args.device, bytes: h.bytes, revision: h.revision } : null }
     if (command === 'sync_publish') {
       const device = JSON.parse(dec(args.bytes)).deviceId, current = remote.heads.get(device)
@@ -241,6 +258,71 @@ try {
   assert.ok(rejoined.published, 'the new device publishes its own head')
   report.checks.push('rejoining under a new device id resumes sync, publishes a new head and keeps every file')
 
+  // Step 5A: after a rollback the old device id is retired automatically once the new id published.
+  await page.waitForFunction((old) => !window.remote.heads.has(old) && window.remote.retired.has(old), oldDevice)
+  report.checks.push('after a rollback rejoin the old device id is retired automatically')
+
+  // Sync frequency is saved per binding; manual only explains that saves no longer upload.
+  const frequency = dialog.getByRole('combobox', { name: '同步频率' })
+  await frequency.selectOption('manual')
+  await dialog.getByText(/仅手动同步：保存文档后不会自动上传/).waitFor()
+  assert.equal(await page.evaluate(() => localStorage.getItem('easym-sync-interval:b0000000-0000-4000-8000-000000000001')), 'manual')
+  await frequency.selectOption('300000')
+  await dialog.getByText(/仅手动同步：保存文档后不会自动上传/).waitFor({ state: 'detached' })
+  assert.equal(await page.evaluate(() => localStorage.getItem('easym-sync-interval:b0000000-0000-4000-8000-000000000001')), '300000')
+  report.checks.push('sync frequency (including manual only) is saved per binding')
+
+  // Device list: this device published its info after the pass; the other device has none.
+  const devicesRegion = dialog.getByRole('region', { name: '同步设备' })
+  await devicesRegion.getByRole('button', { name: '查看设备', exact: true }).click()
+  await devicesRegion.getByText(/（本机）/).waitFor()
+  await devicesRegion.getByText(`未命名设备 ${fixture.DEVICE.slice(0, 8)}`).waitFor()
+  await devicesRegion.getByLabel('本机名称').fill('测试电脑')
+  await devicesRegion.getByRole('button', { name: '保存名称', exact: true }).click()
+  await dialog.getByRole('status').filter({ hasText: '已更新本机名称' }).waitFor()
+  await devicesRegion.getByText(/测试电脑（本机）/).waitFor()
+  const info = await page.evaluate(() => JSON.parse(window.mockDec(window.remote.info.get(window.bound.deviceId))))
+  assert.deepEqual([info.name, info.deviceId === undefined], ['测试电脑', false])
+  report.checks.push('the device list shows this device and others; renaming publishes the new name')
+
+  // Deactivating the other device completes on the next pass: record written, head removed.
+  const other = devicesRegion.getByRole('listitem').filter({ hasText: fixture.DEVICE.slice(0, 8) })
+  page.once('dialog', (d) => d.accept())
+  await other.getByRole('button', { name: '停用', exact: true }).click()
+  await dialog.getByRole('status').filter({ hasText: '已安排停用' }).waitFor()
+  await page.waitForFunction(() => !window.remote.heads.has(window.DEVICE_ID) && window.remote.retired.has(window.DEVICE_ID))
+  await chip.filter({ hasText: '已同步' }).waitFor()
+  await devicesRegion.getByRole('button', { name: '刷新', exact: true }).click()
+  await devicesRegion.getByText(`未命名设备 ${fixture.DEVICE.slice(0, 8)}`).waitFor({ state: 'detached' })
+  assert.equal(await page.evaluate(() => JSON.stringify([...window.local.files].sort())), filesBeforeRollback)
+  report.checks.push('deactivating another device retires it on the next pass and keeps every file')
+
+  // Step 5B: server space shows only what the server reports, and warns when it runs low.
+  const support = dialog.getByRole('region', { name: '空间与诊断' })
+  await support.getByRole('button', { name: '查看服务器空间', exact: true }).click()
+  await support.getByRole('status').filter({ hasText: '已用 460 B（服务器未报告剩余空间）' }).waitFor()
+  assert.equal(await support.getByRole('alert').count(), 0)
+  await page.evaluate(() => { window.remote.quota = { available: 50 * 1024 * 1024, used: 2 * 1024 * 1024 * 1024 } })
+  await support.getByRole('button', { name: '查看服务器空间', exact: true }).click()
+  await support.getByRole('status').filter({ hasText: '已用 2.0 GB，剩余 50.0 MB' }).waitFor()
+  await support.getByRole('alert').filter({ hasText: '上传可能失败' }).waitFor()
+  await page.evaluate(() => { window.remote.quota = { available: null, used: null } })
+  await support.getByRole('button', { name: '查看服务器空间', exact: true }).click()
+  await support.getByText('服务器没有报告空间使用情况。').waitFor()
+  report.checks.push('server space shows used/available as reported, unknown values as unknown, and warns when low')
+
+  // The diagnostics report has codes, counts and short ids, never the endpoint, user or password.
+  await support.getByRole('button', { name: '复制诊断信息', exact: true }).click()
+  const diagnostics = support.getByLabel('诊断信息')
+  await diagnostics.waitFor()
+  const text = await diagnostics.inputValue()
+  const value = JSON.parse(text)
+  assert.equal(value.schema, 'easym-sync-diagnostics/1')
+  assert.equal(value.connection.endpoint, 'https')
+  assert.equal(value.devices, 1)
+  for (const secret of ['dav.example.test', fixture.PASSWORD, '"u"', 'a.md', 'n.md', fixture.REMOTE]) assert.ok(!text.includes(secret), secret)
+  report.checks.push('the diagnostics report contains codes, counts and short ids only; no endpoint, user, password or document names')
+
   const filesBeforeExit = await page.evaluate(() => window.local.files.size)
   page.once('dialog', (d) => d.accept())
   await dialog.getByRole('button', { name: '退出同步', exact: true }).click()
@@ -256,7 +338,7 @@ try {
 } catch (error) { report.error = error.message; process.exitCode = 1 }
 finally {
   await browser?.close(); await server.close()
-  await writeFile('test-results/v2.0/step-4/sync-ui.json', JSON.stringify(report, null, 2) + '\n')
+  await writeFile('test-results/v2.0/step-5/sync-ui.json', JSON.stringify(report, null, 2) + '\n')
 }
 if (report.passed) console.log(`Sync UI: ${report.checks.length} production checks passed`)
 else console.error('Sync UI failed:', report.error)
