@@ -114,10 +114,28 @@ PR #21 合并后，main `7fb2f0e67d633135831d62c30491e472a815bb0e` 的 [Validate
 
 Artifact 保留到 2027-01-31。签名与分发方式待维护者决定，在此之前沿用不签名、手工下载安装。
 
+### Beta Release 草稿（2026-11-02）
+
+维护者用 `Draft EasyM release`（`run_id=41400030318`）起草了 `v2.0.0-beta.1` 预发布草稿，未公开。工作流已重新核对三平台 manifest 的版本、提交和文件哈希。草稿中的 `SHA256SUMS.txt`：
+
+```text
+707a62640a3fd684d2307be737b882cdb3d10cc67a509a2c3487b0d4396fe6f0  EasyM_2.0.0-beta.1_x64-setup.exe
+5da16e52ab821f1ba1268bdf6ce9da978bceda9c4e604c9f63e4aec8726bff7c  EasyM-2.0.0-beta.1-windows-x64.zip
+77cfc4cc4c63960270d36fcacc2feea6412846b9a5c3ada39910ede10b8de81f  RELEASE-NOTES.md
+d22a471d821f344e768b39bbb1b082bfba4bc0f686da73fe31048d6bac631112  EasyM-2.0.0-beta.1-macos-arm64.dmg
+69d4a3056c299c4fba6719f75b2edb018b0594722ad37a894a032ce257dcdd82  EasyM-2.0.0-beta.1-linux-amd64.deb
+04446ebcf3bfb0499f507973c5c34b22ed009d102282c030bf24333688888e05  release-manifest.json
+e52711d7379658424385823681bf5d31ee5490ec538d4bd8f909241ee3b11079  release-manifest-macos-arm64.json
+ef4ba05d371a959b59db6c7227a2df1a25a9aa3c1f11a69a3b8f84947f637b5b  release-manifest-linux-amd64.json
+```
+
+`RELEASE-NOTES.md` 的哈希等于提交 `7fb2f0e` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希（Windows runner 检出时按 autocrlf 转换），说明附带的是该提交的发行说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
+
+本记录分支对发行说明的补充（未签名 macOS 升级后钥匙串可能再次授权）不在 beta.1 草稿附带的说明里。公开 Beta 前，可以把这一句手动加进 Release 正文。
+
 ### 6B 未完成
 
-- 用这次运行起草 Beta Release（`Draft EasyM release`，`run_id=41400030318`）。工作流要求 main 仍指向 `7fb2f0e`，所以要在这份记录合并之前起草。
-- 起草后把 `SHA256SUMS.txt` 里三平台安装包的哈希填进[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
+- 签名与分发方式待维护者决定，在此之前沿用不签名、手工下载安装。
 
 ## 6C：实机验收与长时间离线试用（待执行）
 
