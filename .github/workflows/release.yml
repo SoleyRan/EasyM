@@ -81,7 +81,7 @@ jobs:
               if (object.type !== 'commit' || object.sha !== context.sha) throw new Error('Existing tag points at another commit');
             } catch (error) { if (error.status !== 404) throw error; }
             const notes = fs.readFileSync('candidate/RELEASE-NOTES.md', 'utf8');
-            const {data: release} = await github.rest.repos.createRelease({...context.repo, tag_name: tag, target_commitish: context.sha, name: `EasyM ${manifest.version}`, draft: true, prerelease: false, body: notes + `\n\nCandidate commit: ${context.sha}\nCI: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.RUN_ID}\n\nDraft only: confirm manual acceptance on all three platforms and the signing/distribution decision before publishing.\n`});
+            const {data: release} = await github.rest.repos.createRelease({...context.repo, tag_name: tag, target_commitish: context.sha, name: `EasyM ${manifest.version}`, draft: true, prerelease: manifest.version.includes('-'), body: notes + `\n\nCandidate commit: ${context.sha}\nCI: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.RUN_ID}\n\nDraft only: confirm manual acceptance on all three platforms and the signing/distribution decision before publishing.\n`});
             for (const name of [...assets, 'SHA256SUMS.txt']) {
               const data = fs.readFileSync(`candidate/${name}`);
               await github.rest.repos.uploadReleaseAsset({...context.repo, release_id: release.id, name, data, headers: {'content-type': 'application/octet-stream', 'content-length': data.length}});

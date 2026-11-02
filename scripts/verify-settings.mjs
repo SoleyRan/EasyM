@@ -50,25 +50,25 @@ try {
   await page.keyboard.press('Tab'); assert.equal(await guide.evaluate(el => el.contains(document.activeElement)), true)
   await page.keyboard.press('Shift+Tab'); assert.equal(await guide.evaluate(el => el.contains(document.activeElement)), true)
   await page.screenshot({ path: 'test-results/settings/first-run.png' })
-  const titles = ['开始写作', '编辑与自动保存', '版本历史 · 找回以前的内容', '图片、导出与阅读']
+  const titles = ['开始写作', '编辑与自动保存', '版本历史 · 找回以前的内容', '图片、导出与阅读', '多设备同步']
   for (let index = 0; index < titles.length; index++) {
     assert.equal(await guide.locator('section').count(), 1)
     assert.equal(await guide.getByRole('heading', { level: 3 }).innerText(), titles[index])
-    assert.match(await guide.getByRole('status').innerText(), new RegExp(`${index + 1} / 4`))
+    assert.match(await guide.getByRole('status').innerText(), new RegExp(`${index + 1} / 5`))
     await page.screenshot({ path: `test-results/settings/guide-page-${index + 1}.png` })
     if (index < titles.length - 1) await guide.getByRole('button', { name: '下一页', exact: true }).click()
   }
   await guide.getByRole('button', { name: '上一页', exact: true }).click()
-  assert.equal(await guide.getByRole('heading', { level: 3 }).innerText(), titles[2])
+  assert.equal(await guide.getByRole('heading', { level: 3 }).innerText(), titles.at(-2))
   await page.keyboard.press('ArrowRight')
-  assert.equal(await guide.getByRole('heading', { level: 3 }).innerText(), titles[3])
+  assert.equal(await guide.getByRole('heading', { level: 3 }).innerText(), titles.at(-1))
   await guide.getByRole('button', { name: '开始使用', exact: true }).click()
   await page.reload(); await page.getByRole('button', { name: 'EM 菜单', exact: true }).waitFor()
   assert.equal(await guide.count(), 0)
   await page.evaluate(() => localStorage.setItem('easym-guide-version', '0.2.0'))
   await page.reload(); await guide.waitFor(); assert.match(await guide.innerText(), new RegExp(`已更新到 EasyM ${version.replaceAll('.', '\\.')}`))
   await page.keyboard.press('Escape'); await guide.waitFor({ state: 'detached' })
-  report.checks.push('four guide pages, forward/back/keyboard navigation, first-run, version update, acknowledgment across reload, focus trap, Escape')
+  report.checks.push('five guide pages, forward/back/keyboard navigation, first-run, version update, acknowledgment across reload, focus trap, Escape')
   const openSettings = async () => { await page.getByRole('button', { name: 'EM 菜单', exact: true }).click(); await page.getByRole('menuitem', { name: '设置', exact: true }).click() }
   await openSettings()
   const settings = page.getByRole('dialog', { name: '设置', exact: true })
@@ -106,7 +106,7 @@ try {
   }
   await settings.getByRole('button', { name: '查看使用导引', exact: true }).click(); await guide.waitFor()
   assert.equal(await guide.getByRole('heading', { level: 3 }).innerText(), titles[0])
-  for (let index = 0; index < 3; index++) await guide.getByRole('button', { name: '下一页', exact: true }).click()
+  for (let index = 0; index < titles.length - 1; index++) await guide.getByRole('button', { name: '下一页', exact: true }).click()
   await guide.getByRole('button', { name: '开始使用', exact: true }).click()
   const calls = await page.evaluate(() => window.settingsCalls)
   assert.equal(calls.filter(c => c.command === 'history_directory').every(c => c.args.id === 'settings-file'), true)

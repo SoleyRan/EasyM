@@ -46,7 +46,7 @@ if (!verify) {
     artifacts.push({ name, bytes: bytes.length, sha256: hash(bytes) })
     await copyFile(source, resolve(output, name))
   }
-  await copyFile('Docs/Easy-Markdown-v1.0-发行说明.md', resolve(output, 'RELEASE-NOTES.md'))
+  await copyFile(`Docs/Easy-Markdown-v${version.split('.').slice(0, 2).join('.')}-发行说明.md`, resolve(output, 'RELEASE-NOTES.md'))
   const notes = await readFile(resolve(output, 'RELEASE-NOTES.md'))
   artifacts.push({ name: 'RELEASE-NOTES.md', bytes: notes.length, sha256: hash(notes) })
   await writeFile(resolve(output, 'release-manifest.json'), JSON.stringify({
@@ -58,7 +58,7 @@ if (!verify) {
   await writeFile(resolve(output, 'SHA256SUMS.txt'), [...artifacts, { name: 'release-manifest.json', sha256: hash(manifest) }].map(item => `${item.sha256}  ${item.name}\n`).join(''))
 }
 const manifest = await json(resolve(output, 'release-manifest.json'))
-assert.match(manifest.version, /^1\.0\.\d+$/)
+assert.match(manifest.version, /^2\.0\.\d+(-(beta|rc)\.[1-9]\d*)?$/)
 assert.match(manifest.sourceCommit, /^[a-f0-9]{40}$/)
 assert.equal(manifest.target, 'x86_64-pc-windows-msvc')
 assert.equal(manifest.signed, false)

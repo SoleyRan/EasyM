@@ -99,6 +99,7 @@ export function GuideDialog({ previousVersion, onClose }: { previousVersion: str
     <section className="guide-page" key="editing"><h3>编辑与自动保存</h3><p>使用源码、分屏或即时渲染模式写作。选中文字后用固定或浮动工具栏切换格式；行首输入 / 快捷插入结构。</p><p>表格支持单元格、行列与对齐编辑；链接、段落和代码语言有就地工具。确认操作可撤销，取消保留原文。已保存文件会自动保存；新文档先保留本机草稿，需要首次另存为。重启按上次标签顺序恢复；未完成草稿需确认恢复并另存，不会覆盖原文件。</p></section>,
     <section className="guide-page" key="history"><h3>版本历史 · 找回以前的内容</h3><p>EM → 版本历史需显式启用，可记录、比较、命名和固定正文与图片快照。默认保存在文档旁 .easym/history/，可在设置中更改。草稿与历史不能代替备份。</p><p>磁盘变化时暂停自动保存。有可靠基线可分析三方合并，逐块选择本地、磁盘或手工结果，审查并确认后应用。应用前强制归档四份正文，EM → 合并恢复记录可取回副本；原有本地图片无法验证时请另存。</p><p>EM → 文档备份与恢复可保存当前正文与本地 PNG/JPEG，按需包含此文档历史。恢复前校验并确认，在新目录生成副本，不覆盖原文件。远程图片只保留链接，请把备份另存到独立位置。</p></section>,
     <section className="guide-page" key="reading"><h3>图片、导出与阅读</h3><p>粘贴或拖入 PNG/JPEG，双击预览图片可编辑副本。阅读模式隐藏编辑区，按 Esc 退出。</p><p>支持脚注 [^标识]、文件开头的 YAML/TOML 元数据、$…$ 公式与 mermaid 流程图/时序图。块公式的 $$ 围栏各占一行；设置中可独立关闭公式和图表，错误时保留源码。</p><p>EM → 导出：HTML 离线保留静态公式和图表；PDF 通过系统打印另存。DOCX 将脚注放在文末，公式和图表保留可编辑源码；元数据仅展示原文，不执行配置。</p></section>,
+    <section className="guide-page" key="sync"><h3>多设备同步</h3><p>桌面版可把工作区同步到你自己的 WebDAV 服务器：先在 EM →“同步身份”启用，再从 EM →“同步…”连接。连接前会预览要上传和下载的文档，确认前不改动文件；密码只存放在系统凭据存储。</p><p>两台设备改了不同段落会自动合并；改到同一处时保留双方，另一份另存为冲突副本，可在同步对话框中逐处选择。删除先进工作区回收站。断网和暂停不影响本机编辑。同步不是备份，服务器管理员能读到同步的内容。</p></section>,
   ]
   return <ApplicationDialog title="EasyM 使用导引" onClose={onClose} returnFocus=".app-menu-trigger" onKeyDown={event => {
       if (event.nativeEvent.isComposing || !['ArrowLeft', 'ArrowRight'].includes(event.key)) return

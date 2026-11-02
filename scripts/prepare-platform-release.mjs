@@ -67,7 +67,7 @@ if (!verify) {
   await writeFile(resolve(output, `SHA256SUMS-${label}.txt`), `${hash(bytes)}  ${name}\n${hash(manifest)}  ${manifestName}\n`)
 }
 const manifest = await json(resolve(output, manifestName))
-assert.match(manifest.version, /^1\.0\.\d+$/)
+assert.match(manifest.version, /^2\.0\.\d+(-(beta|rc)\.[1-9]\d*)?$/)
 assert.match(manifest.sourceCommit, /^[a-f0-9]{40}$/)
 if (verify) assert.equal(manifest.sourceCommit, process.argv[4])
 assert.equal(manifest.sourceDirty, false)
