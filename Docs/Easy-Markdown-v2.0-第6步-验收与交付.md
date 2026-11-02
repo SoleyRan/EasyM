@@ -56,4 +56,59 @@
 - 回退到 1.0 的结论来自 v1.0.0 源码核对和引擎测试，没有用 1.0 安装包实际打开启用过同步的工作区。这一项列入 6C 实机验收。
 - 完整 `verify:regression` 留给 CI。
 
-<!-- 6B -->
+## 6B：依赖许可与安装包验证（进行中，2026-11-02）
+
+### 三平台许可清单
+
+按 CI 相同的命令，在本机分别生成三个目标的清单（`cargo metadata --locked --filter-platform`，加 `pnpm licenses list --prod`），再用 `verify-notices.mjs` 校验：
+
+| 目标 | 依赖数 | 许可文件 | 缺失文本 |
+| --- | --- | --- | --- |
+| x86_64-pc-windows-msvc | 619 | 347 | 0 |
+| aarch64-apple-darwin | 616 | 351 | 0 |
+| x86_64-unknown-linux-gnu | 733 | 399 | 0 |
+
+仓库里只提交 Windows 清单；macOS、Linux 清单由 CI 在各自 runner 上重新生成，并校验安装包内附带的副本与之逐字节一致（`prepare-platform-release.mjs`）。
+
+和 v1.0.0 的 SBOM 相比，Windows 新增 51 个包，都来自同步功能（reqwest、hyper、rustls、keyring 等），许可都是宽松许可：MIT、Apache-2.0、ISC、BSD-3-Clause，或其中几种任选。aws-lc-sys 的许可表达式由 ISC、Apache-2.0、MIT、BSD-3-Clause 组合而成，全文都已附带。macOS 多出的是 security-framework 和 objc2 系列（MIT / Apache-2.0 / Zlib）；Linux 多出的是 secret-service、zbus、dbus 和 GTK/WebKitGTK 绑定（MIT / Apache-2.0）。
+
+需要注意的许可都是 1.0 已经带着的，2.0 没有新增：
+
+- MPL-2.0：cssparser、cssparser-macros、dtoa-short、option-ext、selectors（Tauri/wry 依赖，未修改，许可全文已附带）。
+- EPL-2.0：elkjs（Mermaid 布局）。
+- 二选一许可，按宽松的一方使用：dompurify（MPL-2.0 OR Apache-2.0）、jszip（MIT OR GPL-3.0-or-later）。
+- khroma 2.1.0 的元数据里没有许可字段，显示为 Unknown；附带的许可全文是 MIT。
+
+以上是许可元数据和文本完整性检查，不是法律审查。
+
+### Linux 运行依赖
+
+Tauri 生成的 deb 只声明 `libwebkit2gtk-4.1-0`、`libgtk-3-0`。同步凭据通过 dbus-secret-service 动态链接系统的 `libdbus-1-3`（`libdbus-sys` 启用了 pkg-config 特性）。在 Ubuntu 24.04（amd64）上用 `apt-cache depends --recurse` 核对，`libwebkit2gtk-4.1-0` 本身就会间接拉入 `libdbus-1-3`，所以不必另外声明。保存密码还需要一个 Secret Service 服务（GNOME 钥匙环或 KWallet）。桌面版 Ubuntu 默认带有；没有的话，同步会报“系统凭据存储不可用”，且不会把密码写进文件。发行说明已写明这一点。
+
+### Windows 安装包（本机）
+
+- `pnpm tauri build --no-bundle` 加 `pnpm tauri bundle --bundles nsis`：生成 `EasyM_2.0.0-beta.1_x64-setup.exe`（6.84 MiB），文件名带预发布版本号，makensis 没有报错。
+- 原生启动、安装/卸载、便携包这三项检查在本机做不了，原因都是环境：
+  - 命令运行在非交互会话（`UserInteractive=False`），WebView2 创建窗口时报 `0x80070578`（无效的窗口句柄）。本机已安装的 0.7 版用同样方式启动，报同样的错误。
+  - 本机只有 Windows PowerShell 5.1，它的 `Compress-Archive` 在 ZIP 条目里写反斜杠，便携包检查要求正斜杠。CI 用 pwsh 7。
+
+  这三项以 CI 的 Windows runner 结果为准，不在本机补跑。
+
+### 6B 待完成
+
+- 推送分支后看 CI 结果：三平台候选包（`easym-*-release-candidate`），Windows 隔离安装/卸载、原生启动、便携包，macOS/Linux 包内许可校验。拿到结果后把运行编号、提交号和 SHA-256 记进这里。
+- 签名与分发方式待维护者决定，在此之前沿用不签名、手工下载安装。
+
+## 6C：实机验收与长时间离线试用（待执行）
+
+[三平台实机验收表](Easy-Markdown-v2.0-实机验收.md)：
+
+- 沿用 1.0 的编辑器项目，补充两项：输入法组字过程中的 Tab/Enter，以及重命名、移动、回收站。
+- 新增“同步与凭据”12 项，包括各平台凭据存储的授权和解锁、断网与中途退出、停用与重新加入、诊断脱敏、跨平台换行和大小写。
+- 新增“升级与回退”4 项：从 1.0 升级、卸载重装、退出同步后回到 1.0、1.0 编辑后回到 2.0。
+- 长时间离线试用：两台设备至少 7 天，第 7 天汇合同步并核对结果，再加一轮“离线期间被停用”。
+- 发布判定：
+  - 预发布公开前：三平台 CI 全绿；Windows 加另一平台的同步项全部有结果；确定签名方式。
+  - 正式版前：三平台全部项目有结果；离线试用完成；Beta 阻断项关闭。
+
+表中全部为待验，验收人和结果由实际操作的人填写。

@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | Windows x64 | `EasyM_2.0.0-beta.1_x64-setup.exe`、`EasyM-2.0.0-beta.1-windows-x64.zip` | 需要 WebView2 Runtime；便携包附许可和样例 |
 | macOS Apple Silicon | `EasyM-2.0.0-beta.1-macos-arm64.dmg` | 附许可；样例在仓库 `Docs/samples/v2.0` |
-| Ubuntu 24.04 x86_64 | `EasyM-2.0.0-beta.1-linux-amd64.deb` | 附许可；同步密码需要 Secret Service（GNOME 钥匙环或 KWallet） |
+| Ubuntu 24.04 x86_64 | `EasyM-2.0.0-beta.1-linux-amd64.deb` | 附许可；同步密码需要 Secret Service（桌面版默认的 GNOME 钥匙环，或 KWallet）。没有时同步会提示凭据存储不可用，不会把密码写入文件 |
 
 其他 CPU、发行版未验收。Web/PWA 与移动端延期到 2.x，2.0 只含上述三个桌面平台。
 
