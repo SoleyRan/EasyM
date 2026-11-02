@@ -11,9 +11,9 @@ test('release verification rejects changed bytes, a different commit, dirty sour
   const sha = bytes => createHash('sha256').update(bytes).digest('hex')
   const commit = 'a'.repeat(40)
   try {
-    const manifest = { version: '1.0.0', sourceCommit: commit, sourceDirty: false, target: 'x86_64-pc-windows-msvc', signed: false, automaticUpdates: false,
+    const manifest = { version: '2.0.0-beta.1', sourceCommit: commit, sourceDirty: false, target: 'x86_64-pc-windows-msvc', signed: false, automaticUpdates: false,
       checks: Object.fromEntries(['native-startup', 'native-extensions', 'portable', 'installer'].map(name => [name, { passed: true }])), artifacts: [] }
-    for (const name of ['EasyM_1.0.0_x64-setup.exe', 'EasyM-1.0.0-windows-x64.zip', 'RELEASE-NOTES.md']) {
+    for (const name of ['EasyM_2.0.0-beta.1_x64-setup.exe', 'EasyM-2.0.0-beta.1-windows-x64.zip', 'RELEASE-NOTES.md']) {
       const bytes = Buffer.from(`release fixture: ${name}`)
       await writeFile(join(directory, name), bytes)
       manifest.artifacts.push({ name, bytes: bytes.length, sha256: sha(bytes) })
@@ -41,10 +41,10 @@ test('macOS and Linux release verification binds package bytes, target, notices 
   const commit = 'c'.repeat(40)
   try {
     for (const [platform, label, target, extension] of [['darwin', 'macos-arm64', 'aarch64-apple-darwin', 'dmg'], ['linux', 'linux-amd64', 'x86_64-unknown-linux-gnu', 'deb']]) {
-      const name = `EasyM-1.0.0-${label}.${extension}`, bytes = Buffer.from(`package fixture ${platform}`)
+      const name = `EasyM-2.0.0-beta.1-${label}.${extension}`, bytes = Buffer.from(`package fixture ${platform}`)
       await writeFile(join(directory, name), bytes)
       const manifestName = `release-manifest-${label}.json`
-      const manifest = { version: '1.0.0', sourceCommit: commit, sourceDirty: false, target, signed: false, automaticUpdates: false, bundledNoticesVerified: true,
+      const manifest = { version: '2.0.0-beta.1', sourceCommit: commit, sourceDirty: false, target, signed: false, automaticUpdates: false, bundledNoticesVerified: true,
         artifacts: [{ name, bytes: bytes.length, sha256: sha(bytes) }] }
       async function save() {
         const data = Buffer.from(JSON.stringify(manifest) + '\n')

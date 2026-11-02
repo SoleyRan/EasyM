@@ -20,25 +20,25 @@ try {
   await page.goto(server.url)
   const guide = page.getByRole('dialog', { name: 'EasyM 使用导引', exact: true })
   await guide.waitFor(); assert.match(await guide.innerText(), new RegExp(`已更新到 EasyM ${version.replaceAll('.', '\\.')}`))
-  for (let index = 1; index <= 4; index++) {
+  for (let index = 1; index <= 5; index++) {
     assert.equal(await guide.locator('section').count(), 1)
-    assert.equal(await guide.getByRole('status').innerText(), `${index} / 4`)
+    assert.equal(await guide.getByRole('status').innerText(), `${index} / 5`)
     assert.equal(await guide.evaluate(node => {
       const r = node.getBoundingClientRect(), nav = node.querySelector('.guide-navigation').getBoundingClientRect()
       return node.scrollWidth <= node.clientWidth && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && nav.bottom <= innerHeight
     }), true, `guide page ${index} must fit minimum window`)
     if (index === 3) for (const term of ['三方合并', '强制归档', '合并恢复记录', '文档备份与恢复', '远程图片只保留链接', '新目录']) assert.ok((await guide.innerText()).includes(term), term)
     await page.screenshot({ path: `${output}/guide-${index}.png` })
-    if (index < 4) await page.keyboard.press('ArrowRight')
+    if (index < 5) await page.keyboard.press('ArrowRight')
   }
   await guide.getByRole('button', { name: '开始使用', exact: true }).click()
   await page.reload(); assert.equal(await guide.count(), 0)
   assert.equal(await page.evaluate(() => localStorage.getItem('easym-guide-version')), version)
-  report.checks.push('upgrade from v0.7 shows four pages, explains merge/recovery/backup on page three, fits 960x680 and persists acknowledgement')
+  report.checks.push('upgrade from v0.7 shows five pages, explains merge/recovery/backup on page three, fits 960x680 and persists acknowledgement')
   await page.getByRole('button', { name: 'EM 菜单', exact: true }).click()
   await page.getByRole('menuitem', { name: '设置', exact: true }).click()
   await page.getByRole('button', { name: '查看使用导引', exact: true }).click()
-  assert.equal(await guide.getByRole('status').innerText(), '1 / 4')
+  assert.equal(await guide.getByRole('status').innerText(), '1 / 5')
   await page.keyboard.press('Escape'); await guide.waitFor({ state: 'hidden' })
   report.checks.push('settings reopens guide at page one; Escape closes it')
 

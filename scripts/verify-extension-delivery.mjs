@@ -23,20 +23,20 @@ try {
   await page.goto(server.url)
   const guide = page.getByRole('dialog', { name: 'EasyM 使用导引', exact: true })
   await guide.waitFor(); assert.ok((await guide.innerText()).includes(version))
-  for (let index = 1; index <= 4; index++) {
+  for (let index = 1; index <= 5; index++) {
     assert.equal(await guide.locator('section').count(), 1)
-    assert.equal(await guide.getByRole('status').innerText(), `${index} / 4`)
+    assert.equal(await guide.getByRole('status').innerText(), `${index} / 5`)
     assert.equal(await guide.evaluate(node => {
       const r = node.getBoundingClientRect(), nav = node.querySelector('.guide-navigation').getBoundingClientRect()
       return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight && nav.bottom <= innerHeight
     }), true, `Guide page ${index} must fit minimum desktop window`)
+    if (index === 4) assert.match(await guide.innerText(), /DOCX.*源码/)
     await page.screenshot({ path: `${output}/guide-${index}.png` })
-    if (index < 4) await page.keyboard.press('ArrowRight')
+    if (index < 5) await page.keyboard.press('ArrowRight')
   }
-  assert.match(await guide.innerText(), /DOCX.*源码/)
-  await page.keyboard.press('ArrowLeft'); assert.equal(await guide.getByRole('status').innerText(), '3 / 4')
+  await page.keyboard.press('ArrowLeft'); assert.equal(await guide.getByRole('status').innerText(), '4 / 5')
   await page.keyboard.press('ArrowRight'); await guide.getByRole('button', { name: '开始使用', exact: true }).click()
-  report.checks.push('four guide pages with arrow navigation, extension/export contract and visible navigation at 960x680')
+  report.checks.push('five guide pages with arrow navigation, extension/export contract and visible navigation at 960x680')
   await page.setViewportSize({ width: 1180, height: 850 })
   const panel = () => page.locator('.document-panel:not([hidden])')
   const source = () => panel().locator('[aria-label="Markdown 源码编辑器"]')

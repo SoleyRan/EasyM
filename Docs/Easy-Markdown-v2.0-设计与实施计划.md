@@ -75,7 +75,7 @@
 | 第 5 步：产品与跨端切片 | 同步设置、状态/错误、任务列表、空间提示、诊断脱敏；Web/PWA 与移动做独立切片 | 桌面同步可日常使用；Web/移动各有继续/延期结论和实际平台证据 |
 | 第 6 步：Beta 与发布 | 升级/回退、三平台 GUI/输入法/凭据验收、长时间离线试用、依赖许可和包验证 | 无数据损坏阻断项；Beta 反馈闭环；同提交候选、签名/更新说明和恢复文档齐全 |
 
-每阶段交付可追溯验收记录，记录基线、环境、结果和适用范围；有实际服务或平台验证时，在 `Docs/verification/v2.0/step-N/` 留存脱敏证据和版本。原始本地日志存放于被忽略的 `test-results/v2.0/step-N/`。不复用 1.0 通过状态，不提前改 package/Cargo 为 2.0.0。
+每阶段交付可追溯验收记录，记录基线、环境、结果和适用范围；有实际服务或平台验证时，在 `Docs/verification/v2.0/step-N/` 留存脱敏证据和版本。原始本地日志存放于被忽略的 `test-results/v2.0/step-N/`。不复用 1.0 通过状态，不提前改 package/Cargo 为 2.0.0。第 6 步按维护者决定先发 `2.0.0-beta.1`（GitHub 预发布），Beta 反馈闭环后再改为 2.0.0。
 
 ## 7. 验收矩阵
 
@@ -117,9 +117,9 @@
 | 0 | `feature/v2.0-step-0-contracts` | 已合并（PR #11，main `058a994`） |
 | 1 | `feature/v2.0-step-1-webdav` | 已合并（PR #12，main `10e42f0`） |
 | 2 | `feature/v2.0-step-2-identity` | 已合并（PR #13，main `0cfb2b5`） |
-| 3 | `feature/v2.0-step-3-sync` | 当前分支，从 main `0cfb2b5` 创建；3A、3B、3C 已完成（本地验收通过），见[第 3 步验收记录](Easy-Markdown-v2.0-第3步-验收与交付.md) |
-| 4 | `feature/v2.0-step-4-conflicts` | 待前序阶段合并后创建 |
-| 5 | `feature/v2.0-step-5-experience` | 待前序阶段合并后创建 |
-| 6 | `feature/v2.0-step-6-release` | 待前序阶段合并后创建 |
+| 3 | `feature/v2.0-step-3-sync` | 已合并（main `0760b2c`） |
+| 4 | `feature/v2.0-step-4-conflicts` | 已合并（PR #19，main `e093128`） |
+| 5 | `feature/v2.0-step-5-product` | 已合并（PR #20，main `8a9e92a`） |
+| 6 | `feature/v2.0-step-6-release` | 当前分支，从 main `8a9e92a` 创建，见[第 6 步验收记录](Easy-Markdown-v2.0-第6步-验收与交付.md) |
 
 每个阶段形成独立提交与验收记录，按阶段范围运行检查，再以独立 PR 合入 main；未满足退出条件不能用下一阶段代码掩盖。当前阶段仅本地提交，不执行推送、合并或发布；后续继续开发时遵循同样的分阶段交付边界。
