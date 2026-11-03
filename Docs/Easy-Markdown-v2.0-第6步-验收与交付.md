@@ -94,9 +94,47 @@ Tauri 生成的 deb 只声明 `libwebkit2gtk-4.1-0`、`libgtk-3-0`。同步凭�
 
   这三项以 CI 的 Windows runner 结果为准，不在本机补跑。
 
-### 6B 待完成
+### 6B CI 候选（2026-11-02）
 
-- 推送分支后看 CI 结果：三平台候选包（`easym-*-release-candidate`），Windows 隔离安装/卸载、原生启动、便携包，macOS/Linux 包内许可校验。拿到结果后把运行编号、提交号和 SHA-256 记进这里。
+PR #21 合并后，main `7fb2f0e67d633135831d62c30491e472a815bb0e` 的 [Validate EasyM 41400030318](https://github.com/SoleyRan/EasyM/actions/runs/41400030318)（push，06:27–06:39 UTC）全部通过：
+
+- frontend：`verify:release`、发布脚本测试、`verify:regression`。
+- 三平台 desktop：`cargo test --locked`、按平台生成并校验许可清单、release 构建。
+- Windows：原生启动与关闭、离线 Markdown 扩展、NSIS 构建、隔离安装/卸载、便携包、候选清单。
+- macOS / Linux：DMG / DEB 构建，包内许可与源清单逐字节一致，候选清单。
+
+候选 artifact（GitHub 记录的 artifact ZIP 摘要，不是安装包本身的哈希；安装包的 SHA-256 在各自的 manifest 和起草 Release 生成的 `SHA256SUMS.txt` 里）：
+
+| Artifact | ID | 大小（字节） | ZIP SHA-256 |
+| --- | --- | --- | --- |
+| easym-windows-release-candidate | 13120329941 | 16,540,140 | `8200819e…169b` |
+| easym-macOS-release-candidate | 13120743909 | 9,297,794 | `35076ba2…bcf` |
+| easym-Linux-release-candidate | 13121331303 | 11,510,859 | `c816d337…c30` |
+| windows-installer-verification | 13120569598 | 279,226 | `0df873df…121` |
+
+Artifact 保留到 2027-01-31。签名与分发方式待维护者决定，在此之前沿用不签名、手工下载安装。
+
+### Beta Release 草稿（2026-11-02）
+
+维护者用 `Draft EasyM release`（`run_id=41400030318`）起草了 `v2.0.0-beta.1` 预发布草稿，未公开。工作流已重新核对三平台 manifest 的版本、提交和文件哈希。草稿中的 `SHA256SUMS.txt`：
+
+```text
+707a62640a3fd684d2307be737b882cdb3d10cc67a509a2c3487b0d4396fe6f0  EasyM_2.0.0-beta.1_x64-setup.exe
+5da16e52ab821f1ba1268bdf6ce9da978bceda9c4e604c9f63e4aec8726bff7c  EasyM-2.0.0-beta.1-windows-x64.zip
+77cfc4cc4c63960270d36fcacc2feea6412846b9a5c3ada39910ede10b8de81f  RELEASE-NOTES.md
+d22a471d821f344e768b39bbb1b082bfba4bc0f686da73fe31048d6bac631112  EasyM-2.0.0-beta.1-macos-arm64.dmg
+69d4a3056c299c4fba6719f75b2edb018b0594722ad37a894a032ce257dcdd82  EasyM-2.0.0-beta.1-linux-amd64.deb
+04446ebcf3bfb0499f507973c5c34b22ed009d102282c030bf24333688888e05  release-manifest.json
+e52711d7379658424385823681bf5d31ee5490ec538d4bd8f909241ee3b11079  release-manifest-macos-arm64.json
+ef4ba05d371a959b59db6c7227a2df1a25a9aa3c1f11a69a3b8f84947f637b5b  release-manifest-linux-amd64.json
+```
+
+`RELEASE-NOTES.md` 的哈希等于提交 `7fb2f0e` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希（Windows runner 检出时按 autocrlf 转换），说明附带的是该提交的发行说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
+
+本记录分支对发行说明的补充（未签名 macOS 升级后钥匙串可能再次授权）不在 beta.1 草稿附带的说明里。公开 Beta 前，可以把这一句手动加进 Release 正文。
+
+### 6B 未完成
+
 - 签名与分发方式待维护者决定，在此之前沿用不签名、手工下载安装。
 
 ## 6C：实机验收与长时间离线试用（待执行）
@@ -104,7 +142,7 @@ Tauri 生成的 deb 只声明 `libwebkit2gtk-4.1-0`、`libgtk-3-0`。同步凭�
 [三平台实机验收表](Easy-Markdown-v2.0-实机验收.md)：
 
 - 沿用 1.0 的编辑器项目，补充两项：输入法组字过程中的 Tab/Enter，以及重命名、移动、回收站。
-- 新增“同步与凭据”12 项，包括各平台凭据存储的授权和解锁、断网与中途退出、停用与重新加入、诊断脱敏、跨平台换行和大小写。
+- 新增“同步与凭据”13 项，包括各平台凭据存储的授权和解锁、升级后 macOS 钥匙串是否再次请求授权（未签名包每个新版本在系统看来是另一个应用）、断网与中途退出、停用与重新加入、诊断脱敏、跨平台换行和大小写。
 - 新增“升级与回退”4 项：从 1.0 升级、卸载重装、退出同步后回到 1.0、1.0 编辑后回到 2.0。
 - 长时间离线试用：两台设备至少 7 天，第 7 天汇合同步并核对结果，再加一轮“离线期间被停用”。
 - 发布判定：

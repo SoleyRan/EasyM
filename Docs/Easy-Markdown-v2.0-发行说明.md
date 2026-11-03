@@ -24,7 +24,7 @@
 
 其他 CPU、发行版未验收。Web/PWA 与移动端延期到 2.x，2.0 只含上述三个桌面平台。
 
-下载后与同次发行的 `SHA256SUMS.txt` 核对。当前没有代码签名、公证、自动更新或更新签名；Windows 可能出现 SmartScreen 提示，macOS 可能被 Gatekeeper 拦截（需在“系统设置 → 隐私与安全性”中选择仍要打开）。
+下载后与同次发行的 `SHA256SUMS.txt` 核对。当前没有代码签名、公证、自动更新或更新签名；Windows 可能出现 SmartScreen 提示，macOS 可能被 Gatekeeper 拦截（需在“系统设置 → 隐私与安全性”中选择仍要打开）。未签名的 macOS 包每次升级后，第一次同步时钥匙串可能再次询问是否允许 EasyM 使用“EasyM Sync”，选“始终允许”即可；选拒绝时同步会提示凭据不可用，连接设置不会丢失。
 
 Linux 注意：Debian 的版本排序会把 `2.0.0-beta.1` 排在 `2.0.0` 之后（实测 dpkg）。以后从 Beta 升到正式版时，先 `sudo apt remove easym` 再安装正式版，或用 `sudo dpkg -i` 直接安装；卸载不会删除文档。Windows 安装器按 semver 比较，Beta 升正式版正常。
 
