@@ -18,19 +18,11 @@ export async function closeWindow(): Promise<void> {
 export async function minimizeWindow(): Promise<void> { if (desktop) await getCurrentWindow().minimize() }
 export async function toggleMaximizeWindow(): Promise<void> { if (desktop) await getCurrentWindow().toggleMaximize() }
 export async function dragWindow(): Promise<void> { if (desktop) await getCurrentWindow().startDragging() }
-export async function windowState(): Promise<{ maximized: boolean; fullscreen: boolean }> {
-  if (!desktop) return { maximized: false, fullscreen: !!document.fullscreenElement }
-  const win = getCurrentWindow()
-  const [maximized, fullscreen] = await Promise.all([win.isMaximized(), win.isFullscreen()])
-  return { maximized, fullscreen }
-}
-export async function setFullscreen(fullscreen: boolean): Promise<void> {
-  if (desktop) await getCurrentWindow().setFullscreen(fullscreen)
-  else if (fullscreen && !document.fullscreenElement) await document.documentElement.requestFullscreen()
-  else if (!fullscreen && document.fullscreenElement) await document.exitFullscreen()
+export async function windowState(): Promise<{ maximized: boolean }> {
+  if (!desktop) return { maximized: false }
+  return { maximized: await getCurrentWindow().isMaximized() }
 }
 export async function listenWindowState(changed: () => void): Promise<() => void> {
-  if (desktop) return getCurrentWindow().onResized(changed)
-  document.addEventListener('fullscreenchange', changed)
-  return () => document.removeEventListener('fullscreenchange', changed)
+  if (!desktop) return () => undefined
+  return getCurrentWindow().onResized(changed)
 }

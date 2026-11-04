@@ -150,3 +150,31 @@ ef4ba05d371a959b59db6c7227a2df1a25a9aa3c1f11a69a3b8f84947f637b5b  release-manife
   - 正式版前：三平台全部项目有结果；离线试用完成；Beta 阻断项关闭。
 
 表中全部为待验，验收人和结果由实际操作的人填写。
+
+## Beta 反馈修复：macOS 实机问题（2026-11-03）
+
+分支 `fix/v2.0-beta1-macos`，从 main `442c236` 创建。维护者在 macOS 上用 beta.1 候选发现三个问题，另提一个需求。
+
+| 反馈 | 原因 | 修复 |
+| --- | --- | --- |
+| 表格“删除当前行/列”没反应 | 删除非空行/列前要用 `window.confirm` 确认。wry 0.57 的 macOS WKUIDelegate 只实现了文件选择、媒体权限和窗口关闭三个方法，没有 `runJavaScriptConfirmPanel`，WKWebView 因此不弹框、直接返回 false，删除被取消。退出同步、停用设备、停用同步身份、移到回收站、重新加载外部版本、混合换行保存、历史关联等另外 9 处确认受同样影响 | 新增原生命令 `confirm_dialog`（`src-tauri/src/dialogs.rs`，rfd 消息框，按钮“确定/取消”）。前端统一经 `confirmAction`（`src/platform/dialogs.ts`）调用：只有 macOS 桌面版走原生对话框，Windows（WebView2）、Linux（WebKitGTK）和浏览器版继续用 `window.confirm` |
+| “同步身份”“同步…”点不了 | 没有打开工作区时这两项是灰的，也没有说明。同步以文件夹为单位，只打开单个文件时不可用 | 两项保持可点；没有工作区时关闭菜单并提示“请先在 EM 菜单 → 打开工作区，选择要同步的文件夹”，悬停提示也写明原因 |
+| 斜体显示不对 | 全局样式 `font-synthesis: none` 禁止浏览器合成倾斜字形，而苹方、微软雅黑等中文字体没有斜体字形，中文斜体显示成正体 | 改为 `font-synthesis: style`：允许合成斜体，仍禁止合成粗体 |
+| 需求：阅读模式不进全屏 | — | 阅读模式只在当前窗口内切换，不再调用全屏，移除全屏 API 与 `allow-is-fullscreen`/`allow-set-fullscreen` 权限。窗口没有系统标题栏，所以桌面版阅读时保留一条 32 px 的顶栏，只含拖动区和最小化/最大化/关闭按钮；EM 菜单、标签和同步状态照旧隐藏。窗口大小变化不再退出阅读模式 |
+
+### 验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `tsc -b`、`vite build` | 通过 |
+| `vitest run` | 73 个文件、474 项通过。新增：`dialogs.test.ts`（macOS 走原生命令、Windows/Linux 走 `window.confirm`），App 测试“没有工作区时同步菜单可点并给出原因”。阅读模式测试改为不调用全屏、保留窗口按钮、调整窗口大小不退出 |
+| `cargo test --locked` | 127 项通过、2 项按设计忽略。新增确认框消息校验和按钮结果判定两项 |
+| `verify-writing.mjs`（Edge 156） | 通过：阅读模式不进入全屏，菜单、标签、源码和工具栏隐藏，Esc/按钮退出后正文不变 |
+| `verify-tables.mjs`、`verify-extensions.mjs`、`verify-mermaid.mjs`、`verify-appearance.mjs` | 通过 |
+| `verify-batch-images.mjs` | 第一次失败于 `OffscreenCanvas.convertToBlob`（图片读回失败），之后连续两次通过；main 上同样通过。判定为偶发，与本次改动无关 |
+| 斜体对比（Playwright，纯中文 `<em>` 与普通文字截图比较） | Edge：`none` 时与正体相同，`style` 时倾斜，修复生效。本机 Playwright WebKit 两种设置都会倾斜，复现不了 macOS 系统 WebKit 的表现 |
+
+### 未验证
+
+- macOS 原生确认框（rfd → NSAlert）、斜体效果和阅读模式顶栏都需要在 Mac 上实际确认；本机是 Windows，CI 只验证构建与打包。
+- Linux 的 WebKitGTK 是否正常显示 `window.confirm`，按 wry 的 GTK 实现推断，尚未实机确认。

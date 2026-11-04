@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { parseDocument } from '../core/markdown'
 import { escapeCell, type Alignment, type SourceTable, type TableOperation } from '../core/tables'
 import { OverlayPortal, useModalOverlay, useOverlays } from './Overlay'
+import { confirmAction } from '../platform/dialogs'
 
 export interface TableSession { table: SourceTable; row: number; column: number; draft: string; version: number }
 export function DraftDecision({ error, onChoose }: { error?: string; onChoose(choice: 'apply' | 'discard' | 'cancel'): void }) {
@@ -56,10 +57,10 @@ export function TablePanel({ session, error, decision, onComposing, onDraft, onC
     }, 120)
     return () => window.clearTimeout(timer)
   }, [draft])
-  const operation = (kind: TableOperation) => {
+  const operation = async (kind: TableOperation) => {
     if (composing.current) return
     const contents = kind === 'deleteRow' ? table.rows[row].map((cell, c) => c === column ? draft : cell.value) : kind === 'deleteColumn' ? table.rows.map((cells, r) => r === row ? draft : cells[column].value) : []
-    if (contents.some(value => value.trim()) && !window.confirm('此行/列包含内容，确认删除？可一次撤销恢复。')) return
+    if (contents.some(value => value.trim()) && !await confirmAction('此行/列包含内容，确认删除？可一次撤销恢复。')) return
     onCommit('stay', kind)
   }
   return <OverlayPortal><section className="table-panel" role="dialog" aria-label="编辑表格" inert={decision} onKeyDown={event => {

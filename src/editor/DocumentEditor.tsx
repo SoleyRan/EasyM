@@ -6,6 +6,7 @@ import { parseDocument } from '../core/markdown'
 import { Editor, type EditorHandle, type SourceScroll } from './Editor'
 import { codeBlockCommand } from '../core/code-block'
 import { desktop, openDocument, saveDocument, readImage, readImageBlob, reloadDocument, materializeResources } from '../platform/storage'
+import { confirmAction } from '../platform/dialogs'
 import { createExport } from '../core/export'
 import { parseForExport, saveHtml } from '../platform/export'
 import { PrintDialog } from './PrintDialog'
@@ -93,7 +94,7 @@ interface Props {
   mathRendering?: boolean
   mermaidRendering?: boolean
   diagramTheme?: string
-  quickEntryOpen?: boolean; reading: boolean; readingBusy: boolean; onReading(next: boolean): void
+  quickEntryOpen?: boolean; reading: boolean; onReading(next: boolean): void
   id: string; active: boolean; suspended: boolean; draftKey: string; file?: OpenedFile; blank?: boolean; seed?: NewDocument; path?: string | null; location?: WorkspaceLocation
   workspace: Workspace | null; onWorkspaceChange(workspace: Workspace): void
   showFiles: boolean; onShowFiles(show: boolean): void; showToolbar: boolean; onShowToolbar(show: boolean): void; showSelectionTools?: boolean
@@ -104,7 +105,7 @@ interface Props {
   /** Handles of every open tab, so a workspace rename/move can check and reload all of them. */
   openHandles?: () => DocumentHandle[]
 }
-export default function DocumentEditor({ mathRendering = true, mermaidRendering = true, diagramTheme = 'light', quickEntryOpen = false, reading, readingBusy, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther, openHandles }: Props) {
+export default function DocumentEditor({ mathRendering = true, mermaidRendering = true, diagramTheme = 'light', quickEntryOpen = false, reading, onReading, id, active, suspended, draftKey, file, blank, seed, path, location, workspace, onWorkspaceChange, showFiles, onShowFiles, showToolbar, onShowToolbar, showSelectionTools = true, onNew, onOpen, onReleaseUnused, onReport, onReadOther, openHandles }: Props) {
   const contextMenu = useContextMenu()
   const [initial] = useState(() => file ? decodeFile(file.bytes) : blankSnapshot())
   const [text, setText] = useState(file ? initial.text : seed?.text ?? (blank ? '' : initialText))
@@ -397,7 +398,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       if (!desktop || !fileId) return
       if (external.blocked.current) throw new Error('磁盘版本待检查或已变化；图片草稿已保留，请先处理外部版本。')
       const mixed = snapshot.lineEnding === 'mixed' && nextText !== snapshot.originalText
-      if (mixed && !window.confirm('图片应用将保存正文，并将混合换行统一为 LF。是否继续？')) throw new Error('应用已取消，原版本仍保留。')
+      if (mixed && !await confirmAction('图片应用将保存正文，并将混合换行统一为 LF。是否继续？')) throw new Error('应用已取消，原版本仍保留。')
       const bytes = encodeFile(snapshot, nextText, mixed ? 'lf' : undefined)
       const result = await saveDocument({ id: fileId, name, revision, originalText: snapshot.originalText }, bytes, false, resources, operationId)
       if (!result) throw new Error('保存已取消，原版本仍保留。')
@@ -430,7 +431,6 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
       if (backupLock.current) return { enabled: false, reason: '请先完成文档备份或恢复。' }
       if (commandId === 'file.backup' && !desktop) return { enabled: false, reason: '文档备份与恢复仅在桌面版中可用。' }
       if (commandId === 'file.save' && (external.checking || external.change)) return { enabled: false, reason: '磁盘版本待检查或已变化，请比较或另存本地副本。' }
-      if (commandId === 'view.reading' && readingBusy) return { enabled: false, reason: '正在切换窗口模式。' }
       if (commandId.startsWith('view.')) return { enabled: true, checked: commandId === 'view.reading' ? reading : commandId === 'view.files' ? showFiles : commandId === 'view.outline' ? showOutline : commandId === 'view.toolbar' ? showToolbar : commandId === `view.${view}` }
       return { enabled: true }
     },
@@ -794,9 +794,9 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     images.setResources(emptyResources()); images.setSession(null); parsedText.current = ''
   }
 
-  function mayReplace(): boolean {
+  async function mayReplace(): Promise<boolean> {
     if (pendingDraft || !draftReady) return false
-    return !dirty || window.confirm('当前正文未写入文件。继续将替换当前编辑内容；请先保存或下载副本。')
+    return !dirty || confirmAction('当前正文未写入文件。继续将替换当前编辑内容；请先保存或下载副本。')
   }
 
   async function open(read: () => Promise<OpenedFile | null> = openDocument, path: string | null = null, location?: WorkspaceLocation) {
@@ -840,7 +840,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     await refreshWorkspaceTree()
   }
   async function trashFromTree(path: string) {
-    if (!workspace || disabled || !window.confirm(`将“${path}”移到工作区回收站？可在“工作区回收站”中恢复；图片和版本历史保留。`)) return
+    if (!workspace || disabled || !await confirmAction(`将“${path}”移到工作区回收站？可在“工作区回收站”中恢复；图片和版本历史保留。`)) return
     setBusy(true); setError('')
     try {
       const result = await trashDocument(workspace.id, path)
@@ -865,7 +865,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
   }
 
   async function reloadExternal(expectedRevision?: string, confirmed = false, relocatedPath?: string) {
-    if (!desktop || !fileId || busy || saving.current || images.session || images.busy || images.applying || panelApplying.current || contentToolRef.current || tableRef.current || editor.current?.composing() || (!confirmed && !mayReplace())) return
+    if (!desktop || !fileId || busy || saving.current || images.session || images.busy || images.applying || panelApplying.current || contentToolRef.current || tableRef.current || editor.current?.composing() || (!confirmed && !await mayReplace())) return
     setBusy(true); setError(''); setStatus('正在重新加载外部版本…')
     try {
       const file = await reloadDocument(fileId, expectedRevision)
@@ -892,7 +892,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     try {
       const mixed = snapshot.lineEnding === 'mixed' && text !== snapshot.originalText
       if (automatic && mixed) { setAutoSavePaused(true); setStatus('自动保存已暂停'); setError('该文件混合使用 LF/CRLF。请按 Ctrl/Cmd+S 确认换行转换，或通过 EM 菜单另存副本。'); return false }
-      if (mixed && !window.confirm('该文件混合使用 LF/CRLF。修改后需统一为 LF；是否继续保存？')) { setStatus('保存已取消'); return false }
+      if (mixed && !await confirmAction('该文件混合使用 LF/CRLF。修改后需统一为 LF；是否继续保存？')) { setStatus('保存已取消'); return false }
       const bytes = encodeFile(snapshot, savingText, mixed ? 'lf' : undefined)
       const result = await saveDocument({ id: fileId, name, revision, originalText: snapshot.originalText }, bytes, saveAs, images.resources)
       if (!result) { if (automatic) setAutoSavePaused(true); setStatus('保存已取消'); return false }
@@ -1079,7 +1079,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
         <div className="sidebar-footer"><span>本地优先</span><span className="version">v2.0.0-beta.1</span></div>
       </ResizableSidebar>}
       <main className="editor-area">
-        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={readingBusy || (!reading && (disabled || !!editor.current?.composing()))} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
+        <div className="view-switcher">{!reading && <div className="view-tabs"><button className={view === 'source' ? 'selected' : ''} onClick={() => chooseView('source')}>源码</button><button className={view === 'split' ? 'selected' : ''} onClick={() => chooseView('split')}>分屏</button><button className={view === 'live' ? 'selected' : ''} onClick={() => chooseView('live')} title="非活动块渲染；点击块或移动光标显示源码">即时渲染</button></div>}<div className="pane-actions"><button aria-label={showFiles ? '收起文件栏' : '展开文件栏'} aria-expanded={showFiles} onClick={() => execute('view.files')}>文件树</button><button aria-label={showOutline ? '收起大纲' : '展开大纲'} aria-expanded={showOutline} onClick={() => execute('view.outline')}>大纲</button>{!reading && <button disabled={disabled} onClick={() => execute('edit.search')}>查找 / 替换</button>}{!reading && <button aria-label={showToolbar ? '隐藏格式工具栏' : '显示格式工具栏'} aria-expanded={showToolbar} onClick={() => execute('view.toolbar')}>格式工具栏</button>}<button className="reading-button" disabled={!reading && (disabled || !!editor.current?.composing())} onClick={() => execute('view.reading')}>{reading ? '退出阅读模式' : '阅读模式'}</button></div></div>
         {showToolbar && !reading && <div className="toolbar" role="toolbar" aria-label="格式工具栏">{commands.map(([kind, label, title]) => <button key={kind} disabled={!registry.status('format.' + kind).enabled} aria-pressed={registry.status('format.' + kind).checked} onMouseDown={(event) => event.preventDefault()} onClick={() => command(kind)} title={title} aria-label={title}>{label}</button>)}<label className="code-language">语言 <select aria-label="代码块语言" value={codeLanguage} disabled={!registry.status('code.language').enabled} title="光标在代码块中时修改语言；否则选择新代码块的语言" onChange={(event) => chooseCodeLanguage(event.target.value)}>{!languages.includes(codeLanguage) && <option value={codeLanguage}>{codeLanguage}</option>}{languages.map((language) => <option key={language} value={language}>{language || '无语言'}</option>)}</select></label><button aria-label="转换为" disabled={!registry.status('paragraph.convert').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('paragraph.convert')}>转换为</button><span className="toolbar-divider" /><button aria-label="插入表格" disabled={!registry.status('insert.table').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('insert.table')}>表格＋</button><button aria-label="编辑表格" disabled={!registry.status('table.edit').enabled} onMouseDown={event => event.preventDefault()} onClick={() => execute('table.edit')}>编辑表格</button><button title="插入 PNG/JPEG 图片" aria-label="插入图片" disabled={!registry.status('insert.image').enabled} onClick={() => execute('insert.image')}>▣</button><button aria-label="撤销" disabled={!registry.status('edit.undo').enabled} onClick={() => execute('edit.undo')}>↶</button><button aria-label="重做" disabled={!registry.status('edit.redo').enabled} onClick={() => execute('edit.redo')}>↷</button>{view === 'split' && <span className="toolbar-hint">源码与预览双向同步</span>}</div>}
         {error && <div className="error-banner" role="alert">{error}<button aria-label="关闭错误提示" onClick={() => setError('')}>×</button></div>}
         {external.change && <div className="recovery-banner" role="status" aria-label="外部文件变化">

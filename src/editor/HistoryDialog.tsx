@@ -6,6 +6,7 @@ import type { ImageResources } from '../platform/images'
 import { sourceHash } from '../platform/images'
 import { collectHistoryResources } from '../platform/history-resources'
 import { desktop, readImageBlob } from '../platform/storage'
+import { confirmAction } from '../platform/dialogs'
 import { compareHistory, historyError, historyInput, historyOperation, type CleanupPlan, type HistorySnapshot, type HistoryStatus } from '../platform/history'
 import { historyDirectory } from '../platform/preferences'
 
@@ -124,7 +125,7 @@ export function HistoryDialog(props: Props) {
         <button disabled={busy || !history} onClick={() => void action(async () => { const [references] = await collectHistoryResources([snapshot.originalText]); applyStatus(await query<HistoryStatus>({ action: 'enable', ...references, expectedRevision: revision })); setMessage('已启用，并归档磁盘基线。') })}>启用版本历史</button>
         {!!history?.orphans.length && <label>明确重新关联移动 / 重命名的历史<select aria-label="重新关联历史" defaultValue="" disabled={busy} onChange={event => {
           const documentId = event.target.value
-          if (documentId && window.confirm('将当前路径明确关联到选定历史？仅可关联原路径已不存在的同目录历史。')) void action(async () => applyStatus(await query<HistoryStatus>({ action: 'reassociate', documentId })))
+          if (documentId) void confirmAction('将当前路径明确关联到选定历史？仅可关联原路径已不存在的同目录历史。').then(ok => { if (ok) void action(async () => applyStatus(await query<HistoryStatus>({ action: 'reassociate', documentId }))) })
         }}><option value="">选择原路径</option>{history.orphans.map(item => <option value={item.documentId} key={item.documentId}>{item.path}</option>)}</select></label>}
       </section>}
       {history?.enabled && !history.readOnly && <>
@@ -154,7 +155,7 @@ export function HistoryDialog(props: Props) {
               const value = await query<HistoryStatus>({ action: 'annotate', snapshotId: selected.snapshotId, name: selected.name ?? null, pinned: !selected.pinned }); applyStatus(value); setSelected(value.snapshots.find(s => s.snapshotId === selected.snapshotId) ?? null)
             })}>{selected.pinned ? '取消固定' : '固定快照'}</button>
               <button disabled={busy || !target} onClick={() => void action(async () => { const result = await query<{ warning?: string } | null>({ action: 'copy', snapshotId: selected.snapshotId, bodyOnly: false }); setMessage(result ? result.warning ?? '完整副本已保存，保持目标原始正文的编码与换行。' : '另存已取消。') })}>另存完整副本</button>
-              <button disabled={busy || !target} onClick={() => { if (window.confirm('仅另存原始正文，图片可能缺失。继续？')) void action(async () => { const result = await query<unknown>({ action: 'copy', snapshotId: selected.snapshotId, bodyOnly: true }); setMessage(result ? '正文副本已保存；图片未复制，请检查缺图。' : '另存已取消。') }) }}>仅另存正文</button>
+              <button disabled={busy || !target} onClick={() => void confirmAction('仅另存原始正文，图片可能缺失。继续？').then(ok => { if (ok) void action(async () => { const result = await query<unknown>({ action: 'copy', snapshotId: selected.snapshotId, bodyOnly: true }); setMessage(result ? '正文副本已保存；图片未复制，请检查缺图。' : '另存已取消。') }) })}>仅另存正文</button>
             </div>
             {target && <p>归档 {target.encoding.toUpperCase()} / {target.lineEnding.toUpperCase()}；当前 {snapshot.encoding.toUpperCase()} / {snapshot.lineEnding.toUpperCase()}。{target.encoding !== snapshot.encoding || target.lineEnding !== snapshot.lineEnding ? '存在字节格式差异；恢复沿用当前文件格式，完整副本保留归档原始字节。' : '编码与换行策略相同。'}</p>}
             {comparing && <p role="status">正在后台比较… <button onClick={() => { task.current?.abort(); task.current = null; setComparing(false); setDiff({ lines: [], additions: 0, deletions: 0, fallback: '已取消逐行差异；请查看双方全文。' }) }}>取消差异计算</button></p>}

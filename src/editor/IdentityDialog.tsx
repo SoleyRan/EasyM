@@ -3,6 +3,7 @@ import { ApplicationDialog } from './ApplicationDialogs'
 import type { IdentityResolution, PauseReason } from '../core/sync-identity'
 import { commitIdentity, disableIdentity, identityError, previewIdentity, type IdentityPreview } from '../platform/sync-identity'
 import { syncHash } from '../core/sync-contract'
+import { confirmAction } from '../platform/dialogs'
 import { encodeWorkspaceIdentity } from '../core/sync-identity'
 
 const reasons: Record<PauseReason, string> = {
@@ -70,7 +71,7 @@ export function IdentityDialog({ workspace, name, onClose }: { workspace: string
       {!pending && !plan.paused.length && !plan.missing.length && <p>身份记录与磁盘一致，无需更改。</p>}
     </>}
     <div className="dialog-actions">
-      {preview?.enabled && preview.baseRevision && <button disabled={busy} onClick={() => { if (window.confirm('停用将删除 .easym/sync/workspace.json；文档、图片和版本历史不受影响。确定？')) void run(async () => { await disableIdentity(workspace, preview.baseRevision as string); return '已停用同步身份，仅删除了身份文件。' }) }}>停用</button>}
+      {preview?.enabled && preview.baseRevision && <button disabled={busy} onClick={() => void confirmAction('停用将删除 .easym/sync/workspace.json；文档、图片和版本历史不受影响。确定？').then(ok => { if (ok) void run(async () => { await disableIdentity(workspace, preview.baseRevision as string); return '已停用同步身份，仅删除了身份文件。' }) })}>停用</button>}
       <button disabled={busy} onClick={() => void load()}>重新扫描</button>
       <button disabled={busy || !pending || !preview} onClick={() => preview && void run(async () => {
         const identity = await commitIdentity(workspace, preview, resolutions)
