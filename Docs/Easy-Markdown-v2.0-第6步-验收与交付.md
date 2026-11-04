@@ -179,7 +179,7 @@ ef4ba05d371a959b59db6c7227a2df1a25a9aa3c1f11a69a3b8f84947f637b5b  release-manife
 - macOS 原生确认框（rfd → NSAlert）、斜体效果和阅读模式顶栏都需要在 Mac 上实际确认；本机是 Windows，CI 只验证构建与打包。
 - Linux 的 WebKitGTK 是否正常显示 `window.confirm`，按 wry 的 GTK 实现推断，尚未实机确认。
 
-## 2.0.0-beta.2 候选（进行中）
+## 2.0.0-beta.2 候选
 
 PR #23 合并后（main `d3bf25c`），从 main 创建 `release/v2.0.0-beta.2`，只改版本号与文档：
 
@@ -189,3 +189,33 @@ PR #23 合并后（main `d3bf25c`），从 main 创建 `release/v2.0.0-beta.2`�
 - Linux：按 Debian 版本比较规则，`2.0.0-beta.2` 高于 `2.0.0-beta.1`，从 beta.1 覆盖安装正常升级。本次 Docker 未运行，没有用 dpkg 实测。
 
 beta.1 的预发布草稿未公开，也不再使用；起草 beta.2 后可以删除。
+
+### beta.2 CI 与预发布草稿（2026-11-04）
+
+PR #24 合并后，main `737464573d0ffc8c47d781022fc67992e7fa6608` 的 [Validate EasyM 41795187114](https://github.com/SoleyRan/EasyM/actions/runs/41795187114)（push，07:51–08:06 UTC）全部通过。维护者随后用 `Draft EasyM release`（[41797749140](https://github.com/SoleyRan/EasyM/actions/runs/41797749140)，`run_id=41795187114`）起草了 `v2.0.0-beta.2` 预发布草稿，未公开。
+
+候选 artifact（ZIP 摘要，不是安装包哈希）：
+
+| Artifact | ID | 大小（字节） | ZIP SHA-256 |
+| --- | --- | --- | --- |
+| easym-windows-release-candidate | 13305328988 | 16,550,512 | `8c281a6b…6c80` |
+| easym-macOS-release-candidate | 13305327623 | 9,301,456 | `04564e6e…e003` |
+| easym-Linux-release-candidate | 13304598910 | 11,539,723 | `52ce12b1…8ca9` |
+| windows-installer-verification | 13305702788 | 279,239 | `27478f08…3b40` |
+
+Artifact 保留到 2027-02-02。草稿中的 `SHA256SUMS.txt`：
+
+```text
+1ac488cbf0519ab7473e539d3f8a98cb6a25c07f76d447b6d96f69bf0e8f5a3f  EasyM_2.0.0-beta.2_x64-setup.exe
+9fd23a9bb0cf065d50f455887ed86a0c9e4a9b5c8742e02eebfc8147799b11dd  EasyM-2.0.0-beta.2-windows-x64.zip
+7237be586999ef975fa2246bcf68de6510c68801dd17b91521669c7987ce4ee8  RELEASE-NOTES.md
+898365c417cfe31db75301e476c2d57739ea40acf36604bb8e2b2df401bccb97  EasyM-2.0.0-beta.2-macos-arm64.dmg
+574782af782701344ff6480f2015e91f79bae757f6249f330315f88ab3473503  EasyM-2.0.0-beta.2-linux-amd64.deb
+3423a7b10bc78f343c4936b904cfb7730f280b06a9b756016711e58817ec7040  release-manifest.json
+2a939feab3a5c954e78bbe3f9d95011fd9d201ad6b6a4f4c9b20eeeef2285bc9  release-manifest-macos-arm64.json
+d52d9f13ae793ef3861a723568bd9613c49dcab92a046c9303fac12bdc2a518f  release-manifest-linux-amd64.json
+```
+
+`RELEASE-NOTES.md` 的哈希等于提交 `7374645` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希，附带的是含“相对 beta.1 的修复”的 beta.2 说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
+
+下一步：在 Mac 上安装 beta.2，先确认 beta.1 反馈的四项（确认框、斜体、阅读模式不全屏、同步菜单），再按验收表继续。
