@@ -178,3 +178,14 @@ ef4ba05d371a959b59db6c7227a2df1a25a9aa3c1f11a69a3b8f84947f637b5b  release-manife
 
 - macOS 原生确认框（rfd → NSAlert）、斜体效果和阅读模式顶栏都需要在 Mac 上实际确认；本机是 Windows，CI 只验证构建与打包。
 - Linux 的 WebKitGTK 是否正常显示 `window.confirm`，按 wry 的 GTK 实现推断，尚未实机确认。
+
+## 2.0.0-beta.2 候选（进行中）
+
+PR #23 合并后（main `d3bf25c`），从 main 创建 `release/v2.0.0-beta.2`，只改版本号与文档：
+
+- 版本号 `2.0.0-beta.2`：package、Cargo.toml/Cargo.lock、tauri.conf.json、侧栏、SBOM、发布脚本测试样例。`verify-release-metadata`、`verify-notices`、`prepare-release.test.mjs` 通过。
+- [发行说明](Easy-Markdown-v2.0-发行说明.md)换成 beta.2，新增“相对 beta.1 的修复”。
+- [实机验收表](Easy-Markdown-v2.0-实机验收.md)的候选信息清空，待 beta.2 的 CI 与草稿生成后填写；beta.1 的结果不沿用。
+- Linux：按 Debian 版本比较规则，`2.0.0-beta.2` 高于 `2.0.0-beta.1`，从 beta.1 覆盖安装正常升级。本次 Docker 未运行，没有用 dpkg 实测。
+
+beta.1 的预发布草稿未公开，也不再使用；起草 beta.2 后可以删除。
