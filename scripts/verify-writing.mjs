@@ -185,6 +185,15 @@ try {
     return h.top >= p.top - 2 && h.bottom < p.bottom
   })
   await page.getByRole('button', { name: '展开文件栏' }).click()
+  // With both sidebars open, reading mode should read as one page rather than separate panels.
+  assert.deepEqual(await page.evaluate(() => {
+    const bg = selector => getComputedStyle(document.querySelector(`.document-panel:not([hidden]) ${selector}`)).backgroundColor
+    const line = selector => getComputedStyle(document.querySelector(`.document-panel:not([hidden]) ${selector}`))
+    return { left: bg('.left-sidebar'), right: bg('.right-sidebar'), switcher: line('.view-switcher').borderBottomColor, status: line('.statusbar').borderTopColor }
+  }), await page.evaluate(() => {
+    const page = getComputedStyle(document.querySelector('.document-panel:not([hidden]) .preview')).backgroundColor
+    return { left: page, right: page, switcher: 'rgba(0, 0, 0, 0)', status: 'rgba(0, 0, 0, 0)' }
+  }))
   await page.screenshot({ path: 'test-results/reading-mode.png' })
   await page.locator('.pane-actions:visible').getByRole('button', { name: '收起文件栏' }).click()
   await page.locator('.pane-actions:visible').getByRole('button', { name: '收起大纲' }).click()
