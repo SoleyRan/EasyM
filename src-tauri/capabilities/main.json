@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Allow local window controls, dragging, fullscreen reading and protected closing.",
+  "description": "Allow local window controls, dragging and protected closing.",
   "windows": [
     "main"
   ],
@@ -12,8 +12,6 @@
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
     "core:window:allow-is-maximized",
-    "core:window:allow-is-fullscreen",
-    "core:window:allow-set-fullscreen",
     "core:window:allow-start-dragging"
   ]
 }

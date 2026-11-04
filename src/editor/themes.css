@@ -100,7 +100,9 @@
   --number: #955526; --comment: #627464; --title: #286b85; --attribute: #88651c;
 }
 .document-strip { display: flex; align-items: center; gap: 12px; flex: 0 0 40px; padding: 0 0 0 12px; background: var(--surface); border-bottom: 1px solid var(--border); user-select: none; }
-.document-strip[hidden] { display: none; }
+.document-strip[hidden], .document-strip [hidden] { display: none; }
+.reading-mode .document-strip { flex-basis: 32px; background: var(--page); border-bottom-color: transparent; }
+.reading-strip-fill { flex: 1; align-self: stretch; }
 .titlebar-drag { width: 48px; height: 40px; flex-shrink: 0; }
 .window-controls { display: flex; align-self: stretch; flex-shrink: 0; }
 .window-controls button { width: 46px; display: grid; place-items: center; background: transparent; color: var(--text); }

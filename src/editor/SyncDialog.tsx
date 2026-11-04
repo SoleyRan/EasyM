@@ -7,6 +7,7 @@ import { mergeBytes } from '../platform/merge-transaction'
 import { REJOIN_CODES } from '../core/sync-engine'
 import { identityError, previewIdentity, type IdentityPreview } from '../platform/sync-identity'
 import { probeEndpoint, syncError, unbindWorkspace } from '../platform/sync-native'
+import { confirmAction } from '../platform/dialogs'
 import { pairWorkspace, previewRemote, type Credentials, type RemotePreview } from '../platform/sync-pairing'
 import type { SyncStatus } from '../platform/sync-controller'
 
@@ -81,10 +82,9 @@ function Bound({ workspace, sync, busy, task, setMessage }: PartProps) {
     <div className="dialog-actions">
       <button disabled={busy || paused || sync.status?.kind === 'syncing'} onClick={() => sync.request()}>立即同步</button>
       {paused ? <button disabled={busy} onClick={() => sync.resume()}>继续同步</button> : <button disabled={busy} onClick={() => sync.pause()}>暂停</button>}
-      <button disabled={busy} onClick={() => {
-        if (!window.confirm('退出同步将删除本机保存的连接、密码和同步状态。工作区文件和服务器上的数据都会保留，之后可以重新连接。确定？')) return
-        void task(async () => { sync.pause(); await unbindWorkspace(workspace); sync.refresh(); setMessage('已退出同步。工作区文件和服务器数据未改动。') })
-      }}>退出同步</button>
+      <button disabled={busy} onClick={() => void confirmAction('退出同步将删除本机保存的连接、密码和同步状态。工作区文件和服务器上的数据都会保留，之后可以重新连接。确定？').then(ok => {
+        if (ok) void task(async () => { sync.pause(); await unbindWorkspace(workspace); sync.refresh(); setMessage('已退出同步。工作区文件和服务器数据未改动。') })
+      })}>退出同步</button>
     </div>
   </section>
 }
@@ -142,10 +142,9 @@ function Devices({ sync, busy, task, setMessage }: Omit<PartProps, 'workspace'>)
           {d.platform && ` · ${PLATFORM_NAMES[d.platform]}`}
           {` · ${d.lastSync ? `上次同步 ${new Date(d.lastSync).toLocaleString()}` : '上次同步时间未知'}`}
           {d.retiring && ' · 等待停用（下次同步完成）'}
-          {!d.self && !d.retiring && <button disabled={busy} onClick={() => {
-            if (!window.confirm(`停用“${d.name ?? d.deviceId.slice(0, 8)}”？它已上传的内容会保留；该设备之后需要重新加入才能继续同步，本地文件不受影响。`)) return
-            void task(async () => { await sync.deactivate(d.deviceId); setList(await sync.devices()); setMessage('已安排停用，下次同步时完成。') })
-          }}>停用</button>}
+          {!d.self && !d.retiring && <button disabled={busy} onClick={() => void confirmAction(`停用“${d.name ?? d.deviceId.slice(0, 8)}”？它已上传的内容会保留；该设备之后需要重新加入才能继续同步，本地文件不受影响。`).then(ok => {
+            if (ok) void task(async () => { await sync.deactivate(d.deviceId); setList(await sync.devices()); setMessage('已安排停用，下次同步时完成。') })
+          })}>停用</button>}
         </li>)}
       </ul>
       <label>本机名称 <input aria-label="本机名称" maxLength={64} value={name} disabled={busy} onChange={(e) => setName(e.target.value)} /></label>

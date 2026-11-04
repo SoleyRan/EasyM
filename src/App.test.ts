@@ -16,12 +16,12 @@ import type { RecentState } from './platform/recent'
 const recentApi = vi.hoisted(() => ({ state: vi.fn(), remember: vi.fn(), forget: vi.fn(), file: vi.fn(), workspace: vi.fn() }))
 vi.mock('./platform/recent', async original => ({ ...await original<object>(), recentState: recentApi.state, rememberSession: recentApi.remember, forgetRecent: recentApi.forget, reopenRecentFile: recentApi.file, reopenRecentWorkspace: recentApi.workspace }))
 
-const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), fullscreen: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
+const native = vi.hoisted(() => ({ exportHtml: vi.fn(), print: vi.fn(), requestClose: vi.fn(), close: vi.fn(), save: vi.fn(), open: vi.fn(), reload: vi.fn(), workspace: vi.fn(), workspaceOpen: vi.fn(), search: vi.fn(), cancelSearch: vi.fn(), jump: vi.fn(), composing: false, minimize: vi.fn(), maximize: vi.fn(), drag: vi.fn(), state: vi.fn(), stateListener: vi.fn() }))
 const docxApi = vi.hoisted(() => ({ preflight: vi.fn(), render: vi.fn(), save: vi.fn() }))
 vi.mock('./platform/docx', () => ({ preflightDocx: docxApi.preflight, renderDocx: docxApi.render, saveDocx: docxApi.save }))
 vi.mock('./platform/export', async () => ({ parseForExport: async (text: string) => (await import('./core/markdown')).parseDocument(text), saveHtml: native.exportHtml, printDocument: native.print }))
 vi.mock('./platform/workspace', async (original) => ({ ...await original<object>(), openWorkspace: native.workspace, openWorkspaceDocument: native.workspaceOpen, searchWorkspace: native.search, cancelWorkspaceSearch: native.cancelSearch }))
-vi.mock('./platform/window', () => ({ listenForFocus: async () => () => undefined, listenForClose: async (request: () => void) => { native.requestClose.mockImplementation(request); return () => undefined }, closeWindow: native.close, minimizeWindow: native.minimize, toggleMaximizeWindow: native.maximize, dragWindow: native.drag, setFullscreen: native.fullscreen, windowState: native.state, listenWindowState: async (changed: () => void) => { native.stateListener.mockImplementation(changed); return () => undefined } }))
+vi.mock('./platform/window', () => ({ listenForFocus: async () => () => undefined, listenForClose: async (request: () => void) => { native.requestClose.mockImplementation(request); return () => undefined }, closeWindow: native.close, minimizeWindow: native.minimize, toggleMaximizeWindow: native.maximize, dragWindow: native.drag, windowState: native.state, listenWindowState: async (changed: () => void) => { native.stateListener.mockImplementation(changed); return () => undefined } }))
 vi.mock('./platform/storage', () => ({ desktop: true, inspectDocument: async (_id: string, revision: string) => ({ revision, bytes: null }), releaseDocument: vi.fn(), openDocument: native.open, reloadDocument: native.reload, saveDocument: native.save, materializeResources: async (_id: unknown, resources: unknown) => resources, readImage: vi.fn(), readImageBlob: vi.fn() }))
 vi.mock('./editor/usePreview', () => ({ usePreview: (text: string) => ({ parsed: { html: '', headings: [], images: [] }, parsedText: { current: text } }) }))
 vi.mock('./platform/images', async (original) => ({ ...await original<object>(), processImage: async () => ({ blob: new Blob(['display'], { type: 'image/png' }), width: 1, height: 1, mime: 'image/png' }) }))
@@ -51,7 +51,7 @@ beforeEach(async () => {
   native.requestClose.mockReset(); native.close.mockReset(); native.close.mockResolvedValue(undefined); native.save.mockReset(); native.open.mockReset(); native.reload.mockReset()
   native.workspace.mockReset(); native.workspaceOpen.mockReset()
   native.search.mockReset(); native.cancelSearch.mockReset(); native.cancelSearch.mockResolvedValue(undefined); native.jump.mockReset()
-  native.minimize.mockReset(); native.minimize.mockResolvedValue(undefined); native.maximize.mockReset(); native.maximize.mockResolvedValue(undefined); native.drag.mockReset(); native.drag.mockResolvedValue(undefined); native.fullscreen.mockReset(); native.fullscreen.mockResolvedValue(undefined); native.state.mockReset(); native.state.mockResolvedValue({ maximized: false, fullscreen: false }); native.stateListener.mockReset()
+  native.minimize.mockReset(); native.minimize.mockResolvedValue(undefined); native.maximize.mockReset(); native.maximize.mockResolvedValue(undefined); native.drag.mockReset(); native.drag.mockResolvedValue(undefined); native.state.mockReset(); native.state.mockResolvedValue({ maximized: false }); native.stateListener.mockReset()
   native.composing = false
   native.exportHtml.mockReset(); native.exportHtml.mockResolvedValue(true); native.print.mockReset(); native.print.mockResolvedValue(undefined)
   docxApi.preflight.mockReset(); docxApi.preflight.mockImplementation(async ({ text, name }) => ({ model: (await import('./core/docx-model')).createDocxModel(text, name), assets: [] }))
@@ -961,37 +961,47 @@ it('uses themed custom window controls and protects dirty content on window clos
   expect(native.close).not.toHaveBeenCalled()
 })
 
-it('enters fullscreen preview reading and restores editing on Escape and the exit button', async () => {
+it('enters preview reading in the current window and restores editing on Escape and the exit button', async () => {
   await mount(); await edit('中文 😀\nsecond line'); await waitAuto(300); await click('分屏'); await click('阅读模式')
-  expect(native.fullscreen).toHaveBeenLastCalledWith(true)
-  expect((container.querySelector('.document-strip') as HTMLElement).hidden).toBe(true)
+  // Desktop keeps the drag area and window buttons; the menu, tabs and sync chip are hidden.
+  expect((container.querySelector('.document-strip') as HTMLElement).hidden).toBe(false)
+  expect((container.querySelector('.app-menu') as HTMLElement).hidden).toBe(true)
+  expect((container.querySelector('.document-tablist') as HTMLElement).hidden).toBe(true)
+  expect(container.querySelector('[aria-label="关闭窗口"]')).not.toBeNull()
   expect(container.querySelector('.document-panel:not([hidden]) .source-pane')?.hasAttribute('hidden')).toBe(true)
   expect(container.querySelector('.document-panel:not([hidden]) .preview')).not.toBeNull()
   expect(container.querySelector('.document-panel:not([hidden]) [role=toolbar]')).toBeNull()
   expect(Array.from(container.querySelectorAll('.document-panel:not([hidden]) .view-switcher button')).map((button) => button.textContent)).toEqual(['文件树', '大纲', '退出阅读模式'])
   expect(container.querySelector('.document-panel:not([hidden]) .statusbar')?.textContent).toContain('2 行 · 13 字')
   await act(async () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))); await settle()
-  expect(native.fullscreen).toHaveBeenLastCalledWith(false)
-  expect((container.querySelector('.document-strip') as HTMLElement).hidden).toBe(false)
+  expect((container.querySelector('.app-menu') as HTMLElement).hidden).toBe(false)
+  expect((container.querySelector('.document-tablist') as HTMLElement).hidden).toBe(false)
   expect(container.querySelector('.content-grid.view-split')).not.toBeNull()
   expect((container.querySelector('textarea') as HTMLTextAreaElement).value).toBe('中文 😀\nsecond line')
   await click('阅读模式'); await click('退出阅读模式')
-  expect(native.fullscreen).toHaveBeenLastCalledWith(false)
+  expect((container.querySelector('.app-menu') as HTMLElement).hidden).toBe(false)
 })
 
-it('keeps editing available if fullscreen entry fails', async () => {
-  await mount(); native.fullscreen.mockRejectedValueOnce(new Error('fullscreen unavailable')); await click('阅读模式')
-  expect((container.querySelector('.document-strip') as HTMLElement).hidden).toBe(false)
-  expect(container.textContent).toContain('fullscreen unavailable')
-})
-
-it('follows native maximize and external fullscreen exit state', async () => {
-  await mount(); native.state.mockResolvedValue({ maximized: true, fullscreen: false })
+it('follows native maximize state and stays in reading mode when the window is resized', async () => {
+  await mount(); native.state.mockResolvedValue({ maximized: true })
   await act(async () => native.stateListener()); await settle()
   expect(container.querySelector('[aria-label="还原窗口"]')).not.toBeNull()
   await click('阅读模式')
   await act(async () => native.stateListener()); await settle()
-  expect((container.querySelector('.document-strip') as HTMLElement).hidden).toBe(false)
+  expect(container.querySelector('.application.reading-mode')).not.toBeNull()
+  expect(container.querySelector('[aria-label="还原窗口"]')).not.toBeNull()
+})
+
+it('explains that sync needs an open workspace instead of greying out the menu items', async () => {
+  await mount(); await click('EM 菜单')
+  for (const label of ['同步身份', '同步…']) {
+    const item = [...container.querySelectorAll<HTMLButtonElement>('[role=menuitem]')].find(button => button.textContent === label)!
+    expect(item.disabled).toBe(false)
+  }
+  await click('同步…')
+  expect(container.querySelector('[role=menu]')).toBeNull()
+  expect(container.querySelector('[role=alert]')?.textContent).toContain('请先在 EM 菜单 → 打开工作区')
+  expect(container.querySelector('[aria-label="同步"]')).toBeNull()
 })
 
 it('closes untouched new tabs directly without creating drafts or changing other edits', async () => {

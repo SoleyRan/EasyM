@@ -174,8 +174,8 @@ try {
   const beforeReadingBody = await body()
   const beforeReadingCount = await page.locator('.statusbar:visible').textContent()
   await page.getByRole('button', { name: '阅读模式', exact: true }).click()
-  await page.waitForFunction(() => !!document.fullscreenElement && document.querySelector('.application').classList.contains('reading-mode'))
-  assert.equal(await page.locator('.document-strip:visible, .source-pane:visible, .toolbar:visible').count(), 0)
+  await page.waitForFunction(() => document.querySelector('.application').classList.contains('reading-mode')); assert.equal(await page.evaluate(() => !!document.fullscreenElement), false)
+  assert.equal(await page.locator('.document-strip:visible, .app-menu:visible, .document-tablist:visible, .source-pane:visible, .toolbar:visible').count(), 0)
   assert.deepEqual(await page.locator('.view-switcher:visible button').allTextContents(), ['文件树', '大纲', '退出阅读模式'])
   assert.equal(await page.locator('.statusbar:visible').textContent(), beforeReadingCount)
   await page.getByRole('button', { name: '展开大纲' }).click()
@@ -194,7 +194,7 @@ try {
   assert.equal(await page.locator('.content-grid.view-split:visible').count(), 1)
   await page.getByRole('button', { name: '阅读模式', exact: true }).click()
   await page.getByRole('button', { name: '退出阅读模式', exact: true }).click()
-  await page.waitForFunction(() => !document.fullscreenElement)
+  await page.waitForFunction(() => !document.querySelector('.application').classList.contains('reading-mode'))
   await source.evaluate((element) => { element.scrollTop = element.scrollHeight })
   await page.waitForFunction(() => document.querySelector('.preview').scrollTop > 1000)
   page.once('dialog', (dialog) => dialog.accept())
@@ -285,7 +285,7 @@ try {
   await page.getByRole('button', { name: '不保存关闭', exact: true }).click()
   await page.waitForFunction((count) => document.querySelectorAll('[role=tab]').length === count, tabsBeforeClose - 1)
   assert.deepEqual(errors, [])
-  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['Tab/Shift+Tab nest and un-nest list items into a rendered nested ordered list; Tab outside lists keeps focus navigation', 'code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through settings and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Export submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'fullscreen read-only preview, three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
+  const report = { verifiedAt: new Date().toISOString(), browser: await browser.version(), checks: ['Tab/Shift+Tab nest and un-nest list items into a rendered nested ordered list; Tab outside lists keeps focus navigation', 'code contrast and language-specific source/preview highlighting', 'language insertion/change/removal and undo/redo', 'bidirectional scrolling at middle/top/bottom without caret movement or feedback', 'resize and tab scroll retention', 'multiple files, independent edits and undo histories, draft restart recovery', 'four themes through settings and persistent preference', '1440/960 writing area and optional outline', 'outline jumps both panes after preview scrolling and repeated selection', 'both sidebar pointer resizing and width persistence', 'long filename ellipsis', 'EM file menu and wheel navigation of overflowing tabs', 'discard dirty tab without saving', 'untouched new tab closes without confirmation', '3px tab scrollbar transparent until hover without layout shift', 'Export submenu opens only on click to the right', 'save header removed; hideable formatting toolbar and persistent visibility', 'file panel remains open on import into a new tab', 'visible table cell borders and column alignment in all four themes', 'in-window read-only preview (no fullscreen), three navigation buttons, outline navigation, Escape/button exit and editor retention'], styles, themeColors, tableBorders }
   report.checks.push(...selectionChecks)
   await writeFile('test-results/writing-verification.json', JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))

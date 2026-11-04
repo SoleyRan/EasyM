@@ -3,7 +3,7 @@ import DocumentEditor, { type DocumentHandle, type DocumentSummary, type FileAct
 import { CloseDialog } from './editor/CloseDialog'
 import { TemplateDialog } from './editor/TemplateDialog'
 import type { NewDocument } from './core/templates'
-import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, setFullscreen, listenWindowState } from './platform/window'
+import { listenForClose, closeWindow, minimizeWindow, toggleMaximizeWindow, dragWindow, windowState, listenWindowState } from './platform/window'
 import { drafts } from './platform/drafts'
 import { loadSession, saveSession, MAX_SESSION_TABS } from './platform/session'
 import { releaseDocument, type OpenedFile } from './platform/storage'
@@ -122,11 +122,8 @@ function Application() {
   useEffect(() => { if (quickEntry) closeQuickEntry() }, [active, workspace?.id])
   const [showFiles, setShowFiles] = useState(false)
   const [reading, setReading] = useState(false)
-  const [windowBusy, setWindowBusy] = useState(false)
   const [maximized, setMaximized] = useState(false)
   const readingRef = useRef(false)
-  const windowOperation = useRef(false)
-  const previousFullscreen = useRef(false)
   const readingFocus = useRef<HTMLElement | null>(null)
   const restoreReadingFocus = useRef(false)
   const menu = useRef<HTMLDivElement>(null)
@@ -135,18 +132,12 @@ function Application() {
     handles.current.set(id, handle)
     setSummaries((previous) => JSON.stringify(previous[id]) === JSON.stringify(summary) ? previous : { ...previous, [id]: summary })
   }, [])
-  async function toggleReading(next: boolean) {
-    if (windowOperation.current || next === readingRef.current) return
-    windowOperation.current = true; setWindowBusy(true); setMenuOpen(false)
-    try {
-      if (next) {
-        readingFocus.current = document.activeElement as HTMLElement
-        previousFullscreen.current = (await windowState()).fullscreen
-        await setFullscreen(true)
-      } else await setFullscreen(previousFullscreen.current)
-      readingRef.current = next; restoreReadingFocus.current = true; setReading(next)
-    } catch (err) { setError(`切换阅读模式失败：${String(err)}`) }
-    finally { windowOperation.current = false; setWindowBusy(false) }
+  // Reading mode stays in the current window; it no longer switches to fullscreen.
+  function toggleReading(next: boolean) {
+    if (next === readingRef.current) return
+    setMenuOpen(false)
+    if (next) readingFocus.current = document.activeElement as HTMLElement
+    readingRef.current = next; restoreReadingFocus.current = true; setReading(next)
   }
   const exitReading = useRef(() => undefined as void)
   useEffect(() => {
@@ -156,13 +147,12 @@ function Application() {
     else if (readingFocus.current?.isConnected) readingFocus.current.focus()
     else document.querySelector<HTMLButtonElement>('.app-menu-trigger')?.focus()
   }, [reading])
-  exitReading.current = () => { void toggleReading(false) }
+  exitReading.current = () => toggleReading(false)
   useEffect(() => {
     let disposed = false; let stop: (() => void) | undefined
     const update = () => { void windowState().then((state) => {
       if (disposed) return
       setMaximized(state.maximized)
-      if (readingRef.current && !state.fullscreen && !windowOperation.current) { readingRef.current = false; restoreReadingFocus.current = true; setReading(false) }
     }).catch((err) => { if (!disposed) setError(String(err)) }) }
     update()
     listenWindowState(update).then((unlisten) => { if (disposed) unlisten(); else stop = unlisten }).catch((err) => { if (!disposed) setError(String(err)) })
@@ -341,7 +331,7 @@ function Application() {
   const appCommands = useMemo(() => {
     const registry = new CommandRegistry(() => appRuntime.current.context())
     for (const definition of commandDefinitions.filter(item => item.id.startsWith('app.'))) registry.register({ ...definition,
-      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : (definition.id === 'app.syncIdentity' || definition.id === 'app.sync') && (!desktop || !workspaceRef.current) ? { enabled: false, reason: '请先在桌面版打开工作区。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
+      status: () => definition.id === 'app.recent' && !desktop ? { enabled: false, reason: '浏览器不支持记忆磁盘权限，请重新选择文件。' } : (definition.id === 'app.syncIdentity' || definition.id === 'app.sync') && (!desktop || !workspaceRef.current) ? { enabled: false, reason: '同步以文件夹为单位：请先在 EM 菜单 → 打开工作区，选择要同步的文件夹。' } : { enabled: appRuntime.current.ready(), reason: '请先完成当前文档操作。' }, run: () => appRuntime.current.run(definition.id) })
     return registry
   }, [])
   appRuntime.current = {
@@ -351,14 +341,14 @@ function Application() {
       setMenuOpen(false)
       if (commandId === 'app.template') setTemplateOpen(true)
       else if (commandId === 'app.recent') { if (desktop) setRecentOpen(true); else setError('浏览器不能记忆磁盘权限，请使用打开文件重新选择；独立草稿仍可恢复。') }
-      else if (commandId === 'app.syncIdentity') { if (desktop && workspace) setIdentityOpen(true); else setError('请先在桌面版打开工作区。') }
-      else if (commandId === 'app.sync') { if (desktop && workspace) setSyncOpen(true); else setError('请先在桌面版打开工作区。') }
+      else if (commandId === 'app.syncIdentity') { if (desktop && workspace) setIdentityOpen(true); else setError('同步以文件夹为单位：请先在 EM 菜单 → 打开工作区，选择要同步的文件夹。') }
+      else if (commandId === 'app.sync') { if (desktop && workspace) setSyncOpen(true); else setError('同步以文件夹为单位：请先在 EM 菜单 → 打开工作区，选择要同步的文件夹。') }
       else if (commandId === 'app.commands' || commandId === 'app.quickOpen') { setQuickError(''); setQuickEntry({ kind: commandId === 'app.commands' ? 'commands' : 'open', context: appCommands.capture() }) }
       else setSettingsOpen(true)
     },
   }
   const executeApp = (commandId: string) => { const handle = handles.current.get(active); if (handle?.prepareLeave) { void handle.prepareLeave().then(proceed => { if (proceed) runApp(commandId) }); return } runApp(commandId) }
-  const runApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) setError(status.reason ?? '操作暂不可用。') }).catch(err => setError(String(err))) }
+  const runApp = (commandId: string) => { void appCommands.execute(commandId).then(status => { if (!status.enabled) { setMenuOpen(false); setError(status.reason ?? '操作暂不可用。') } }).catch(err => setError(String(err))) }
   const quickRuntime = useRef({ blocked, executeApp }); quickRuntime.current = { blocked, executeApp }
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
@@ -424,8 +414,9 @@ function Application() {
     } finally { if (file?.id && !accepted && ![...handles.current.values()].some(handle => handle.summary.fileId === file!.id)) await releaseDocument(file.id).catch(() => undefined) }
   }
   return <div className={`application ${reading ? 'reading-mode' : ''}`} data-theme={theme} data-code-wrap={appearance.codeWrap} style={{ '--editor-font-size': `${fontSize}px`, '--body-line-height': appearance.lineHeight, '--content-width': appearance.contentWidth ? `${appearance.contentWidth}px` : '100%', '--code-font-size': `${appearance.codeFontSize}px` } as CSSProperties}>
-    <div className="document-strip" hidden={reading} inert={templateOpen || appModal || !!summaries[active]?.tableDecision}>
-      <div className="app-menu" ref={menu} onKeyDown={(event) => {
+    {/* Without a system title bar, reading mode keeps the drag area and window buttons on desktop. */}
+    <div className="document-strip" hidden={reading && !desktop} inert={templateOpen || appModal || !!summaries[active]?.tableDecision}>
+      <div className="app-menu" ref={menu} hidden={reading} onKeyDown={(event) => {
         const inExportMenu = !!(event.target as HTMLElement).closest('#export-menu')
         if ((inExportMenu && ['ArrowLeft', 'Escape'].includes(event.key)) || (event.key === 'Escape' && exportMenuOpen)) {
           event.preventDefault(); event.stopPropagation(); setExportMenuOpen(false); menuSurface.current?.querySelector<HTMLButtonElement>('.export-menu-trigger')?.focus(); return
@@ -470,12 +461,13 @@ function Application() {
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.backup').enabled} onClick={() => fileAction('backup')}>文档备份与恢复</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.commandStatus('file.batchImages').enabled} onClick={() => fileAction('batchImages')}>批量处理图片</button>
           <div className="menu-divider" role="separator" />
-          <button role="menuitem" title={desktop ? '为当前工作区记录文档的持久同步身份' : '仅桌面版可用'} disabled={blocked || !desktop || !workspace} onClick={() => executeApp('app.syncIdentity')}>同步身份</button>
-          <button role="menuitem" title={desktop ? '连接 WebDAV 服务器并同步当前工作区' : '仅桌面版可用'} disabled={blocked || !desktop || !workspace} onClick={() => executeApp('app.sync')}>同步…</button>
+          {/* Kept clickable without a workspace so the reason is shown instead of a silently grey item. */}
+          <button role="menuitem" title={!desktop ? '仅桌面版可用' : workspace ? '为当前工作区记录文档的持久同步身份' : '同步以文件夹为单位，请先打开工作区'} disabled={blocked || !desktop} onClick={() => executeApp('app.syncIdentity')}>同步身份</button>
+          <button role="menuitem" title={!desktop ? '仅桌面版可用' : workspace ? '连接 WebDAV 服务器并同步当前工作区' : '同步以文件夹为单位，请先打开工作区'} disabled={blocked || !desktop} onClick={() => executeApp('app.sync')}>同步…</button>
           <button role="menuitem" disabled={blocked || !handles.current.get(active)?.canEdit() || Object.values(summaries).some(s => s.busy)} onClick={() => executeApp('app.settings')}>设置</button>
         </PositionedOverlay>}
       </div>
-      <div ref={tablist} className="document-tablist" role="tablist" aria-label="打开的文档" onMouseDown={(event) => {
+      <div ref={tablist} className="document-tablist" role="tablist" aria-label="打开的文档" hidden={reading} onMouseDown={(event) => {
         if (desktop && event.button === 0 && event.target === event.currentTarget) void dragWindow().catch((err) => setError(String(err)))
       }} onDoubleClick={(event) => { if (event.target === event.currentTarget) void toggleMaximizeWindow().catch((err) => setError(String(err))) }} onWheel={(event) => {
         const list = event.currentTarget
@@ -506,7 +498,8 @@ function Application() {
         </div>)}
         <button className="new-document" aria-label="新建标签" disabled={blocked} onClick={() => { const handle = handles.current.get(active); if (handle?.canLeave()) void (async () => { if (!handle.prepareLeave || await handle.prepareLeave()) add() })() }}>＋</button>
       </div>
-      {sync.binding && <button className={`sync-chip sync-${sync.status?.kind ?? 'idle'}`} aria-label={`同步状态：${statusText(sync.status)}`} title={statusText(sync.status)} disabled={blocked} onClick={() => executeApp('app.sync')}>{sync.status?.kind === 'syncing' ? '同步中' : sync.status?.kind === 'paused' ? '同步暂停' : sync.status?.kind === 'retrying' ? '同步重试' : '已同步'}</button>}
+      {reading && <div className="reading-strip-fill" aria-hidden="true" onMouseDown={(event) => { if (event.button === 0) void dragWindow().catch((err) => setError(String(err))) }} onDoubleClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))} />}
+      {sync.binding && !reading && <button className={`sync-chip sync-${sync.status?.kind ?? 'idle'}`} aria-label={`同步状态：${statusText(sync.status)}`} title={statusText(sync.status)} disabled={blocked} onClick={() => executeApp('app.sync')}>{sync.status?.kind === 'syncing' ? '同步中' : sync.status?.kind === 'paused' ? '同步暂停' : sync.status?.kind === 'retrying' ? '同步重试' : '已同步'}</button>}
       <div className="titlebar-drag" aria-hidden="true" onMouseDown={(event) => { if (event.button === 0) void dragWindow().catch((err) => setError(String(err))) }} onDoubleClick={() => void toggleMaximizeWindow().catch((err) => setError(String(err)))} />
       {desktop && <div className="window-controls" aria-label="窗口控制">
         <button aria-label="最小化窗口" title="最小化" onClick={() => void minimizeWindow().catch((err) => setError(String(err)))}><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg></button>
@@ -518,7 +511,7 @@ function Application() {
     {error && !closing && <div className="global-error" role="alert">{error}<button aria-label="关闭提示" onClick={() => setError('')}>×</button></div>}
     {!sessionReady && <p role="status">正在检查上次会话与草稿…</p>}
     {sessionReady && tabs.map((tab) => <section key={tab.id} role="tabpanel" id={`panel-${tab.id}`} aria-labelledby={`tab-${tab.id}`} hidden={tab.id !== active} className="document-panel" inert={!!quickEntry || !!closing || closeBusy || templateOpen || appModal}>
-      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} readingBusy={windowBusy} onReading={(next) => void toggleReading(next)} id={tab.id} active={tab.id === active} suspended={!sessionReady || !!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} openHandles={() => tabs.map(t => handles.current.get(t.id)).filter((h): h is DocumentHandle => !!h)} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
+      <DocumentEditor quickEntryOpen={!!quickEntry} reading={reading} onReading={toggleReading} id={tab.id} active={tab.id === active} suspended={!sessionReady || !!closing || closeBusy || templateOpen || appModal} draftKey={tab.draftKey} file={tab.file} blank={tab.blank} seed={tab.seed} path={tab.path} location={tab.location} workspace={workspace} onWorkspaceChange={setWorkspace} showFiles={showFiles} onShowFiles={setShowFiles} showSelectionTools={showSelectionTools} showToolbar={showToolbar} onShowToolbar={setShowToolbar} onNew={() => add()} onOpen={add} openHandles={() => tabs.map(t => handles.current.get(t.id)).filter((h): h is DocumentHandle => !!h)} onReleaseUnused={async file => { if (file.id && !tabs.some(tab => tab.file?.id === file.id || handles.current.get(tab.id)?.summary.fileId === file.id)) await releaseDocument(file.id) }} onReport={report} onReadOther={tabs.length > 1 ? () => {
         const next = tabs.find(item => item.id !== tab.id)!
         setActive(next.id)
         requestAnimationFrame(() => document.getElementById(`tab-${next.id}`)?.focus())
