@@ -241,3 +241,33 @@ PR #26 合并后（main `88f5bf2`），从 main 创建 `release/v2.0.0-beta.3`�
 - [实机验收表](Easy-Markdown-v2.0-实机验收.md)的候选信息清空，待 beta.3 的 CI 与草稿生成后填写；beta.2 的结果不沿用。
 
 beta.2 的预发布草稿未公开，起草 beta.3 后可以删除。
+
+### beta.3 CI 与预发布草稿（2026-11-05）
+
+PR #27 合并后，main `ca821d5c2bc6b7da0a32c7d108a2680ecbf77d87` 的 [Validate EasyM 41979682302](https://github.com/SoleyRan/EasyM/actions/runs/41979682302)（push，06:19–06:33 UTC）全部通过。维护者随后用 `Draft EasyM release`（[41981608644](https://github.com/SoleyRan/EasyM/actions/runs/41981608644)，`run_id=41979682302`）起草了 `v2.0.0-beta.3` 预发布草稿，未公开。
+
+候选 artifact（ZIP 摘要，不是安装包哈希）：
+
+| Artifact | ID | 大小（字节） | ZIP SHA-256 |
+| --- | --- | --- | --- |
+| easym-windows-release-candidate | 13394455529 | 16,551,940 | `b4f20424…9162` |
+| easym-macOS-release-candidate | 13393558312 | 9,302,693 | `7473d408…c5f8` |
+| easym-Linux-release-candidate | 13393248510 | 11,540,971 | `bb4bf2d3…82a6` |
+| windows-installer-verification | 13393758217 | 279,227 | `ce21128a…f7cd` |
+
+Artifact 保留到 2027-02-03。草稿中的 `SHA256SUMS.txt`：
+
+```text
+23bf74721ea25337b1fe4c198f3715ccc2b9dc5dfcc2580b3f491fbc3c8669a9  EasyM_2.0.0-beta.3_x64-setup.exe
+47019c73d38b8c2fea1396d699859dc9bb8177a644aef421715d77c3d80bca77  EasyM-2.0.0-beta.3-windows-x64.zip
+87477de4043f03c0a4c44a2c3e7c27e678769ec784b0f62763c7368a87d171e1  RELEASE-NOTES.md
+fde7e0104844922823c8d46944f5532305ee8bf784a679a72df132ec5e3b8e06  EasyM-2.0.0-beta.3-macos-arm64.dmg
+34f9260c2daf03a060360e83643e89f49b28d97868f07ea554dc473dca0b637d  EasyM-2.0.0-beta.3-linux-amd64.deb
+300beaebaac3ebfff3836224a6073f5eeae75c61fe2258dca084b4e1b852c35d  release-manifest.json
+dd5c2ff48b42327a7af81aa60d909e2da925843fa130236c431f4361879c912c  release-manifest-macos-arm64.json
+a058fd281bfe95914ccd17b92196646f376bb2d6a4177d89966346750e7fe3f2  release-manifest-linux-amd64.json
+```
+
+`RELEASE-NOTES.md` 的哈希等于提交 `ca821d5` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希，附带的是含“相对 beta.2 的修复”的 beta.3 说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
+
+下一步：在 Mac 上安装 beta.3，先确认阅读模式两侧边栏连成一页，以及 beta.1 反馈的四项，再按验收表继续。
