@@ -231,3 +231,13 @@ d52d9f13ae793ef3861a723568bd9613c49dcab92a046c9303fac12bdc2a518f  release-manife
 修复（只影响阅读模式，编辑模式不变）：阅读时侧栏改用页面色，与阅读区连成一页；去掉中间一栏的上下横线；侧栏内侧的竖线保留，作为分隔。四个主题都通过 `--page` 变量生效。
 
 验证：`verify-writing.mjs` 新增断言，两侧边栏都打开时，侧栏背景等于阅读区背景，上下横线透明；`verify-writing`、`verify-appearance`、`verify-settings` 和 App 测试（68 项）都通过。维护者提供的截图在本机读取为空，没能直接对照；修复依据的是上面的测量结果，需要在 Mac 上确认效果。
+
+## 2.0.0-beta.3 候选
+
+PR #26 合并后（main `88f5bf2`），从 main 创建 `release/v2.0.0-beta.3`，只改版本号与文档：
+
+- 版本号 `2.0.0-beta.3`：package、Cargo.toml/Cargo.lock、tauri.conf.json、侧栏、SBOM、发布脚本测试样例。`verify-release-metadata`、`verify-notices`、`prepare-release.test.mjs` 通过。
+- [发行说明](Easy-Markdown-v2.0-发行说明.md)换成 beta.3，新增“相对 beta.2 的修复”（阅读模式两侧边栏），beta.1 的修复列表保留并注明 beta.2 起已包含。
+- [实机验收表](Easy-Markdown-v2.0-实机验收.md)的候选信息清空，待 beta.3 的 CI 与草稿生成后填写；beta.2 的结果不沿用。
+
+beta.2 的预发布草稿未公开，起草 beta.3 后可以删除。
