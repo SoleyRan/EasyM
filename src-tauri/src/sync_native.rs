@@ -225,6 +225,8 @@ fn failure(status: StatusCode) -> String {
     match status.as_u16() {
         401 | 403 => "unauthorized".into(),
         404 => "not_found".into(),
+        // MKCOL under a missing parent: the endpoint itself points at a folder that does not exist.
+        409 => "endpoint_missing".into(),
         413 | 507 => "quota_exceeded".into(),
         // Moved endpoints are reported, never followed (credentials must not cross origins).
         300..=399 => "endpoint_redirected".into(),
@@ -275,14 +277,19 @@ impl Dav {
         }
         Ok(DavResponse { status, etag, modified, body })
     }
-    /// Creates the namespace from the endpoint down. 405 means it already exists.
-    pub(crate) async fn prepare(&self) -> Result<(), String> {
+    /// Collections to create, parents first: `easym-sync/`, `v1/`, the workspace, then its children.
+    /// MKCOL needs an existing parent (RFC 4918 answers 409 otherwise), so none may be skipped.
+    fn namespace_collections(&self) -> Result<Vec<Url>, String> {
         let mut collections = vec![];
         let mut url = self.base.clone();
-        for _ in 0..2 { collections.push(url.clone()); url = url.join("..").map_err(|_| "invalid_data")?; }
+        for _ in 0..3 { collections.push(url.clone()); url = url.join("..").map_err(|_| "invalid_data")?; }
         collections.reverse();
         for relative in ["devices/", "objects/", "objects/sha256/"] { collections.push(self.url(relative)?); }
-        for url in collections {
+        Ok(collections)
+    }
+    /// Creates the namespace from the endpoint down. 405 means it already exists.
+    pub(crate) async fn prepare(&self) -> Result<(), String> {
+        for url in self.namespace_collections()? {
             let response = self.send(Method::from_bytes(b"MKCOL").map_err(|_| "invalid_data")?, url, &[], None, 64 * 1024).await?;
             if !matches!(response.status.as_u16(), 201 | 405) { return Err(failure(response.status)); }
         }
@@ -740,9 +747,19 @@ mod tests {
 
     #[test]
     fn statuses_map_to_actionable_errors() {
-        for (code, expected) in [(401, "unauthorized"), (403, "unauthorized"), (507, "quota_exceeded"), (301, "endpoint_redirected"), (423, "server_busy:423"), (418, "unexpected_status:418")] {
+        for (code, expected) in [(401, "unauthorized"), (403, "unauthorized"), (409, "endpoint_missing"), (507, "quota_exceeded"), (301, "endpoint_redirected"), (423, "server_busy:423"), (418, "unexpected_status:418")] {
             assert_eq!(failure(StatusCode::from_u16(code).unwrap()), expected);
         }
+    }
+
+    #[test]
+    fn namespace_is_created_from_easym_sync_down_so_no_parent_is_missing() {
+        let client = reqwest::Client::new();
+        let dav = Dav::new(client, "https://dav.example.test/remote.php/dav/files/u/", W, "u".into(), "p".into()).unwrap();
+        let root = "https://dav.example.test/remote.php/dav/files/u/";
+        let expected: Vec<String> = ["easym-sync/", "easym-sync/v1/", &format!("easym-sync/v1/{W}/"), &format!("easym-sync/v1/{W}/devices/"), &format!("easym-sync/v1/{W}/objects/"), &format!("easym-sync/v1/{W}/objects/sha256/")]
+            .iter().map(|p| format!("{root}{p}")).collect();
+        assert_eq!(dav.namespace_collections().unwrap().iter().map(Url::to_string).collect::<Vec<_>>(), expected);
     }
 
     #[test]

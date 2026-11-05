@@ -11,7 +11,7 @@ describe('sync failure policy', () => {
   })
 
   it('pauses for anything the user must resolve, including unknown errors', () => {
-    for (const code of ['unauthorized', 'certificate_invalid', 'endpoint_redirected', 'credential_missing', 'quota_exceeded', 'invalid_listing', 'hash_mismatch', 'missing_object', 'unexpected_status:418', 'something_new']) {
+    for (const code of ['unauthorized', 'certificate_invalid', 'endpoint_redirected', 'endpoint_missing', 'credential_missing', 'quota_exceeded', 'invalid_listing', 'hash_mismatch', 'missing_object', 'unexpected_status:418', 'something_new']) {
       expect(classifySyncError(code).kind).toBe('action')
     }
     for (const code of ['rollback', 'device_conflict', 'too_many_devices', 'not_descendant'] as const) expect(classifySyncError(new SyncLogError(code))).toEqual({ kind: 'action', code })
