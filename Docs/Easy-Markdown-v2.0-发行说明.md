@@ -1,8 +1,12 @@
-# EasyM 2.0.0-beta.2
+# EasyM 2.0.0-beta.3
 
 2.0 的主线是单用户多设备同步：在自己的几台电脑上离线写 Markdown 和图片，联网后通过自备的 WebDAV 服务器同步，冲突时保留双方。普通本地文档仍然无需账号、无需联网。这是 Beta 候选，用来收集反馈；实际发布状态以 GitHub Releases 为准。
 
-## 相对 beta.1 的修复
+## 相对 beta.2 的修复
+
+- 阅读模式同时打开文件栏和大纲时，侧栏与阅读区背景不一致、上下分隔线断开，看起来像几块拼在一起。现在侧栏与阅读区连成一页。
+
+## 相对 beta.1 的修复（beta.2 起已包含）
 
 - macOS：确认框不弹出、操作被直接取消，例如删除非空的表格行/列、移到回收站、退出同步、停用设备。现在 macOS 使用系统对话框确认。
 - “同步身份”“同步…”在没有打开工作区时不再是灰的，点击后会提示先打开要同步的文件夹。
@@ -25,21 +29,21 @@
 
 | 平台 | 文件 | 说明 |
 | --- | --- | --- |
-| Windows x64 | `EasyM_2.0.0-beta.2_x64-setup.exe`、`EasyM-2.0.0-beta.2-windows-x64.zip` | 需要 WebView2 Runtime；便携包附许可和样例 |
-| macOS Apple Silicon | `EasyM-2.0.0-beta.2-macos-arm64.dmg` | 附许可；样例在仓库 `Docs/samples/v2.0` |
-| Ubuntu 24.04 x86_64 | `EasyM-2.0.0-beta.2-linux-amd64.deb` | 附许可；同步密码需要 Secret Service（桌面版默认的 GNOME 钥匙环，或 KWallet）。没有时同步会提示凭据存储不可用，不会把密码写入文件 |
+| Windows x64 | `EasyM_2.0.0-beta.3_x64-setup.exe`、`EasyM-2.0.0-beta.3-windows-x64.zip` | 需要 WebView2 Runtime；便携包附许可和样例 |
+| macOS Apple Silicon | `EasyM-2.0.0-beta.3-macos-arm64.dmg` | 附许可；样例在仓库 `Docs/samples/v2.0` |
+| Ubuntu 24.04 x86_64 | `EasyM-2.0.0-beta.3-linux-amd64.deb` | 附许可；同步密码需要 Secret Service（桌面版默认的 GNOME 钥匙环，或 KWallet）。没有时同步会提示凭据存储不可用，不会把密码写入文件 |
 
 其他 CPU、发行版未验收。Web/PWA 与移动端延期到 2.x，2.0 只含上述三个桌面平台。
 
 下载后与同次发行的 `SHA256SUMS.txt` 核对。当前没有代码签名、公证、自动更新或更新签名；Windows 可能出现 SmartScreen 提示，macOS 可能被 Gatekeeper 拦截（需在“系统设置 → 隐私与安全性”中选择仍要打开）。未签名的 macOS 包每次升级后，第一次同步时钥匙串可能再次询问是否允许 EasyM 使用“EasyM Sync”，选“始终允许”即可；选拒绝时同步会提示凭据不可用，连接设置不会丢失。
 
-Linux 注意：Debian 的版本排序会把 `2.0.0-beta.2` 排在 `2.0.0` 之后（实测 dpkg）。以后从 Beta 升到正式版时，先 `sudo apt remove easym` 再安装正式版，或用 `sudo dpkg -i` 直接安装；卸载不会删除文档。Windows 安装器按 semver 比较，Beta 升正式版正常。
+Linux 注意：Debian 的版本排序会把 `2.0.0-beta.3` 排在 `2.0.0` 之后（实测 dpkg）。以后从 Beta 升到正式版时，先 `sudo apt remove easym` 再安装正式版，或用 `sudo dpkg -i` 直接安装；卸载不会删除文档。Windows 安装器按 semver 比较，Beta 升正式版正常。
 
 ## 从 1.0 升级
 
 1. 保存文档，退出 1.0。复制重要文档及旁边的 `.easym` 目录；自定义历史目录也要单独备份。
 2. 安装 2.0（Windows 安装包会就地升级；便携版解压到新目录，不要混放不同版本）。不要为了升级清理 WebView 应用数据，否则本机未落盘的草稿会丢失。
-3. 首次启动会显示“已更新到 EasyM 2.0.0-beta.2”导引。
+3. 首次启动会显示“已更新到 EasyM 2.0.0-beta.3”导引。
 
 应用标识（`com.easym.markdown`）、草稿、最近文件、版本历史、合并恢复记录、图片元数据（`.easym/images.json`）和单文档备份格式都与 1.0 相同，升级不迁移、不改写任何已有文件。不启用同步时，2.0 对工作区的写入与 1.0 一致。
 
