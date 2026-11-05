@@ -271,3 +271,18 @@ a058fd281bfe95914ccd17b92196646f376bb2d6a4177d89966346750e7fe3f2  release-manife
 `RELEASE-NOTES.md` 的哈希等于提交 `ca821d5` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希，附带的是含“相对 beta.2 的修复”的 beta.3 说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
 
 下一步：在 Mac 上安装 beta.3，先确认阅读模式两侧边栏连成一页，以及 beta.1 反馈的四项，再按验收表继续。
+
+## Beta 反馈修复：首次连接托管 Nextcloud 报 409（2026-11-05）
+
+维护者用 beta.3 连接托管 Nextcloud 时，同步失败，提示 `unexpected_status:409`。
+
+原因：连接时 `Dav::prepare` 要逐级创建 `easym-sync/v1/<工作区>/` 及其子目录。原代码从工作区目录往上只取两层，只建了 `easym-sync/v1/` 和工作区目录，漏掉了最外层的 `easym-sync/`。WebDAV 规定 MKCOL 的父目录必须已存在，否则返回 409（RFC 4918），所以在从没用过 EasyM 的账号上，第一次连接必定失败。第 1–5 步的测试容器里早已有 `easym-sync/`，问题一直没暴露。
+
+修复：
+
+- 要创建的目录改由 `namespace_collections` 生成，从 `easym-sync/` 开始逐级向下：`easym-sync/`、`v1/`、工作区、`devices/`、`objects/`、`objects/sha256/`。已存在的目录返回 405，照旧视为成功，已经连上的设备不受影响。
+- HTTP 409 单独映射为 `endpoint_missing`，提示 WebDAV 地址指向的文件夹不存在，并说明 Nextcloud 应从“文件 → 文件设置”复制地址。这个错误不自动重试。
+
+验证：新增 Rust 单测，检查目录按父目录在前的顺序生成；状态码映射测试加入 409；前端错误提示和“需要用户处理”的分类测试都通过。`cargo test` 128 项通过、2 项按设计忽略；`vitest` 474 项通过。
+
+未验证：没有在真实的空 Nextcloud 账号上重测（本机 Docker 未运行，测试容器也已有 `easym-sync/`）。需要用下一个候选重新连接维护者的托管 Nextcloud 确认。连接失败前若已建出 `easym-sync/v1/` 之外的目录，新版会直接复用，无需手动清理。

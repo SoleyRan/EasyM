@@ -127,6 +127,7 @@ export function syncError(error: unknown): string {
     endpoint_invalid: '服务器地址无效；请填写 WebDAV 目录的完整地址，不要包含用户名、密码或查询参数。',
     endpoint_insecure: '只允许 HTTPS 地址（本机测试地址除外）；为保护密码，不支持明文 HTTP。',
     endpoint_redirected: '服务器要求跳转到其他地址；为避免把密码发送到其他站点，请直接填写跳转后的地址。',
+    endpoint_missing: 'WebDAV 地址指向的文件夹不存在。Nextcloud 请在网页“文件 → 文件设置”中复制 WebDAV 地址，地址末尾的用户名需与该处一致。',
     unauthorized: '用户名或密码不正确，或没有该目录的访问权限。',
     certificate_invalid: '服务器证书无法验证；EasyM 不会跳过证书校验，请检查服务器配置。',
     connect_failed: '无法连接服务器；请检查网络和地址。',

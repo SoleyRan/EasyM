@@ -90,5 +90,6 @@ describe('native sync provider adapter', () => {
     expect(syncError('endpoint_insecure')).toContain('HTTPS')
     expect(syncError('server_busy:423')).toContain('稍后')
     expect(syncError('certificate_invalid')).toContain('不会跳过')
+    expect(syncError('endpoint_missing')).toContain('文件夹不存在')
   })
 })
