@@ -286,3 +286,13 @@ a058fd281bfe95914ccd17b92196646f376bb2d6a4177d89966346750e7fe3f2  release-manife
 验证：新增 Rust 单测，检查目录按父目录在前的顺序生成；状态码映射测试加入 409；前端错误提示和“需要用户处理”的分类测试都通过。`cargo test` 128 项通过、2 项按设计忽略；`vitest` 474 项通过。
 
 未验证：没有在真实的空 Nextcloud 账号上重测（本机 Docker 未运行，测试容器也已有 `easym-sync/`）。需要用下一个候选重新连接维护者的托管 Nextcloud 确认。连接失败前若已建出 `easym-sync/v1/` 之外的目录，新版会直接复用，无需手动清理。
+
+## 2.0.0-beta.4 候选
+
+PR #29 合并后（main `0f3f205`），从 main 创建 `release/v2.0.0-beta.4`，只改版本号与文档：
+
+- 版本号 `2.0.0-beta.4`：package、Cargo.toml/Cargo.lock、tauri.conf.json、侧栏、SBOM、发布脚本测试样例。`verify-release-metadata`、`verify-notices`、`prepare-release.test.mjs` 通过。
+- [发行说明](Easy-Markdown-v2.0-发行说明.md)换成 beta.4，新增“相对 beta.3 的修复”（首次连接报 409），之前各版的修复列表保留并注明起始版本。
+- [实机验收表](Easy-Markdown-v2.0-实机验收.md)的候选信息清空，待 beta.4 的 CI 与草稿生成后填写；新增“首次连接从没用过 EasyM 的 WebDAV 位置”一项，用 Nextcloud 里新建的空文件夹验证 409 修复。beta.3 的结果不沿用。
+
+beta.3 的预发布草稿未公开，起草 beta.4 后可以删除。

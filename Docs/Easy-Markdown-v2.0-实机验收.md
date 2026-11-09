@@ -2,14 +2,15 @@
 
 以下均为待验。“待验”不代表失败，也不代表通过；自动化报告不能代替这张表。候选必须来自同一次全绿 CI 的同一提交，文件 SHA-256 与 CI manifest 一致。1.0 的通过状态不沿用。
 
-当前候选：`2.0.0-beta.3`，main `ca821d5`，来自全绿的 [CI 41979682302](https://github.com/SoleyRan/EasyM/actions/runs/41979682302)，已由 `Draft EasyM release`（[41981608644](https://github.com/SoleyRan/EasyM/actions/runs/41981608644)）起草为 `v2.0.0-beta.3` 预发布草稿（未公开）。下表的 SHA-256 取自草稿中的 `SHA256SUMS.txt`。下载后先核对哈希再安装。
+当前候选：`2.0.0-beta.4`，待合并后 main 的 CI 运行并起草预发布草稿后填写提交、CI 运行编号和 SHA-256。下载后先核对哈希再安装。
 
 此前的候选：
 
+- `2.0.0-beta.3`（main `ca821d5`，[CI 41979682302](https://github.com/SoleyRan/EasyM/actions/runs/41979682302)）：在从没用过 EasyM 的托管 Nextcloud 账号上第一次连接报 409，已在 beta.4 修复，见[第 6 步记录](Easy-Markdown-v2.0-第6步-验收与交付.md#beta-反馈修复首次连接托管-nextcloud-报-4092026-11-05)。
 - `2.0.0-beta.2`（main `7374645`，[CI 41795187114](https://github.com/SoleyRan/EasyM/actions/runs/41795187114)）：macOS 上发现阅读模式打开两侧边栏时界面割裂，已在 beta.3 修复，见[第 6 步记录](Easy-Markdown-v2.0-第6步-验收与交付.md#beta-反馈修复阅读模式两侧边栏2026-11-04)。
 - `2.0.0-beta.1`（main `7fb2f0e`，[CI 41400030318](https://github.com/SoleyRan/EasyM/actions/runs/41400030318)）：macOS 上发现确认框、同步菜单和斜体问题，已在 beta.2 修复，见[第 6 步记录](Easy-Markdown-v2.0-第6步-验收与交付.md#beta-反馈修复macos-实机问题2026-11-03)。
 
-旧候选的结果不沿用，下表按 beta.3 重新填写。
+旧候选的结果不沿用，下表按 beta.4 重新填写。
 
 ## 候选信息
 
@@ -19,8 +20,8 @@
 | 安装格式 | NSIS；另验便携 ZIP | DMG / app | DEB |
 | 凭据存储 | 凭据管理器 | 钥匙串 | Secret Service（GNOME 钥匙环 / KWallet） |
 | OS / WebView 版本 | 待填写 | 待填写 | 待填写 |
-| 提交 / 文件 | `ca821d5` / `EasyM_2.0.0-beta.3_x64-setup.exe`、`EasyM-2.0.0-beta.3-windows-x64.zip` | `ca821d5` / `EasyM-2.0.0-beta.3-macos-arm64.dmg` | `ca821d5` / `EasyM-2.0.0-beta.3-linux-amd64.deb` |
-| SHA-256 | 安装包 `23bf7472…8669a9`<br>便携包 `47019c73…0bca77` | `fde7e010…3b8e06` | `34f9260c…0b637d` |
+| 提交 / 文件 | 待填写 / `EasyM_2.0.0-beta.4_x64-setup.exe`、`EasyM-2.0.0-beta.4-windows-x64.zip` | 待填写 / `EasyM-2.0.0-beta.4-macos-arm64.dmg` | 待填写 / `EasyM-2.0.0-beta.4-linux-amd64.deb` |
+| SHA-256 | 待填写 | 待填写 | 待填写 |
 | 验收人 / 日期 | 待填写 | 待填写 | 待填写 |
 | 签名 / 公证结果 | 当前未签名候选 | 当前未签名/未公证候选 | 当前无仓库签名分发 |
 
@@ -57,6 +58,7 @@
 | 操作 | Windows | macOS | Linux |
 | --- | --- | --- | --- |
 | 启用同步身份；连接时错误密码有提示；正确连接后系统凭据存储出现 `EasyM Sync` 条目，工作区和应用数据目录里搜不到密码 | 待验 | 待验 | 待验 |
+| 首次连接一个从没用过 EasyM 的 WebDAV 位置（例如 Nextcloud 里新建的空文件夹 `easym-test`，地址填到该文件夹）：一次连上，不报 409；地址末尾的文件夹不存在时，提示“WebDAV 地址指向的文件夹不存在” | 待验 | 待验 | 待验 |
 | macOS 首次读钥匙串的系统授权框：允许、拒绝后的提示；Linux 钥匙环锁定时的解锁提示与取消 | 不适用 | 待验 | 待验 |
 | 已连接同步时升级到新候选（覆盖安装）：首次同步是否再次请求钥匙串授权（未签名包预计会），允许后继续同步、拒绝后提示凭据不可用且不丢连接 | 不适用 | 待验 | 待验 |
 | 首台上传、第二台加入：预览数量正确，正文、中文文件名、图片和裁剪副本一致 | 待验 | 待验 | 待验 |
