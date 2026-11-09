@@ -2,7 +2,7 @@
 
 以下均为待验。“待验”不代表失败，也不代表通过；自动化报告不能代替这张表。候选必须来自同一次全绿 CI 的同一提交，文件 SHA-256 与 CI manifest 一致。1.0 的通过状态不沿用。
 
-当前候选：`2.0.0-beta.4`，待合并后 main 的 CI 运行并起草预发布草稿后填写提交、CI 运行编号和 SHA-256。下载后先核对哈希再安装。
+当前候选：`2.0.0-beta.4`，main `dc02566`，来自全绿的 [CI 42581854371](https://github.com/SoleyRan/EasyM/actions/runs/42581854371)，已由 `Draft EasyM release`（[42587145074](https://github.com/SoleyRan/EasyM/actions/runs/42587145074)）起草为 `v2.0.0-beta.4` 预发布草稿（未公开）。下表的 SHA-256 取自草稿中的 `SHA256SUMS.txt`。下载后先核对哈希再安装。
 
 此前的候选：
 
@@ -20,8 +20,8 @@
 | 安装格式 | NSIS；另验便携 ZIP | DMG / app | DEB |
 | 凭据存储 | 凭据管理器 | 钥匙串 | Secret Service（GNOME 钥匙环 / KWallet） |
 | OS / WebView 版本 | 待填写 | 待填写 | 待填写 |
-| 提交 / 文件 | 待填写 / `EasyM_2.0.0-beta.4_x64-setup.exe`、`EasyM-2.0.0-beta.4-windows-x64.zip` | 待填写 / `EasyM-2.0.0-beta.4-macos-arm64.dmg` | 待填写 / `EasyM-2.0.0-beta.4-linux-amd64.deb` |
-| SHA-256 | 待填写 | 待填写 | 待填写 |
+| 提交 / 文件 | `dc02566` / `EasyM_2.0.0-beta.4_x64-setup.exe`、`EasyM-2.0.0-beta.4-windows-x64.zip` | `dc02566` / `EasyM-2.0.0-beta.4-macos-arm64.dmg` | `dc02566` / `EasyM-2.0.0-beta.4-linux-amd64.deb` |
+| SHA-256 | 安装包 `27a3cd3c…bda4a1`<br>便携包 `835fd2d4…1aa7a` | `2b001313…ac4eb9` | `6341d84d…6e6093` |
 | 验收人 / 日期 | 待填写 | 待填写 | 待填写 |
 | 签名 / 公证结果 | 当前未签名候选 | 当前未签名/未公证候选 | 当前无仓库签名分发 |
 

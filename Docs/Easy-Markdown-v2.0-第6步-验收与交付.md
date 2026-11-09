@@ -296,3 +296,33 @@ PR #29 合并后（main `0f3f205`），从 main 创建 `release/v2.0.0-beta.4`�
 - [实机验收表](Easy-Markdown-v2.0-实机验收.md)的候选信息清空，待 beta.4 的 CI 与草稿生成后填写；新增“首次连接从没用过 EasyM 的 WebDAV 位置”一项，用 Nextcloud 里新建的空文件夹验证 409 修复。beta.3 的结果不沿用。
 
 beta.3 的预发布草稿未公开，起草 beta.4 后可以删除。
+
+### beta.4 CI 与预发布草稿（2026-11-09）
+
+PR #30 合并后，main `dc02566480e4d5ccb4ec40c60146d8b109cb1ba2` 的 [Validate EasyM 42581854371](https://github.com/SoleyRan/EasyM/actions/runs/42581854371)（push，07:50–08:04 UTC）全部通过。维护者随后用 `Draft EasyM release`（[42587145074](https://github.com/SoleyRan/EasyM/actions/runs/42587145074)，`run_id=42581854371`）起草了 `v2.0.0-beta.4` 预发布草稿，未公开。
+
+候选 artifact（ZIP 摘要，不是安装包哈希）：
+
+| Artifact | ID | 大小（字节） | ZIP SHA-256 |
+| --- | --- | --- | --- |
+| easym-windows-release-candidate | 13658106687 | 16,564,267 | `0e63d521…b506` |
+| easym-macOS-release-candidate | 13657971958 | 9,291,438 | `f7832f9c…cdb6` |
+| easym-Linux-release-candidate | 13658081505 | 11,526,200 | `0a21ae2e…d07a` |
+| windows-installer-verification | 13657862277 | 281,185 | `446d559a…f66e` |
+
+Artifact 保留到 2027-02-07。草稿中的 `SHA256SUMS.txt`：
+
+```text
+27a3cd3c904cc530a204cddd1b35c4425abb6ab0ab4c73bd785c4a8d03bda4a1  EasyM_2.0.0-beta.4_x64-setup.exe
+835fd2d4cddb15f64ead27edbbe5715dbef9162145b2ed8340d68de30ab1aa7a  EasyM-2.0.0-beta.4-windows-x64.zip
+2e6d846e4eaea2c56c3b29d055c425bd0a73e005b17e20016ab32830abbca4a0  RELEASE-NOTES.md
+2b001313e20057d7b5f3cb96357b7d716c8b8821bc9680fb924f3494ffac4eb9  EasyM-2.0.0-beta.4-macos-arm64.dmg
+6341d84d14db4c20e8af13b81baf846778a492e1881748b5b11b6b1df48e6093  EasyM-2.0.0-beta.4-linux-amd64.deb
+d7715f0a188f3781d4611d28cfec4910c43ac953c2dd39bd1d84d8da5c7f70c4  release-manifest.json
+226fd11785689562b657fd6ecfa131c31e4d92ceee049e1a97d6b106c1adae5f  release-manifest-macos-arm64.json
+a2a30d9ffb07f83ea849f203f8d6f1b353407408f4374175a6231ec629ce854c  release-manifest-linux-amd64.json
+```
+
+`RELEASE-NOTES.md` 的哈希等于提交 `dc02566` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希，附带的是含“相对 beta.3 的修复”的 beta.4 说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
+
+下一步：在 Mac 上安装 beta.4，用 Nextcloud 里新建的空文件夹验证首次连接不再报 409，再用第二个空工作区验证新设备拉取。
