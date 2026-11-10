@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest'
 import { markdownLanguage } from '@codemirror/lang-markdown'
-import { parser as lezerMarkdown } from '@lezer/markdown'
+import { parser as lezerMarkdown, type MarkdownParser } from '@lezer/markdown'
 import { cjkEmphasis } from './cjk-emphasis'
 import { parseDocument } from './markdown'
 
-const editor = markdownLanguage.parser.configure(cjkEmphasis)
+// markdownLanguage.parser is typed as the generic lezer Parser; it is a MarkdownParser at runtime.
+const editor = (markdownLanguage.parser as MarkdownParser).configure(cjkEmphasis)
 const strongInPreview = (text: string) => (parseDocument(text).html.match(/<strong[\s>]/g) ?? []).length
 const strongInEditor = (text: string) => { let count = 0; editor.parse(text).iterate({ enter: node => { if (node.name === 'StrongEmphasis') count++ } }); return count }
 const emInEditor = (text: string) => { let count = 0; editor.parse(text).iterate({ enter: node => { if (node.name === 'Emphasis') count++ } }); return count }
