@@ -5821,6 +5821,18 @@
     },
     {
       "type": "library",
+      "bom-ref": "pkg:npm/get-east-asian-width@1.7.0",
+      "name": "get-east-asian-width",
+      "version": "1.7.0",
+      "purl": "pkg:npm/get-east-asian-width@1.7.0",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
       "bom-ref": "pkg:npm/hachure-fill@0.5.2",
       "name": "hachure-fill",
       "version": "0.5.2",
@@ -6401,6 +6413,30 @@
       "name": "micromark-core-commonmark",
       "version": "2.0.4",
       "purl": "pkg:npm/micromark-core-commonmark@2.0.4",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/micromark-extension-cjk-friendly-util@3.0.1",
+      "name": "micromark-extension-cjk-friendly-util",
+      "version": "3.0.1",
+      "purl": "pkg:npm/micromark-extension-cjk-friendly-util@3.0.1",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:npm/micromark-extension-cjk-friendly@2.0.2",
+      "name": "micromark-extension-cjk-friendly",
+      "version": "2.0.2",
+      "purl": "pkg:npm/micromark-extension-cjk-friendly@2.0.2",
       "licenses": [
         {
           "expression": "MIT"

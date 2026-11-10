@@ -489,6 +489,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | extend | 3.0.2 | MIT | [LICENSE](licenses/97af7428f93afbab9bf79cd09254da1357161794f4255eb1b4599f04dd2d2e7c-LICENSE.txt) |
 | npm | fault | 2.0.1 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
 | npm | format | 0.2.2 | MIT | [format-MIT.txt](licenses/c2ac933bc58e267006523e6cb995ff8c5cba9ff94f95b202572efe9c8a0340a3-format-MIT.txt) |
+| npm | get-east-asian-width | 1.7.0 | MIT | [license](licenses/5c932d88256b4ab958f64a856fa48e8bd1f55bc1d96b8149c65689e0c61789d3-license.txt) |
 | npm | hachure-fill | 0.5.2 | MIT | [LICENSE](licenses/5e807b516a9be9229ed459880bf353a336e2d947867247290680d437017be391-LICENSE.txt) |
 | npm | hash.js | 1.1.7 | MIT | [hash.js-MIT.txt](licenses/7261b3ab93df04c6d8f3398f87275d28f0e87d88cbd0033b788fb50402de03c5-hash.js-MIT.txt) |
 | npm | hast-util-from-html | 2.0.3 | MIT | [license](licenses/e620971c29d750df627f71f4e629618ef8fcbbea134ab95b344fc0c1a757cad1-license.txt) |
@@ -538,6 +539,8 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | mdast-util-to-string | 4.0.0 | MIT | [license](licenses/63cb98b3f6abfb3c3592c16f88253c1bdc834087bf52671e8ce5609e4eb693cf-license.txt) |
 | npm | mermaid | 12.2.0 | MIT | [LICENSE](licenses/ec9fb67dcb25eccc416ed56e1aab819222c805a2a4bfe4cb19e7556bf2ffde80-LICENSE.txt) |
 | npm | micromark-core-commonmark | 2.0.4 | MIT | [license](licenses/dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb-license.txt) |
+| npm | micromark-extension-cjk-friendly-util | 3.0.1 | MIT | [LICENSE](licenses/e4078c730a92cb9c2803a46b6f288a26bf196433e2b009e90ef4789217b49907-LICENSE.txt) |
+| npm | micromark-extension-cjk-friendly | 2.0.2 | MIT | [LICENSE](licenses/ba752b39ec76e0887ed1b66d3eb4507d41dd3cff41be66d475d556e15d6a9520-LICENSE.txt) |
 | npm | micromark-extension-frontmatter | 2.0.0 | MIT | [license](licenses/536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61-license.txt) |
 | npm | micromark-extension-gfm-autolink-literal | 2.1.0 | MIT | [license](licenses/536804b3adbff17dbbb9ed0d2bf9655b78f07640278581e37e3d7475282d5e61-license.txt) |
 | npm | micromark-extension-gfm-footnote | 2.1.0 | MIT | [license](licenses/807a88522a850092aece49486207c17c313c4d5708ac276524840fe1caa0b0fa-license.txt) |
@@ -626,7 +629,7 @@ License texts copied from installed package sources are linked below. Declared l
 | npm | xml | 1.0.1 | MIT | [LICENSE](licenses/d2b3e2f62078f282f21a8c5119a44cc7313fe6aa4a22094c8ad93f4b577b7901-LICENSE.txt) |
 | npm | zwitch | 2.0.4 | MIT | [license](licenses/ca4662cb5d1b738fbe5350c0d5485ba11773b4b7208974082ae6e129a52d631d-license.txt) |
 
-Inventory: 619 dependency versions.
+Inventory: 622 dependency versions.
 
 ## Missing license texts
 

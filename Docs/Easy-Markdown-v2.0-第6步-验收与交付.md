@@ -344,3 +344,23 @@ a2a30d9ffb07f83ea849f203f8d6f1b353407408f4374175a6231ec629ce854c  release-manife
 - v2.0 样例 `降级与安全.md` 中“嵌入 HTML 保留为静态文本”改为说明按安全子集显示。
 
 未验证：macOS 系统 WebKit 上的实际效果；需要在下一个候选上确认。
+
+## Beta 反馈修复：结束符前是标点时不能加粗（2026-11-10）
+
+维护者反馈：`**xxx**` 能加粗，`**xxx:**` 这类写法在某些情况下不能加粗。复现结果：结束的 `**` 前面是标点（冒号、括号等）且后面紧跟文字时不加粗，例如 `**注意:**后文`、`**注意：**后文`、`**(备注)**后文`；后面是空格或行尾时正常。1.0 就存在。
+
+原因：CommonMark 规定，结束分隔符前面是标点时，后面必须是空白或标点才能结束强调。这条规则对中文不友好，GitHub 也这样渲染。预览（micromark）和编辑器（lezer）都按这条规则处理。
+
+修复：采用 CJK 友好规则（[markdown-cjk-friendly](https://github.com/tats-u/markdown-cjk-friendly) 规范），只在分隔符紧邻中日韩字符时放宽，其余情况保持标准 CommonMark。
+
+- 预览、导出、DOCX、批量图片：`markdown-ast.ts` 的 remark 管线加入 `micromark-extension-cjk-friendly` 2.0.2（MIT）。
+- 编辑器（即时渲染、工具栏状态、加粗切换）：lezer 没有对应选项，其强调分隔符类型是内部的。`cjk-emphasis.ts` 包装内置 `Emphasis` 解析器，由它创建分隔符，再用 `micromark-extension-cjk-friendly-util` 3.0.1 的同一套字符分类重算开闭标记，保证编辑器与预览判定一致。`@lezer/markdown` 固定为锁文件中已有的 1.7.2；`cjk-emphasis.test.ts` 检查所依赖的内部结构，升级时若变化会失败。
+- 新增依赖都附带许可全文；Windows 许可清单重新生成：622 个依赖、349 个许可文件、无缺失。macOS/Linux 清单由 CI 生成。
+
+验证：
+
+- `cjk-emphasis.test.ts` 4 项：12 种应加粗的写法在预览和编辑器中都加粗；`a**xxx:**b`、`**Note:**text`、`2*3*4`、`snake_case_name` 等 6 种在两边都不加粗；单星号强调同样适用、下划线词内不变；未加扩展的 lezer 仍复现原问题。
+- `verify-live-preview.mjs` 新增：即时渲染中 `**注意:**后文`、`前文**说明：**后文` 显示为粗体，`a**xxx:**b` 保持原样。
+- `vitest` 74 个文件、480 项通过；`verify-live-preview`、`verify-writing`、`verify-export`、`verify-docx`、`verify-extensions`、`verify-tables`、`verify-extension-delivery` 都通过。
+
+影响：放宽只发生在紧邻中日韩字符处，纯英文文档的渲染不变。少数以前按规范显示为字面 `**` 的中文写法，现在会显示为粗体。

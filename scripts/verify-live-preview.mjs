@@ -119,6 +119,12 @@ try {
   await bold.click()
   assert.equal(await source(), stacked.replace('目标行 选中文字 结束', '目标行 **选中文字** 结束'), 'Selection below rendered blocks lands on the line under the pointer')
   checks.push('pointer selection below code, table, divider and HTML image blocks maps to the line under the mouse; block HTML image renders without direct fetch')
+  // CommonMark leaves `**注意:**后文` unclosed; the CJK-friendly rule closes it in the editor and preview.
+  await fillSource(page, '**注意:**后文\n\n前文**说明：**后文\n\na**xxx:**b\n\n末尾'); await live()
+  await page.waitForFunction(() => document.querySelectorAll('.live-strong').length === 2)
+  assert.deepEqual(await page.locator('.live-strong').allTextContents(), ['注意:', '说明：'])
+  assert.ok((await editor.textContent()).includes('a**xxx:**b'), 'Non-CJK text keeps CommonMark flanking')
+  checks.push('bold closes after punctuation when CJK text follows; non-CJK flanking unchanged')
   await fillSource(page, text); await live()
   await page.locator('.live-block-table td').first().click()
   const tablePanel = page.getByRole('dialog', { name: '编辑表格', exact: true })
