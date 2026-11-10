@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { invoke } from '@tauri-apps/api/core'
 import { defaultRecipe } from '../core/images'
-import { materializeResources, saveDocument } from './storage'
+import { materializeResources, readImageBlob, saveDocument } from './storage'
 import * as historyResources from './history-resources'
 
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: () => true, invoke: vi.fn() }))
@@ -27,6 +27,15 @@ describe('native resource closure', () => {
     expect(input.assets).toEqual({})
     expect(await restored.assets[instance.sourcePath].arrayBuffer()).toEqual(Uint8Array.from([1, 2, 3]).buffer)
     expect(invoke).toHaveBeenCalledWith('read_image', { id: file.id, relativePath: instance.sourcePath })
+  })
+
+  it('reads ./-prefixed image paths as the same document-relative file', async () => {
+    vi.mocked(invoke).mockResolvedValue({ bytes: [1], mime: 'image/png' })
+    await readImageBlob(file.id, './images/vscode.png')
+    await readImageBlob(file.id, 'images/./sub/a.png')
+    // `..` is not rewritten here; the native check rejects it.
+    await readImageBlob(file.id, '../outside.png')
+    expect(vi.mocked(invoke).mock.calls.map(call => (call[1] as { relativePath: string }).relativePath)).toEqual(['images/vscode.png', 'images/sub/a.png', '../outside.png'])
   })
 
   it('reuses the self-contained draft after its previous native session expires', async () => {

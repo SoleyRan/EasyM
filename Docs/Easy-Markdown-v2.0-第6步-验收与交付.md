@@ -364,3 +364,13 @@ a2a30d9ffb07f83ea849f203f8d6f1b353407408f4374175a6231ec629ce854c  release-manife
 - `vitest` 74 个文件、480 项通过；`verify-live-preview`、`verify-writing`、`verify-export`、`verify-docx`、`verify-extensions`、`verify-tables`、`verify-extension-delivery` 都通过。
 
 影响：放宽只发生在紧邻中日韩字符处，纯英文文档的渲染不变。少数以前按规范显示为字面 `**` 的中文写法，现在会显示为粗体。
+
+## Beta 反馈修复：`./` 开头的图片路径显示“图片缺失或访问未授权”（2026-11-10）
+
+维护者反馈：`<img src="./images/vscode.png">` 对应的文件存在，仍提示“图片缺失或访问未授权”。Markdown 写法 `![](./images/vscode.png)` 同样受影响，1.0 就存在。
+
+原因：原生命令 `read_image` 的第一道检查允许 `./`，但随后调用的共享函数 `resources::safe_existing` → `relative()` 只接受普通路径段，`./` 被判为越界，返回 `permission_denied`。
+
+修复：前端 `readImageBlob` 在调用原生命令前去掉 `.` 路径段（`./images/a.png` → `images/a.png`），与导出、DOCX 使用的 `localImagePath` 一致。原生侧的路径检查不放宽，它同时保护所有文件写入；`..`、绝对路径和反斜杠仍由原生侧拒绝。
+
+验证：`storage.test.ts` 新增一项，`./images/vscode.png`、`images/./sub/a.png` 规范化后传给原生命令，`../outside.png` 原样交给原生侧拒绝；`tsc -b --force` 通过；`vitest` 74 个文件、481 项通过。图片仍只支持 PNG 和 JPEG。

@@ -94,8 +94,12 @@ export async function readImage(id: string, relativePath: string): Promise<strin
   return URL.createObjectURL(await readImageBlob(id, decodeURI(relativePath)))
 }
 
+// The native path check accepts only plain segments; `./images/a.png` names the same file as
+// `images/a.png`. `..` and empty segments are left for the native side to reject.
+const withoutCurrentDir = (path: string) => path.split('/').filter(part => part !== '.').join('/')
+
 export async function readImageBlob(id: string, relativePath: string): Promise<Blob> {
-  const result = await invoke<{ bytes: number[]; mime: string }>('read_image', { id, relativePath })
+  const result = await invoke<{ bytes: number[]; mime: string }>('read_image', { id, relativePath: withoutCurrentDir(relativePath) })
   return new Blob([new Uint8Array(result.bytes)], { type: result.mime })
 }
 
