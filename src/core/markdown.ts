@@ -3,12 +3,13 @@ import remarkRehype from 'remark-rehype'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import rehypeStringify from 'rehype-stringify'
 import { visit, SKIP } from 'unist-util-visit'
-import type { Nodes } from 'mdast'
+import type { Html, Nodes, Parents } from 'mdast'
+import { fromHtml } from 'hast-util-from-html'
 import { parseMarkdownAst } from './markdown-ast'
 import { indexFootnotes } from './footnotes'
 import { renderMath } from './math'
 import type { MermaidSource } from './mermaid'
-import type { Root as HtmlRoot, Element } from 'hast'
+import type { Root as HtmlRoot, Element, ElementContent } from 'hast'
 import { createLowlight, common } from 'lowlight'
 import powershell from 'highlight.js/lib/languages/powershell'
 import { MAX_LIVE_BLOCK, MAX_LIVE_DOCUMENT } from './live-preview'
@@ -48,6 +49,24 @@ function sourceSection(_state: unknown, node: Nodes): Element | undefined {
   ] }
 }
 
+// Raw HTML is parsed as an inert fragment; the sanitizer below strips scripts, event handlers and
+// unsafe URLs. Image sources become data-resource so they load through the same local-only path
+// as Markdown images and are never fetched remotely. Fragment positions are relative to the HTML
+// string, so they are dropped; block HTML keeps its source range on a wrapper instead.
+function rawHtml(_state: unknown, node: Html, parent: Parents | undefined): Element | ElementContent[] {
+  const fragment = fromHtml(node.value, { fragment: true })
+  visit(fragment, (child: { position?: unknown }) => { delete child.position })
+  visit(fragment, 'element', (element: Element) => {
+    if (element.tagName !== 'img') return
+    const source = element.properties.src
+    delete element.properties.src
+    if (typeof source === 'string' && source) element.properties.dataResource = source
+  })
+  const children = fragment.children.filter((child): child is ElementContent => child.type !== 'doctype')
+  if (parent?.type !== 'root') return children
+  return { type: 'element', tagName: 'div', properties: { ...node.data?.hProperties }, children }
+}
+
 function footnoteSourceRanges() {
   return (tree: HtmlRoot) => visit(tree, 'element', (node: Element) => {
     if (node.position?.start.offset !== undefined) {
@@ -79,7 +98,7 @@ function footnoteAnchors() {
 const renderer = unified().use(remarkRehype, {
   allowDangerousHtml: false, footnoteLabel: '脚注', footnoteLabelProperties: {},
   footnoteBackLabel: (index, count) => `返回脚注引用 ${index + 1}${count > 1 ? `（第 ${count} 次）` : ''}`,
-  handlers: { yaml: sourceSection, toml: sourceSection, footnoteDefinition: sourceSection,
+  handlers: { yaml: sourceSection, toml: sourceSection, footnoteDefinition: sourceSection, html: rawHtml,
     math: (_state, node) => node.data?.mathResult, inlineMath: (_state, node) => node.data?.mathResult },
 }).use(highlightCode).use(footnoteSourceRanges).use(rehypeSanitize, {
   ...defaultSchema,
@@ -152,7 +171,7 @@ export function parseDocument(text: string, options: { math?: boolean } = {}): P
     if (from === undefined || to === undefined || to - from > MAX_LIVE_BLOCK) continue
     const element = elements.get(from)
     const type = child.type === 'paragraph' && child.children.length === 1 && /^(image|imageReference)$/.test(child.children[0].type) ? 'image' : child.type
-    if (element && /^(code|table|image|thematicBreak|math)$/.test(type)) blocks.push({ from, to, type, html: String(renderer.stringify({ type: 'root', children: [element] })) })
+    if (element && /^(code|table|image|thematicBreak|math|html)$/.test(type)) blocks.push({ from, to, type, html: String(renderer.stringify({ type: 'root', children: [element] })) })
   }
   return { html: String(renderer.stringify(output)), headings, images, blocks, diagrams }
 }

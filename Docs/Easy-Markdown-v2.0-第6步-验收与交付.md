@@ -326,3 +326,21 @@ a2a30d9ffb07f83ea849f203f8d6f1b353407408f4374175a6231ec629ce854c  release-manife
 `RELEASE-NOTES.md` 的哈希等于提交 `dc02566` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希，附带的是含“相对 beta.3 的修复”的 beta.4 说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
 
 下一步：在 Mac 上安装 beta.4，用 Nextcloud 里新建的空文件夹验证首次连接不再报 409，再用第二个空工作区验证新设备拉取。
+
+## Beta 反馈修复：嵌入 HTML 图片与即时渲染选取偏移（2026-11-10）
+
+维护者用 beta.4 反馈两个问题。两个问题 1.0 就已存在，不是 Beta 新引入的。
+
+| 反馈 | 原因 | 修复 |
+| --- | --- | --- |
+| `<p align="center"><img src="./images/x.png" width="600"></p>` 不显示图片 | 渲染器设置了 `allowDangerousHtml: false`，原始 HTML 被整段丢弃。完整设计方案 §4.4 要求渲染 `<img … width>` | 原始 HTML 用 `hast-util-from-html` 解析成片段，再经过原有的 `rehype-sanitize`，脚本、事件属性、`style`、iframe 和 `javascript:` 链接都会被去掉。`<img src>` 改为 `data-resource`，和 Markdown 图片走同一个只读本地文件的加载器，远程图片不会被请求。块级 HTML 保留源码范围，即时渲染也会显示；HTML 块里的图片保持行内显示，`align="center"` 能生效 |
+| 即时渲染下鼠标选取的位置比鼠标所指的低 | CodeMirror 按块部件边框盒（`getBoundingClientRect`）的高度建高度表，`.live-rendered-block` 的 `margin: 8px 8px 16px` 不计入。每经过一个渲染块，实际排版就比高度表多出 24 px，点击被换算到更下面的行 | 块的间距改成 `padding`，外边距设为 0；表格块的顶部留白相应加到 42 px |
+
+验证：
+
+- `markdown.test.ts` 新增两项：维护者提供的原文能渲染出带 `width`、`alt`、`align` 的图片且没有直接的 `src`；嵌入 HTML 中的事件属性、样式、脚本、iframe、`javascript:` 链接被去除，远程图片不被请求。
+- `verify-live-preview.mjs` 新增一项：在两个代码块、表格、分隔线和 HTML 图片下方拖选“选中文字”并加粗，结果必须落在目标行；HTML 图片带宽度、居中且不直接加载。把块样式临时改回 `margin` 后该项失败，加粗被插到文档末尾；改用 `padding` 后通过。
+- `vitest` 73 个文件、476 项通过；`verify-live-preview`、`verify-export`、`verify-extensions`、`verify-extension-delivery`、`verify-protection-delivery`、`verify-writing`、`verify-appearance`、`verify-settings`、`verify-tables`、`verify-batch-images`、`verify-mermaid` 都通过。`verify-native-extensions` 需要先由 `.ps1` 启动原生应用，本机非交互会话无法启动，以 CI 为准。
+- v2.0 样例 `降级与安全.md` 中“嵌入 HTML 保留为静态文本”改为说明按安全子集显示。
+
+未验证：macOS 系统 WebKit 上的实际效果；需要在下一个候选上确认。

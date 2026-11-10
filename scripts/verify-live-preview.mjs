@@ -104,6 +104,21 @@ try {
   await bold.click()
   assert.equal(await source(), wrapped.slice(0, from) + '**' + wrapped.slice(from, to).trimEnd() + '**' + wrapped.slice(from + wrapped.slice(from, to).trimEnd().length) + '\n\n末尾')
   checks.push('Chinese/emoji cross-line and soft-wrap pointer selections apply only selected text')
+  // Below several rendered blocks, pointer positions must still map to the line under the mouse.
+  // Block margins outside CodeMirror's measured height used to shift selections downwards.
+  const stacked = '# 标题\n\n```js\nconst a = 1\n```\n\n| A | B |\n| - | - |\n| 1 | 2 |\n\n---\n\n<p align="center"><img src="./images/x.png" alt="图" width="200"></p>\n\n```js\nconst b = 2\n```\n\n目标行 选中文字 结束\n\n下一行 其他文字 结束\n\n再下一行 更多文字 结束'
+  await fillSource(page, stacked); await live()
+  await page.waitForFunction(() => document.querySelectorAll('.live-block-code').length === 2 && document.querySelector('.live-block-table') && document.querySelector('.live-block-thematicBreak') && document.querySelector('.live-block-html img'))
+  assert.equal(await page.locator('.live-block-html img').getAttribute('width'), '200', 'Block HTML image renders with its width')
+  assert.equal(await page.locator('.live-block-html img').getAttribute('src'), null, 'HTML image is not fetched directly')
+  assert.ok(await page.locator('.live-block-html').evaluate(block => {
+    const p = block.querySelector('p').getBoundingClientRect(), img = block.querySelector('img').getBoundingClientRect()
+    return Math.abs((img.left + img.right) / 2 - (p.left + p.right) / 2) < 4
+  }), '<p align="center"> centres the HTML image in live preview')
+  await drag(await point('目标行 选中文字 结束', 4), await point('目标行 选中文字 结束', 8))
+  await bold.click()
+  assert.equal(await source(), stacked.replace('目标行 选中文字 结束', '目标行 **选中文字** 结束'), 'Selection below rendered blocks lands on the line under the pointer')
+  checks.push('pointer selection below code, table, divider and HTML image blocks maps to the line under the mouse; block HTML image renders without direct fetch')
   await fillSource(page, text); await live()
   await page.locator('.live-block-table td').first().click()
   const tablePanel = page.getByRole('dialog', { name: '编辑表格', exact: true })
