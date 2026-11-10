@@ -4,6 +4,7 @@ import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } f
 import { history, historyKeymap, defaultKeymap, undo, redo, undoDepth, redoDepth, selectAll } from '@codemirror/commands'
 import { isolateHistory } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
+import { cjkEmphasis } from '../core/cjk-emphasis'
 import { HighlightStyle, syntaxHighlighting, syntaxTree } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { tags } from '@lezer/highlight'
@@ -198,7 +199,7 @@ export const Editor = forwardRef<EditorHandle, Props>(function Editor({ commandS
       callbacks.current.onFormats?.(formats)
     }
     const language = new Compartment()
-    const support = markdown({ base: markdownLanguage, codeLanguages: languages })
+    const support = markdown({ base: markdownLanguage, codeLanguages: languages, extensions: cjkEmphasis })
     const limited = EditorState.create({ doc: initialText, extensions: [largeLines] }).field(largeLines) > 0
     const editor = new EditorView({
       parent: host.current!,

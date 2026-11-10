@@ -326,3 +326,41 @@ a2a30d9ffb07f83ea849f203f8d6f1b353407408f4374175a6231ec629ce854c  release-manife
 `RELEASE-NOTES.md` 的哈希等于提交 `dc02566` 中 `Easy-Markdown-v2.0-发行说明.md` 换成 CRLF 后的哈希，附带的是含“相对 beta.3 的修复”的 beta.4 说明。安装包哈希已填入[实机验收表](Easy-Markdown-v2.0-实机验收.md)。
 
 下一步：在 Mac 上安装 beta.4，用 Nextcloud 里新建的空文件夹验证首次连接不再报 409，再用第二个空工作区验证新设备拉取。
+
+## Beta 反馈修复：嵌入 HTML 图片与即时渲染选取偏移（2026-11-10）
+
+维护者用 beta.4 反馈两个问题。两个问题 1.0 就已存在，不是 Beta 新引入的。
+
+| 反馈 | 原因 | 修复 |
+| --- | --- | --- |
+| `<p align="center"><img src="./images/x.png" width="600"></p>` 不显示图片 | 渲染器设置了 `allowDangerousHtml: false`，原始 HTML 被整段丢弃。完整设计方案 §4.4 要求渲染 `<img … width>` | 原始 HTML 用 `hast-util-from-html` 解析成片段，再经过原有的 `rehype-sanitize`，脚本、事件属性、`style`、iframe 和 `javascript:` 链接都会被去掉。`<img src>` 改为 `data-resource`，和 Markdown 图片走同一个只读本地文件的加载器，远程图片不会被请求。块级 HTML 保留源码范围，即时渲染也会显示；HTML 块里的图片保持行内显示，`align="center"` 能生效 |
+| 即时渲染下鼠标选取的位置比鼠标所指的低 | CodeMirror 按块部件边框盒（`getBoundingClientRect`）的高度建高度表，`.live-rendered-block` 的 `margin: 8px 8px 16px` 不计入。每经过一个渲染块，实际排版就比高度表多出 24 px，点击被换算到更下面的行 | 块的间距改成 `padding`，外边距设为 0；表格块的顶部留白相应加到 42 px |
+
+验证：
+
+- `markdown.test.ts` 新增两项：维护者提供的原文能渲染出带 `width`、`alt`、`align` 的图片且没有直接的 `src`；嵌入 HTML 中的事件属性、样式、脚本、iframe、`javascript:` 链接被去除，远程图片不被请求。
+- `verify-live-preview.mjs` 新增一项：在两个代码块、表格、分隔线和 HTML 图片下方拖选“选中文字”并加粗，结果必须落在目标行；HTML 图片带宽度、居中且不直接加载。把块样式临时改回 `margin` 后该项失败，加粗被插到文档末尾；改用 `padding` 后通过。
+- `vitest` 73 个文件、476 项通过；`verify-live-preview`、`verify-export`、`verify-extensions`、`verify-extension-delivery`、`verify-protection-delivery`、`verify-writing`、`verify-appearance`、`verify-settings`、`verify-tables`、`verify-batch-images`、`verify-mermaid` 都通过。`verify-native-extensions` 需要先由 `.ps1` 启动原生应用，本机非交互会话无法启动，以 CI 为准。
+- v2.0 样例 `降级与安全.md` 中“嵌入 HTML 保留为静态文本”改为说明按安全子集显示。
+
+未验证：macOS 系统 WebKit 上的实际效果；需要在下一个候选上确认。
+
+## Beta 反馈修复：结束符前是标点时不能加粗（2026-11-10）
+
+维护者反馈：`**xxx**` 能加粗，`**xxx:**` 这类写法在某些情况下不能加粗。复现结果：结束的 `**` 前面是标点（冒号、括号等）且后面紧跟文字时不加粗，例如 `**注意:**后文`、`**注意：**后文`、`**(备注)**后文`；后面是空格或行尾时正常。1.0 就存在。
+
+原因：CommonMark 规定，结束分隔符前面是标点时，后面必须是空白或标点才能结束强调。这条规则对中文不友好，GitHub 也这样渲染。预览（micromark）和编辑器（lezer）都按这条规则处理。
+
+修复：采用 CJK 友好规则（[markdown-cjk-friendly](https://github.com/tats-u/markdown-cjk-friendly) 规范），只在分隔符紧邻中日韩字符时放宽，其余情况保持标准 CommonMark。
+
+- 预览、导出、DOCX、批量图片：`markdown-ast.ts` 的 remark 管线加入 `micromark-extension-cjk-friendly` 2.0.2（MIT）。
+- 编辑器（即时渲染、工具栏状态、加粗切换）：lezer 没有对应选项，其强调分隔符类型是内部的。`cjk-emphasis.ts` 包装内置 `Emphasis` 解析器，由它创建分隔符，再用 `micromark-extension-cjk-friendly-util` 3.0.1 的同一套字符分类重算开闭标记，保证编辑器与预览判定一致。`@lezer/markdown` 固定为锁文件中已有的 1.7.2；`cjk-emphasis.test.ts` 检查所依赖的内部结构，升级时若变化会失败。
+- 新增依赖都附带许可全文；Windows 许可清单重新生成：622 个依赖、349 个许可文件、无缺失。macOS/Linux 清单由 CI 生成。
+
+验证：
+
+- `cjk-emphasis.test.ts` 4 项：12 种应加粗的写法在预览和编辑器中都加粗；`a**xxx:**b`、`**Note:**text`、`2*3*4`、`snake_case_name` 等 6 种在两边都不加粗；单星号强调同样适用、下划线词内不变；未加扩展的 lezer 仍复现原问题。
+- `verify-live-preview.mjs` 新增：即时渲染中 `**注意:**后文`、`前文**说明：**后文` 显示为粗体，`a**xxx:**b` 保持原样。
+- `vitest` 74 个文件、480 项通过；`verify-live-preview`、`verify-writing`、`verify-export`、`verify-docx`、`verify-extensions`、`verify-tables`、`verify-extension-delivery` 都通过。
+
+影响：放宽只发生在紧邻中日韩字符处，纯英文文档的渲染不变。少数以前按规范显示为字面 `**` 的中文写法，现在会显示为粗体。

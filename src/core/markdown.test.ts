@@ -31,6 +31,26 @@ it('removes executable HTML and dangerous URLs', () => {
   expect(parsed.html).not.toContain('src="https:')
 })
 
+it('renders block HTML images through the local loader with their layout attributes', () => {
+  const text = '<p align="center">\n  <a">\n    <img src="./images/vscode_terminal.png" alt="ros"  width="600" height="auto">\n  </a>\n</p>\n\n后文'
+  const parsed = parseDocument(text)
+  expect(parsed.html).toContain('<p align="center">')
+  expect(parsed.html).toMatch(/<img[^>]*data-resource="\.\/images\/vscode_terminal\.png"/)
+  expect(parsed.html).toMatch(/<img[^>]*alt="ros"/)
+  expect(parsed.html).toMatch(/<img[^>]*width="600"/)
+  expect(parsed.html).not.toMatch(/<img[^>]*\ssrc=/)
+  // Block HTML keeps its source range so live preview can render and reveal it.
+  expect(parsed.blocks?.find(block => block.type === 'html')).toMatchObject({ from: 0, to: text.indexOf('\n\n后文') })
+})
+
+it('sanitizes embedded HTML and never requests remote HTML images', () => {
+  const parsed = parseDocument('<div onclick="alert(1)" style="color:red"><img src="https://remote.example/p.png" onerror="alert(1)"><script>alert(2)</script><a href="javascript:alert(3)">x</a><iframe src="https://evil.example"></iframe></div>')
+  expect(parsed.html).not.toMatch(/onclick|onerror|style=|<script|javascript:|<iframe/)
+  expect(parsed.html).toContain('data-resource="https://remote.example/p.png"')
+  expect(parsed.html).not.toContain('src="https:')
+  expect(parseDocument('文字 <span onmouseover="x()">内联</span> 文字').html).not.toContain('onmouseover')
+})
+
 it('renders GFM without serializing original text', () => {
   const parsed = parseDocument('- [x] 完成\n\n~~删除~~\n\n| A | B |\n| - | - |\n| 1 | 2 |')
   expect(parsed.html).toContain('type="checkbox"')

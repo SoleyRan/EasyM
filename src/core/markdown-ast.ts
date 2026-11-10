@@ -3,6 +3,7 @@ import remarkParse from 'remark-parse'
 import remarkGfm from 'remark-gfm'
 import remarkFrontmatter from 'remark-frontmatter'
 import remarkMath from 'remark-math'
+import { remarkCjkFriendly } from './cjk-emphasis'
 import { visit } from 'unist-util-visit'
 import type { Root } from 'mdast'
 
@@ -13,7 +14,7 @@ declare module 'mdast' {
   interface RootContentMap { toml: Toml }
 }
 
-const parser = unified().use(remarkParse).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']).use(remarkMath)
+const parser = unified().use(remarkParse).use(remarkCjkFriendly).use(remarkGfm).use(remarkFrontmatter, ['yaml', 'toml']).use(remarkMath)
 
 // Each consumer receives its own unmodified tree, including original resource URLs.
 export function parseMarkdownAst(text: string): Root {

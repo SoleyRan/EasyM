@@ -249,7 +249,8 @@
 .live-link { color: var(--accent); text-decoration: underline; }
 .live-bullet, .live-task { color: var(--accent); }
 .cm-live-preview .live-quote { border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--surface) 35%, transparent); padding-left: 14px; color: var(--muted); }
-.live-rendered-block { position: relative; margin: 8px 8px 16px; max-width: 100%; color: var(--text); font: 15px/1.9 system-ui, sans-serif; white-space: normal; }
+/* Spacing is padding, not margin: CodeMirror measures widgets by their border box, so margins (and child margins collapsing through) shift every click below the block. */
+.live-rendered-block { position: relative; margin: 0; padding: 8px 8px 16px; max-width: 100%; color: var(--text); font: 15px/1.9 system-ui, sans-serif; white-space: normal; }
 .live-rendered-block .live-source-button { position: absolute; top: 4px; right: 6px; z-index: 1; padding: 3px 7px; border-radius: 4px; background: var(--surface); color: var(--muted); font: 11px/1.5 system-ui, sans-serif; opacity: .6; }
 .live-rendered-block:hover .live-source-button, .live-rendered-block:focus-within .live-source-button { opacity: 1; }
 .live-source-button:focus-visible { outline: 2px solid var(--accent); }
@@ -260,6 +261,8 @@
 .live-rendered-block th, .live-rendered-block tbody tr:nth-child(even) { background: var(--surface); }
 .live-rendered-block img { display: block; max-width: 100%; max-height: 600px; object-fit: contain; border-radius: 6px; cursor: pointer; }
 .live-image-selected img { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* Images inside embedded HTML stay inline so attributes such as <p align="center"> still lay them out. */
+.live-block-html img { display: inline-block; cursor: default; }
 .live-rendered-block p { margin: 0; }
 .live-rendered-block hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
 .workspace-search { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
@@ -312,7 +315,7 @@
 .table-picker button { width: 24px; height: 24px; border: 1px solid var(--border); background: var(--surface); border-radius: 3px; }
 .table-dimensions input { width: 74px; }
 .live-table-button { position: absolute; top: 4px; right: 62px; padding: 3px 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
-.live-block-table { padding-top: 34px; }
+.live-block-table { padding-top: 42px; }
 .preview-table-actions { display: flex; gap: 6px; padding: 5px 0; }
 .preview-table-actions button { font-size: 12px; color: var(--accent); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; }
 .toolbar button[aria-label="插入表格"], .toolbar button[aria-label="编辑表格"] { width: auto; min-width: 66px; white-space: nowrap; }
