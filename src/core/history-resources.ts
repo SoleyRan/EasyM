@@ -1,5 +1,6 @@
 import { parseMarkdownAst } from './markdown-ast'
 import { localImagePath } from './export-resource'
+import { htmlImageTags } from './html-images'
 import { visit } from 'unist-util-visit'
 
 /** Collect image URLs without rendering/highlighting the entire document on every save. */
@@ -9,6 +10,8 @@ export function historyImageUrls(text: string): string[] {
     if (node.type === 'image') urls.add(node.url)
     else if (node.type === 'imageReference') references.add(node.identifier)
     else if (node.type === 'definition' && !definitions.has(node.identifier)) definitions.set(node.identifier, node.url)
+    // Raw HTML images render too, including inside containers, so snapshots and backups keep them.
+    else if (node.type === 'html') for (const tag of htmlImageTags(node.value)) { if (tag.src?.value) urls.add(tag.src.value) }
   })
   for (const ref of references) { const url = definitions.get(ref); if (url) urls.add(url) }
   return [...urls]

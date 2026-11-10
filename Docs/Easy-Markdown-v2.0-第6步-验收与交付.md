@@ -374,3 +374,17 @@ a2a30d9ffb07f83ea849f203f8d6f1b353407408f4374175a6231ec629ce854c  release-manife
 修复：前端 `readImageBlob` 在调用原生命令前去掉 `.` 路径段（`./images/a.png` → `images/a.png`），与导出、DOCX 使用的 `localImagePath` 一致。原生侧的路径检查不放宽，它同时保护所有文件写入；`..`、绝对路径和反斜杠仍由原生侧拒绝。
 
 验证：`storage.test.ts` 新增一项，`./images/vscode.png`、`images/./sub/a.png` 规范化后传给原生命令，`../outside.png` 原样交给原生侧拒绝；`tsc -b --force` 通过；`vitest` 74 个文件、481 项通过。图片仍只支持 PNG 和 JPEG。
+
+## Beta 反馈：HTML 图片双击编辑、阅读模式双击放大（2026-11-11）
+
+维护者反馈：嵌入 HTML 的图片能显示，但双击不能编辑；希望阅读模式下双击图片放大查看，而不是编辑。
+
+实现：
+
+- `src/core/html-images.ts` 扫描原始 HTML 中的 `<img>`，记录整个标签以及 `src`、`alt` 属性值在源码中的位置（支持双引号、单引号、无引号和实体）。`parseDocument` 把它们加入图片列表，渲染出的 `<img>` 带上 `data-source-from`。多行容器（如多行引用）中的 HTML 源码与解析值不一致，这类图片照常显示但不提供原位编辑。
+- 应用编辑时 `commitImageChange` 只替换 `src` 和 `alt` 的值，`width`、`align`、外层 `<p>` 一个字节都不动；标签在编辑期间被改动时拒绝写入。
+- 重命名/移动改写链接、同步、版本历史和备份收集引用时都识别 `<img src>`，编辑后生成的托管副本不会被漏掉。
+- 即时渲染：HTML 块里的图片单击选中、双击编辑，不再单击就展开源码。
+- 阅读模式：双击任意图片打开放大视图（`ImageZoom.tsx`），Esc 或点击关闭，仍停留在阅读模式，不打开编辑对话框。
+
+验证：`html-images.test.ts` 5 项、`image-transaction.test.ts` 新增 1 项；`tsc -b --force` 通过；`vitest` 75 个文件、487 项通过。`verify-browser.mjs` 新增：分屏双击 HTML 图片编辑后 `width="40"` 和 `align` 保留；即时渲染双击打开编辑；阅读模式双击放大、Esc 不退出阅读模式、点击关闭、正文不变。`verify-live-preview`、`verify-writing`、`verify-batch-images`、`verify-extensions`、`verify-mermaid`、`verify-export`、`verify-tables`、`verify-extension-delivery`、`verify-protection-delivery` 均通过（`protection-delivery` 首次运行截图协议报错，重跑两次通过）。

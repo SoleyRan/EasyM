@@ -5,6 +5,7 @@ import rehypeStringify from 'rehype-stringify'
 import { visit, SKIP } from 'unist-util-visit'
 import type { Html, Nodes, Parents } from 'mdast'
 import { fromHtml } from 'hast-util-from-html'
+import { htmlImageTags, offsetTag, type HtmlImageTag } from './html-images'
 import { parseMarkdownAst } from './markdown-ast'
 import { indexFootnotes } from './footnotes'
 import { renderMath } from './math'
@@ -29,7 +30,8 @@ function highlightCode() {
   }
 }
 
-export interface ImageReference { from: number; to: number; url: string; alt: string }
+/** `html` is set for `<img>` inside raw HTML; from/to then cover the whole tag. */
+export interface ImageReference { from: number; to: number; url: string; alt: string; html?: HtmlImageTag }
 export interface PreviewBlock { from: number; to: number; type: string; html: string }
 export interface ParsedDocument {
   html: string
@@ -56,11 +58,19 @@ function sourceSection(_state: unknown, node: Nodes): Element | undefined {
 function rawHtml(_state: unknown, node: Html, parent: Parents | undefined): Element | ElementContent[] {
   const fragment = fromHtml(node.value, { fragment: true })
   visit(fragment, (child: { position?: unknown }) => { delete child.position })
+  const images: Element[] = []
   visit(fragment, 'element', (element: Element) => {
     if (element.tagName !== 'img') return
+    images.push(element)
     const source = element.properties.src
     delete element.properties.src
     if (typeof source === 'string' && source) element.properties.dataResource = source
+  })
+  // Tag ranges come from the source scan; only trust them when both scans agree on the count.
+  const ranges = node.data?.htmlImages
+  if (ranges && ranges.length === images.length) images.forEach((element, index) => {
+    element.properties.dataSourceFrom = ranges[index].from
+    element.properties.dataSourceTo = ranges[index].to
   })
   const children = fragment.children.filter((child): child is ElementContent => child.type !== 'doctype')
   if (parent?.type !== 'root') return children
@@ -146,6 +156,13 @@ export function parseDocument(text: string, options: { math?: boolean } = {}): P
     if (from === undefined || to === undefined) return
     if (node.type === 'code' && node.lang === 'mermaid') diagrams.push({ from, to, source: node.value, raw: text.slice(from, to) })
     node.data = { ...node.data, hProperties: { ...node.data?.hProperties, dataSourceFrom: from, dataSourceTo: to } }
+    // Container prefixes (`> `, list indent) make node.value differ from the source; such HTML
+    // still renders, but its images get no source range and cannot be edited in place.
+    if (node.type === 'html' && text.slice(from, to) === node.value) {
+      const tags = htmlImageTags(node.value).map(tag => offsetTag(tag, from))
+      node.data.htmlImages = tags.map(tag => ({ from: tag.from, to: tag.to }))
+      for (const tag of tags) if (tag.src?.value) images.push({ from: tag.from, to: tag.to, url: tag.src.value, alt: tag.alt?.value ?? '', html: tag })
+    }
     if (node.type === 'math' || node.type === 'inlineMath') {
       if (node.type === 'inlineMath') mathSources.push({ from, to, type: 'mathInline', html: '' })
       const result = renderMath(node, text.slice(from, to), options.math !== false, mathBudget)

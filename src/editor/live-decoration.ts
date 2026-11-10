@@ -44,6 +44,7 @@ class BlockWidget extends WidgetType {
       view.dispatch({ selection: { anchor: position }, effects: EditorView.scrollIntoView(position, { y: 'nearest' }) })
       view.focus()
     }
+    const htmlImage = (event: Event) => this.block.type === 'html' ? (event.target as HTMLElement).closest<HTMLElement>('img[data-source-from]') : null
     button.addEventListener('mousedown', event => event.preventDefault())
     button.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); reveal() })
     node.append(button, body)
@@ -64,15 +65,19 @@ class BlockWidget extends WidgetType {
     node.addEventListener('click', event => {
       if ((event.target as HTMLElement).closest('button')) return
       event.preventDefault()
-      if (this.block.type === 'image') { node.classList.toggle('live-image-selected'); return }
-      const cell = (event.target as HTMLElement).closest<HTMLElement>('th,td')
+      if (this.block.type === 'image' || htmlImage(event)) { node.classList.toggle('live-image-selected'); return }
+      const cell =(event.target as HTMLElement).closest<HTMLElement>('th,td')
       if (this.block.type === 'table' && cell && current()) { this.host.editTable?.(Number(cell.dataset.sourceFrom ?? this.block.from)); return }
       const target = (event.target as HTMLElement).closest<HTMLElement>('[data-source-from]')
       reveal(Number(target?.dataset.sourceFrom ?? this.block.from))
     })
     node.addEventListener('dblclick', event => {
       event.preventDefault()
-      if (this.block.type === 'image' && current()) this.host.editImage(this.block.from)
+      if (!current()) return
+      if (this.block.type === 'image') { this.host.editImage(this.block.from); return }
+      // `<img>` in an HTML block carries its own tag offset, which is the image reference start.
+      const image = htmlImage(event)
+      if (image) this.host.editImage(Number(image.dataset.sourceFrom))
     })
     let alive = true
     for (const image of body.querySelectorAll<HTMLImageElement>('img[data-mermaid-image]')) image.addEventListener('load', () => { if (alive) view.requestMeasure() }, { once: true })

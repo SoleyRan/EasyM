@@ -8,7 +8,7 @@ import { visit } from 'unist-util-visit'
 import type { Root } from 'mdast'
 
 declare module 'mdast' {
-  interface Data { staticSource?: string; mathResult?: import('hast').Element }
+  interface Data { staticSource?: string; mathResult?: import('hast').Element; htmlImages?: Array<{ from: number; to: number }> }
   interface Toml extends Literal { type: 'toml'; data?: Data }
   interface BlockContentMap { toml: Toml }
   interface RootContentMap { toml: Toml }

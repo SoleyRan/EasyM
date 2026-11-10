@@ -75,7 +75,7 @@ export function useImages(host: Host) {
     const displayPath = `assets/${session.instance.instanceId}-v-${session.displayToken}.${result.mime === 'image/png' ? 'png' : 'jpg'}`
     setApplying(true)
     try {
-      const next = await commitImageChange({ text: latest.current.text, baseText: session.baseText, selection: session.selection, replaceImage: !!session.target, resources, instance: session.instance, source: session.source, result, recipe, alt, displayPath }, (body, next) => host.persist(body, next, session.operationId), (patch) => host.patch(patch.from, patch.to, patch.insert))
+      const next = await commitImageChange({ text: latest.current.text, baseText: session.baseText, selection: session.selection, replaceImage: !!session.target, resources, instance: session.instance, source: session.source, result, recipe, alt, displayPath, html: session.target?.html },(body, next) => host.persist(body, next, session.operationId), (patch) => host.patch(patch.from, patch.to, patch.insert))
       setResources(next); setSession(null); host.applied()
     } finally { setApplying(false) }
   }

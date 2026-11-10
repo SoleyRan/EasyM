@@ -1,5 +1,6 @@
 import type { Nodes } from 'mdast'
 import { parseMarkdownAst } from './markdown-ast'
+import { htmlImageTags } from './html-images'
 
 /**
  * v2 step 2B: rewrites relative document/image links when a Markdown file moves inside a
@@ -37,7 +38,8 @@ export function relativeTo(from: string, target: string): string {
   return [...up, ...parts.slice(common)].map((part) => part === '..' ? part : encodeURI(part).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)).join('/')
 }
 
-interface UrlSpan { from: number; to: number; url: string; bracketed: boolean }
+/** `html` is the quote character of an `<img src>` value in raw HTML ('' when unquoted). */
+interface UrlSpan { from: number; to: number; url: string; bracketed: boolean; html?: string }
 
 /** Locates the exact source span of each link/image/definition URL (inline `( … )` or `<…>`). */
 function urlSpans(text: string): UrlSpan[] {
@@ -60,6 +62,16 @@ function urlSpans(text: string): UrlSpan[] {
         if (urlEnd > urlStart && unescape(source.slice(urlStart, urlEnd)) === node.url) spans.push({ from: urlStart + bom, to: urlEnd + bom, url: node.url, bracketed })
       }
     }
+    // `<img src>` in raw HTML; skipped inside containers, where node.value differs from the source.
+    if (node.type === 'html' && node.position && source.slice(node.position.start.offset, node.position.end.offset) === node.value) {
+      const start = node.position.start.offset!
+      for (const tag of htmlImageTags(node.value)) {
+        const src = tag.src
+        if (!src?.value) continue
+        const quote = node.value[src.from] === '"' || node.value[src.from] === "'" ? node.value[src.from] : ''
+        spans.push({ from: start + src.from + quote.length + bom, to: start + src.to - quote.length + bom, url: src.value, bracketed: false, html: quote })
+      }
+    }
     if ('children' in node) node.children.forEach((child) => visit(child as Nodes))
   }
   visit(tree)
@@ -78,7 +90,8 @@ function apply(text: string, patches: TextPatch[]): string {
   for (const patch of [...patches].sort((a, b) => a.from - b.from)) { result += text.slice(cursor, patch.from) + patch.insert; cursor = patch.to }
   return result + text.slice(cursor)
 }
-function format(url: string, bracketed: boolean): string {
+function format(url: string, bracketed: boolean, html?: string): string {
+  if (html !== undefined) return url.replace(/[ <>"]/g, (c) => encodeURIComponent(c)).replace(/&/g, '&amp;').replace(/'/g, html === "'" ? '&#39;' : "'")
   return bracketed ? url.replace(/[<>]/g, (c) => encodeURIComponent(c)) : url.replace(/[ <>]/g, (c) => encodeURIComponent(c))
 }
 
@@ -97,7 +110,7 @@ export function rewriteOutgoing(text: string, oldPath: string, newPath: string, 
     // A link that already resolves to the right place from the new location is left byte-exact.
     if (resolveRelative(newPath, parts.path) === destination) continue
     const next = relativeTo(newPath, destination) + parts.suffix
-    if (resolveRelative(newPath, next.split(/[?#]/)[0]) === destination && next !== span.url) patches.push({ from: span.from, to: span.to, insert: format(next, span.bracketed) })
+    if (resolveRelative(newPath, next.split(/[?#]/)[0]) === destination && next !== span.url) patches.push({ from: span.from, to: span.to, insert: format(next, span.bracketed, span.html) })
   }
   return { patches, text: apply(text, patches), changed: patches.length, skipped }
 }
@@ -109,7 +122,7 @@ export function rewriteIncoming(text: string, path: string, oldTarget: string, n
     const parts = split(span.url); if (!parts || !parts.path) continue
     if (resolveRelative(path, parts.path) !== oldTarget) continue
     const next = relativeTo(path, newTarget) + parts.suffix
-    if (next !== span.url) patches.push({ from: span.from, to: span.to, insert: format(next, span.bracketed) })
+    if (next !== span.url) patches.push({ from: span.from, to: span.to, insert: format(next, span.bracketed, span.html) })
   }
   return { patches, text: apply(text, patches), changed: patches.length, skipped: 0 }
 }

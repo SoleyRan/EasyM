@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { applyPatches, imageMarkdown, insertImage } from '../core/document'
 import { defaultRecipe } from '../core/images'
 import { commitImageChange } from './image-transaction'
+import { htmlImageTags } from '../core/html-images'
 
 const recipe = defaultRecipe()
 const source = new Blob(['source'], { type: 'image/png' })
@@ -28,6 +29,22 @@ describe('image application transaction', () => {
     expect(resources.assets[instance.sourcePath]).toBe(source)
     expect(resources.instances.map((item) => item.displayPath)).toEqual([instance.displayPath, base.displayPath])
     expect(persist).toHaveBeenCalledWith(body, resources)
+  })
+
+  it('writes an edited HTML image back into its <img> tag, keeping width and align', async () => {
+    const html = '<p align="center"><img src="./images/a.png" alt="old" width="600"></p>'
+    const text = 'Intro\n\n' + html
+    const tag = htmlImageTags(text)[0]
+    let body = text
+    const persist = vi.fn(async () => undefined)
+    await commitImageChange({ ...base, text, baseText: text, selection: { anchor: tag.from, head: tag.to }, html: tag }, persist, (patch) => { body = applyPatches(body, [patch]); return true })
+    expect(body).toBe(`Intro\n\n<p align="center"><img src="${base.displayPath}" alt="new" width="600"></p>`)
+    expect(persist).toHaveBeenCalledWith(body, expect.anything())
+    // A tag that no longer starts with <img (text changed underneath) is refused before any write.
+    const stale = { ...tag, from: tag.from - 3, to: tag.to - 3 }
+    const refused = vi.fn(async () => undefined)
+    await expect(commitImageChange({ ...base, text, baseText: text, selection: { anchor: 0, head: 0 }, html: stale }, refused, () => true)).rejects.toThrow('正文已变化')
+    expect(refused).not.toHaveBeenCalled()
   })
 
   it('leaves editor text and resources untouched when persistence fails', async () => {

@@ -24,6 +24,7 @@ import { drafts, type Draft } from '../platform/drafts'
 import { ImagePanel } from './ImagePanel'
 import { useImages } from './useImages'
 import { emptyResources } from '../platform/images'
+import { ImageZoom } from './ImageZoom'
 import { usePreview } from './usePreview'
 import { WorkspaceTree } from './WorkspaceTree'
 import { RenameDialog, TrashDialog } from './WorkspaceOpsDialog'
@@ -969,6 +970,9 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     const reference = parsed.images.find(item => item.from === offset)
     if (reference && parsedText.current === text && !disabled) void images.edit(reference)
   }
+  // Reading mode is read-only: double-clicking an image enlarges it instead of opening the editor.
+  const [zoom, setZoom] = useState<{ src: string; alt: string } | null>(null)
+  useEffect(() => { if (!reading || !active) setZoom(null) }, [reading, active])
 
   function openContentTool(kind: 'link' | 'language' | 'paragraph', context: CommandContext, offset?: number) {
     if (!registry.status('file.open', context).enabled || contentToolRef.current || tableRef.current) return
@@ -1109,7 +1113,12 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
             if (link) actions.push({ label: '复制链接地址', run: () => navigator.clipboard.writeText(link.getAttribute('href')!) })
             contextMenu(event, actions)
           }} onScroll={syncSource} onLoadCapture={() => syncPreview(sourceScroll.current, true)} onDoubleClick={(event) => {
-            if (reading) return
+            if (reading) {
+              const image = (event.target as HTMLElement).closest<HTMLImageElement>('img')
+              const src = image?.currentSrc || image?.getAttribute('src')
+              if (image && src) { event.preventDefault(); window.getSelection()?.removeAllRanges(); setZoom({ src, alt: image.alt }) }
+              return
+            }
             const node = (event.target as HTMLElement).closest<HTMLImageElement>('img[data-source-from]')
             const reference = parsed.images.find((item) => item.from === Number(node?.dataset.sourceFrom))
             if (reference && parsedText.current === text) void images.edit(reference)
@@ -1152,6 +1161,7 @@ export default function DocumentEditor({ mathRendering = true, mermaidRendering 
     </div>
   </div>
   {backupDraft && active && <BackupDialog draft={backupDraft} onClose={closeBackup} />}
+  {zoom && active && reading && <ImageZoom src={zoom.src} alt={zoom.alt} onClose={() => setZoom(null)} />}
   {(workspaceOp?.kind === 'rename' || workspaceOp?.kind === 'move') && active && workspace && <RenameDialog workspace={workspace.id} path={workspaceOp.path} mode={workspaceOp.kind}
     beforeCommit={async () => { if ((openHandles?.() ?? []).some((h) => h.summary.dirty || h.summary.busy || h.summary.pendingImage)) throw new Error('document_dirty') }}
     onClose={() => setWorkspaceOp(null)} onDone={(result) => void finishWorkspaceOp(result)} />}

@@ -262,7 +262,14 @@
 .live-rendered-block img { display: block; max-width: 100%; max-height: 600px; object-fit: contain; border-radius: 6px; cursor: pointer; }
 .live-image-selected img { outline: 2px solid var(--accent); outline-offset: 3px; }
 /* Images inside embedded HTML stay inline so attributes such as <p align="center"> still lay them out. */
-.live-block-html img { display: inline-block; cursor: default; }
+.live-block-html img { display: inline-block; }
+.live-block-html img:not([data-source-from]) { cursor: default; }
+/* Reading-mode image zoom: fitted to the window, above the reading strip. */
+.modal-backdrop.image-zoom { z-index: 40; padding: 0; background: #0b1220e6; cursor: zoom-out; }
+.image-zoom-surface { position: relative; display: grid; place-items: center; width: 100vw; height: 100vh; }
+.image-zoom-surface img { width: 94vw; height: 90vh; object-fit: contain; }
+.image-zoom-close { position: absolute; top: 12px; right: 16px; width: 36px; height: 36px; border: 0; border-radius: 18px; background: #ffffff26; color: #fff; font-size: 22px; line-height: 1; cursor: pointer; }
+.image-zoom-close:focus-visible { outline: 2px solid #fff; }
 .live-rendered-block p { margin: 0; }
 .live-rendered-block hr { border: 0; border-top: 1px solid var(--border); margin: 24px 0; }
 .workspace-search { display: flex; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); }
